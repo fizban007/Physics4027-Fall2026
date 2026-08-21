@@ -1,0 +1,16 @@
+/* Site-wide slide layout helpers (loaded by each lecture on top of the
+   phys4027 theme). */
+
+.reveal section p {
+  text-align: left;
+}
+
+.reveal section .center p {
+  text-align: center;
+}
+
+.reveal section pre code {
+  font-size: 1.4em;
+  line-height: 1.35;
+  max-height: 90vh;
+}

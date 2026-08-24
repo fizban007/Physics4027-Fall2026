@@ -360,6 +360,43 @@ std::cout &lt;&lt; b &lt;&lt; std::endl;
         </section>
 
         <section>
+          <h2>Catastrophic cancellation</h2>
+          <p>Subtracting two nearly equal numbers cancels their leading digits,
+            leaving only the trailing bits &mdash; which are rounding noise.</p>
+          <div class="cols">
+            <div class="col">
+              <p style="text-align: center;">Code</p>
+              <pre><code class="language-c++" data-trim data-noescape>
+double x = 1.0e-8;
+double naive = 1.0 - std::cos(x);
+double stable =
+    2.0 * std::sin(0.5 * x)
+        * std::sin(0.5 * x);
+cout &lt;&lt; "naive:" &lt;&lt; naive &lt;&lt; endl;
+cout &lt;&lt; "stable:" &lt;&lt; stable &lt;&lt; endl;
+              </code></pre>
+            </div>
+            <div class="col">
+              <p style="text-align: center;">Output</p>
+              <pre><code class="language-bash" data-trim data-noescape>
+naive: 0
+stable: 5e-17
+              </code></pre>
+              <p style="font-size: 0.75em;">True answer: $1-\cos x
+                \approx x^2/2 = 5\times 10^{-17}$.<br>
+                The naive version is 100% wrong.</p>
+            </div>
+          </div>
+          <!-- <p class="fragment">The subtraction itself is <em>exact</em> &mdash; the
+               damage was done earlier, when $\cos(x)$ rounded to exactly $1$. The
+               absolute error stays put; the relative error explodes.</p>
+               <p class="fragment why">The cure is almost always algebra, not more
+               bits: rewrite the expression so the cancellation happens on paper
+               &mdash; here $1-\cos x = 2\sin^2(x/2)$. Keep this failure mode in mind;
+               it will find you again this semester.</p> -->
+        </section>
+
+        <section>
           <h2>The edges of the format</h2>
           <ul>
             <li><strong>Two zeros:</strong> $+0$ and $-0$ exist, and compare

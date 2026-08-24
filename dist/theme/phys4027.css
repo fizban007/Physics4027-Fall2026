@@ -25,22 +25,23 @@ section.has-dark-background, section.has-dark-background h1, section.has-dark-ba
 :root {
   --r-background-color: #FAFAF7;
   --r-main-font: 'Source Sans 3', 'Segoe UI', 'Helvetica Neue', sans-serif;
-  --r-main-font-size: 40px;
+  --r-main-font-size: 38px;
   --r-main-color: #182430;
   --r-block-margin: 20px;
-  --r-heading-margin: 0 0 20px 0;
+  --r-heading-margin: 0 0 28px 0;
   --r-heading-font: 'STIX Two Text', 'STIX Two Math', Georgia, serif;
   --r-heading-color: #131E29;
-  --r-heading-line-height: 1.2;
+  --r-heading-line-height: 1.15;
   --r-heading-letter-spacing: normal;
   --r-heading-text-transform: none;
   --r-heading-text-shadow: none;
   --r-heading-font-weight: 600;
   --r-heading1-text-shadow: none;
-  --r-heading1-size: 3.2em;
-  --r-heading2-size: 1.9em;
-  --r-heading3-size: 1.45em;
+  --r-heading1-size: 2.7em;
+  --r-heading2-size: 1.7em;
+  --r-heading3-size: 1.25em;
   --r-heading4-size: 1em;
+  --r-muted-color: #55636F;
   --r-code-font: 'JetBrains Mono', 'Fira Mono', Consolas, monospace;
   --r-link-color: #17766F;
   --r-link-color-dark: #0F5751;
@@ -372,15 +373,159 @@ section.has-dark-background, section.has-dark-background h1, section.has-dark-ba
 /*********************************************
  * PHYS 4027 SIGNATURE & POLISH
  *********************************************/
-/* Viridis ramp under slide titles */
+/* Editorial layout: slide titles sit top-left with a viridis ramp
+   beneath. The title slide and section dividers stay centered. */
+.reveal .slides section h2 {
+  text-align: left;
+}
+
 .reveal .slides section h2::after {
   content: "";
   display: block;
   width: 2.6em;
   height: 0.09em;
-  margin: 0.3em auto 0;
+  margin: 0.28em 0 0;
   border-radius: 999px;
   background: var(--viridis);
+}
+
+/* Title slide */
+.reveal .title-slide {
+  text-align: center;
+}
+
+.reveal .title-slide h1 {
+  margin-bottom: 0.2em;
+}
+
+.reveal .title-slide .course-code {
+  font-family: var(--r-code-font);
+  font-size: 0.55em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--r-muted-color);
+  margin: 0 0 1.2em;
+}
+
+.reveal .title-slide .title-rule {
+  border: none;
+  width: 7em;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--viridis);
+  margin: 0 auto 1.4em;
+}
+
+.reveal .title-slide p {
+  text-align: center;
+  margin: 0.25em 0;
+}
+
+.reveal .title-slide .author {
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.reveal .title-slide .affil {
+  color: var(--r-muted-color);
+  font-size: 0.85em;
+}
+
+/* Section dividers */
+.reveal .divider {
+  text-align: center;
+}
+
+.reveal .divider h2 {
+  text-align: center;
+  font-size: 2.3em;
+}
+
+.reveal .divider h2::after {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.reveal .divider p {
+  text-align: center;
+  color: var(--r-muted-color);
+}
+
+/* Callout: the one box on a slide that is an instruction, not information */
+.reveal .callout {
+  text-align: left;
+  background: rgba(39, 127, 142, 0.07);
+  border-left: 6px solid;
+  border-image: linear-gradient(180deg, #440154, #277F8E, #FDE725) 1;
+  border-radius: 0 10px 10px 0;
+  padding: 0.55em 0.8em;
+  margin: var(--r-block-margin) 0;
+}
+
+.reveal .callout p {
+  margin: 0.25em 0;
+}
+
+/* Two-column helper */
+.reveal .cols {
+  display: flex;
+  gap: 0.8em;
+  align-items: flex-start;
+}
+
+.reveal .cols > .col {
+  flex: 1;
+  min-width: 0;
+}
+
+/* De-emphasized asides (the "why" lines under a rule) */
+.reveal .why {
+  color: var(--r-muted-color);
+  font-size: 0.78em;
+  font-style: italic;
+}
+
+.reveal .muted {
+  color: var(--r-muted-color);
+}
+
+/* Lists breathe without manual <br> */
+.reveal ul li,
+.reveal ol li {
+  margin-bottom: 0.5em;
+}
+
+.reveal ul ul li,
+.reveal ol ol li {
+  margin-bottom: 0.2em;
+}
+
+/* Tables */
+.reveal table {
+  font-size: 0.9em;
+}
+
+.reveal table th,
+.reveal table td {
+  padding: 0.32em 0.9em;
+  border-bottom: 1px solid rgba(24, 36, 48, 0.18);
+}
+
+.reveal table thead th {
+  border-bottom: 2px solid #182430;
+  font-weight: 600;
+}
+
+/* Fixed deck footer (lives outside .slides, immune to slide scaling) */
+.reveal .deck-footer {
+  position: absolute;
+  bottom: 16px;
+  left: 22px;
+  z-index: 30;
+  font-family: var(--r-code-font);
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  color: var(--r-muted-color);
 }
 
 /* Code blocks: soft corners, deeper shadow to lift off the paper */

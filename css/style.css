@@ -14,3 +14,8 @@
   line-height: 1.35;
   max-height: 90vh;
 }
+
+/* Side-by-side code blocks get less width, so slightly smaller type */
+.reveal section .cols pre code {
+  font-size: 1.15em;
+}

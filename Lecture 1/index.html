@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content=
@@ -17,329 +17,374 @@
   <body>
     <div class="reveal">
       <div class="slides">
-        <section>
-          <h2>Introduction to Computational Physics</h2>
-          <!-- <h3>Week 1</h3> -->
-          <br>
-          <p>Dr. Alex Chen</p>
-          <p>Department of Physics</p>
-          <p>Washington University in St. Louis</p>
-          <p>Fall 2026</p>
+
+        <!-- ============ Part I: the course ============ -->
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026</p>
+          <h1>Introduction to<br>Computational Physics</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
         </section>
+
         <section>
-          <h2>Course Information</h2><br>
-          <p><a href="https://fizban007.github.io/Physics4027-Fall2026/">Course
-            Website</a></p>
-          <p><a href=
-               "https://wustl.instructure.com/courses/159013">Course
-            Canvas</a></p>
-          <p><a href=
-               "https://wustl.instructure.com/courses/159013/modules/items/2950446" >
-            Syllabus</a></p>
+          <h2>Logistics</h2>
+          <div class="cols">
+            <div class="col">
+              <h3>When &amp; where</h3>
+              <ul>
+                <li>Lectures: M/W/F 9:00&ndash;9:50am, Jubel 120</li>
+                <li>Office hour: Tuesday 3:00&ndash;4:00pm, Compton 252</li>
+                <li>Email: <a href="mailto:cyuran@wustl.edu">cyuran@wustl.edu</a></li>
+              </ul>
+            </div>
+            <div class="col">
+              <h3>Materials</h3>
+              <ul>
+                <li><a href="https://fizban007.github.io/Physics4027-Fall2026/">Course website</a> &mdash; all lecture slides</li>
+                <li><a href="https://wustl.instructure.com/courses/178775">Canvas</a> &mdash; syllabus,
+                  announcements, quizzes</li>
+                <li><a href="https://github.com/WashU-Physics-Courses">GitHub</a> &mdash; homework
+                  and projects</li>
+              </ul>
+            </div>
+          </div>
           <aside class="notes">
-            Discuss the syllabus with the students. Outline the
-            course structure, grading policy, and expectations.
+            Point out that slides are always online, including a printable
+            version. Canvas is the hub for everything graded except code.
           </aside>
         </section>
 
         <section>
-          <h2>What is Computational Physics?</h2>
-          <p>Using computers to solve physics problems that are often too complex or intractable
-            using analytic methods</p>
-          <img data-src="figures/Hadron-F1-Experience_2048x2048.webp"
-            style="display: inline-block; width: 30%;">
-          <img data-src="figures/BH_Accretion_Disk_Sim_360_4k_Prores.00001_print.jpg"
-            style="display: inline-block; width: 30%;">
-          <img data-src="figures/cosmicvoid.jpg"
-            style="display: inline-block; width: 30%;">
-          <p class="fragment">Not only useful in physics, but the methods apply to
-            many branches of engineering, as well as finance, AI, and game
-            development.</p>
-
+          <h2>What is this course?</h2>
+          <svg viewBox="0 0 960 620" style="width: 78%; margin: 0 auto; display: block;"
+            role="img" aria-label="Venn diagram: this course is the intersection of numerical analysis, software engineering, physics applications, and agentic AI.">
+            <g style="mix-blend-mode: multiply;">
+              <circle cx="480" cy="200" r="185" fill="#365C8D" fill-opacity="0.34"/>
+              <circle cx="370" cy="310" r="185" fill="#440154" fill-opacity="0.30"/>
+              <circle cx="590" cy="310" r="185" fill="#1FA187" fill-opacity="0.34"/>
+              <circle cx="480" cy="420" r="185" fill="#A0DA39" fill-opacity="0.38"/>
+            </g>
+            <text x="480" y="105" text-anchor="middle" font-size="31"
+              font-weight="600" fill="#365C8D">Numerical</text>
+            <text x="480" y="140" text-anchor="middle" font-size="31"
+              font-weight="600" fill="#365C8D">analysis</text>
+            <text x="262" y="295" text-anchor="middle" font-size="31"
+              font-weight="600" fill="#440154">Software</text>
+            <text x="262" y="330" text-anchor="middle" font-size="31"
+              font-weight="600" fill="#440154">engineering</text>
+            <text x="700" y="295" text-anchor="middle" font-size="31"
+              font-weight="600" fill="#14766A">Physics</text>
+            <text x="700" y="330" text-anchor="middle" font-size="31"
+              font-weight="600" fill="#14766A">applications</text>
+            <text x="480" y="512" text-anchor="middle" font-size="31"
+              font-weight="600" fill="#5F7A15">Agentic AI</text>
+            <text x="480" y="302" text-anchor="middle" font-size="34"
+              font-weight="700" fill="#FAFAF7">PHYS</text>
+            <text x="480" y="340" text-anchor="middle" font-size="34"
+              font-weight="700" fill="#FAFAF7">4027</text>
+          </svg>
+          <!-- <p class="fragment" style="text-align: center;">The interesting problems
+               live where all four overlap.</p> -->
           <aside class="notes">
-            Start a discussion about what computational physics is. Although
-            everything we do today is done on a computer, we often reserve the
-            term "computational physics" for problems that are too complex or too
-            intractable to solve using analytic methods. This is not a specific
-            branch of physics (like "condense matter physics" or "biophysics"), but a very
-            broad term encompassing all branches of physics.
-          </aside>
-        </section>
-
-        <!-- <section>
-             <h2>What this Course Is</h2>
-             <br>
-             <ul>
-             <li>A course on how to use computer programming to solve physics problems.</li>
-             <br>
-             <li class="fragment">A course on numerical methods and how they are implemented.</li>
-             <br>
-             <li class="fragment">A challenging course with several complex projects.</li>
-             </ul>
-             </section>
-
-             <section>
-             <h2>What this Course Is Not</h2>
-             <ul>
-             <li class="fragment">An algorithm course in the CS sense. We won't teach sorting,
-             breadth first search, or dynamic programming.</li>
-             <br>
-             <li class="fragment">A traditional physics course. We will use concepts from all
-             branches of physics, but will not teach them in detail.</li>
-             <br>
-             <li class="fragment">Preparing you for a career in software development. However, what
-             we cover will be quite important if you want to work in
-             science/engineering.</li>
-             </ul>
-             </section>
-        -->
-        <!-- <section>
-             <h2>Computer Architecture</h2>
-             <p>Modern computers are built on the Von Neumann architecture</p>
-             <img data-src="figures/Von_Neumann_Architecture.svg"
-             style="display: inline-block; width: 40%;">
-
-             <aside class="notes">
-             Discuss the Von Neumann architecture. The Von Neumann architecture
-             is a model for how computers are built. It is named after John von
-             Neumann, who was a Hungarian-American mathematician, physicist,
-             computer scientist, and polymath. The Von Neumann architecture
-             describes how a computer is built from a central processing unit
-             (CPU), memory, and input/output devices. The CPU is the "brain" of
-             the computer, and it is where all the calculations are performed.
-             Memory is where the computer stores data and instructions. Input
-             devices are how the computer receives information from the outside
-             world, and output devices are how the computer sends information to
-             the outside world. The Von Neumann architecture is the basis for all
-             modern computers.
-             </aside>
-             </section>
-        -->
-        <section>
-          <h2>Computer Architecture</h2>
-          <p>A modern motherboard</p>
-          <img data-src="figures/motherboard.webp"
-            style="display: inline-block; width: 40%;">
-
-          <aside class="notes">
-            Show a picture of a modern motherboard. The motherboard is the
-            physical circuit board that connects all the components of the
-            computer together. The CPU is the large square in the middle of the
-            motherboard. The memory is the long rectangular chips that are
-            connected to the CPU. The input/output devices are the ports on the
-            back of the motherboard.
+            Walk the four petals. Numerical analysis: the algorithms and their
+            failure modes. Software engineering: you implement, test, and
+            version-control real code. Physics applications: every method is
+            aimed at a physical system. Agentic AI: you will direct AI agents
+            to do much of the building, and learn to verify what they build.
+            No other course on campus sits at this intersection.
           </aside>
         </section>
 
         <section>
-          <h2>Architecture of a CPU</h2>
-          <img data-src="figures/1200px-intel_raptor_lake_die_(8+16)_(annotated).png"
-            style="display: inline-block; width: 60%;">
-
-          <aside class="notes">
-            Show a picture of a modern CPU. The CPU is the "brain" of the
-            computer. It is where all the calculations are performed. The CPU
-            consists of a number of cores, which are the individual processing
-            units. Each core can perform a single calculation at a time. The
-            number of cores in a CPU is usually 2, 4, 6, 8, 10, or 12. The CPU
-            also has a clock speed, which is the number of calculations it can
-            perform per second. The clock speed is usually measured in gigahertz
-            (GHz). The clock speed is the maximum number of calculations the CPU
-            can perform per second. The actual number of calculations the CPU
-            performs per second depends on the number of cores and the clock
-            speed.
-          </aside>
-        </section>
-
-        <section>
-          <h2>CPU Clock</h2>
+          <h2>What this course is</h2>
           <ul>
-            <li>The CPU clock is the number of computation cycles the CPU can
-              perform per second per core. </li>
-            Current generation CPUs can typically achieve 3-4 GHz clock
-            speed.
-            <br> <br>
-            <!-- <li>Various operations typically take different amounts of CPU cycles
-                 to complete.</li>
-                 <br> -->
-            <li>Modern CPUs can do fused multiply and add (FMA) as a single
-              operation. They can also carry out the same operation to several
-              operands in a single cycle (SIMD, AVX, AVX2...).</li>
-            <br>
-            <li>Performance is often measured in FLOPS (Floating point operations per second).
-              A personal computer can typically achieve several 10s of GFLOPS.
-              Current fastest supercomputer, Frontier, can achieve more than an Exa($10^{18}$!)FLOPS.</li>
+            <li>A course on using numerical algorithms to solve physics problems
+              you cannot solve on paper.</li>
+            <li class="fragment">A course where you <em>implement</em> the
+              algorithms &mdash; not just call a black-box library. We will not shy
+              away from nitty-gritty implementation details.</li>
+            <li class="fragment">A course where you learn cutting-edge
+              <strong>agentic AI</strong> and use it to get things done. AI use is
+              not just permitted &mdash; the course is built assuming you use it for
+              most of the coursework.</li>
+            <li class="fragment">A challenging course culminating in three
+              projects involving complex physics.</li>
           </ul>
         </section>
 
         <section>
-          <h2>Cache Lives on the CPU Die</h2>
-          <img data-src="figures/1200px-intel_raptor_lake_die_(8+16)_(annotated).png"
-            style="display: inline-block; width: 60%;">
+          <h2>What this course is not</h2>
+          <ul>
+            <li>An algorithms course in the CS sense &mdash; no sorting, no AVL
+              trees, no dynamic programming. Take a proper data structures
+              course for that.</li>
+            <li class="fragment">A traditional physics course. We borrow examples
+              from every branch of physics but cover none in depth; you either know it
+              already, or you learn just enough.</li>
+            <li class="fragment">Career prep for software development. But what
+              you learn here is very valuable for a career in quantitative
+              science or engineering.</li>
+          </ul>
+          <p class="fragment why">No prior programming experience is required
+            &mdash; the first weeks bring everyone up to speed.</p>
         </section>
 
         <section>
-          <h2>Computer Memory</h2>
-          <p>Modern computers use random access memory (RAM)</p>
-          <img data-src="figures/memory-types.avif"
-            style="display: inline-block; width: 40%;">
-          <p></p>
-
+          <h2>Why agentic AI?</h2>
+          <ul>
+            <li>A modern AI agent can write a working ODE solver faster than you
+              can read the assignment. It is the future of programming and
+              computational physics in general.</li>
+            <li class="fragment">That does not make numerical methods obsolete.
+              Implementation has never been the real bottleneck. It's at knowing what to
+              do, verifying the implementation, and interpreting the physics.</li>
+            <li class="fragment">This semester: the agent may write
+              your code &mdash; <em>you</em> own the predictions, the interpretation, and the
+              diagnosis when it is wrong.</li>
+            <li class="fragment">To facilitate this, oral presentations are an
+            integral part of the course.</li>
+            <!-- <li class="fragment">&ldquo;AI-assisted problem solving&rdquo; is
+                 itself a graded outcome of this course, alongside the physics and
+                 the numerics.</li> -->
+          </ul>
           <aside class="notes">
-            Discuss computer memory. Modern computers use random access memory
-            (RAM). RAM is where the computer stores data and instructions. RAM
-            is volatile, which means that it loses its contents when the power is
-            turned off. RAM is also very fast, which means that the CPU can
-            access it relatively quickly. Nowadays RAM is usually measured in gigabytes
-            (GB). The more RAM a computer has, the more data and instructions it
-            can store. The amount of RAM a computer has is usually 4 GB, 8 GB, 16
-            GB, 32 GB, 64 GB, or 128 GB.
+            This is the honest rationale for the course design. Pretending
+            agents don't exist makes take-home artifacts meaningless as
+            assessment; embracing them means the course must teach and grade
+            the skill of directing and verifying them.
           </aside>
         </section>
 
         <section>
-          <h2>Data Storage</h2>
-          <p>For long-term storage, data is stored in non-volatile media</p>
-          <div class="row" style="text-align: center; display:flex;
-            justify-content: center;">
-            <div class="column" style="width: 40%; float: left;">
-              <img data-src="figures/hard-drive.webp">
-              <p>Hard Drives</p>
-            </div>
-            <div class="column" style="width: 40%; float: left;">
-              <img data-src="figures/samsung-ssd.jpg">
-              <p>Solid-state Drives (SSDs)</p>
-            </div>
+          <h2>The weekly rhythm</h2>
+          <ul>
+            <li><strong>Wednesday:</strong> homework goes out on GitHub
+              Classroom.</li>
+            <li><strong>Next Wednesday, 11:59pm:</strong> homework due.</li>
+            <li><strong>Friday of the same week:</strong> short quiz on the homework
+              material, then randomly drawn students present their solutions.</li>
+          </ul>
+          <p class="fragment">Everyone presents about <strong>2 homework
+            problems</strong> over the semester &mdash; drawn without replacement, so
+            no one is picked twice before everyone has gone once.</p>
+          <p class="fragment why">No late homework: Friday we discuss the
+            solutions publicly &mdash; after that, the answers are in the room.
+            Your slack is built-in instead: the lowest 2 homework scores and
+            lowest 2 quiz scores are dropped automatically.</p>
+        </section>
+
+        <section>
+          <h2>Projects</h2>
+          <ul>
+            <li><strong>3 course projects</strong>, in groups of 3, each with a
+              written group report.</li>
+            <li class="fragment">Projects 1 and 2: topics and instructions
+              given; group presentations in class, individually.</li>
+            <li class="fragment">Final project: <strong>topic of your own
+              choosing</strong> &mdash; every group presents to the class.</li>
+            <li class="fragment">No midterm or final exam.</li>
+          </ul>
+          <p class="fragment why">Graduate students (5027): graduate-only groups,
+            plus extra objectives on homework and projects.
+            Undergrads may attempt those for fun, not for points.</p>
+        </section>
+
+        <section>
+          <h2>Grading</h2>
+          <table style="margin: 0 auto;">
+            <thead>
+              <tr><th>Component</th><th style="text-align: right;">Weight</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Homework submission</td><td style="text-align: right;">10%</td></tr>
+              <tr><td>Friday quizzes</td><td style="text-align: right;">10%</td></tr>
+              <tr><td>Homework presentations</td><td style="text-align: right;">10%</td></tr>
+              <tr><td>Project 1</td><td style="text-align: right;">20%</td></tr>
+              <tr><td>Project 2</td><td style="text-align: right;">20%</td></tr>
+              <tr><td>Final project</td><td style="text-align: right;">30%</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment why">Notice the shape: an agent can produce a
+            homework artifact in minutes, so the handed-in files alone are worth
+            little. The weight sits where understanding is demonstrated live
+            &mdash; quizzes, presentations, and projects you will stand behind in
+            person.</p>
+        </section>
+
+        <section>
+          <h2>Tools of the trade</h2>
+          <ul>
+            <li><strong>C++</strong> &mdash; primary language; you implement the
+              algorithms. <a href="https://cppreference.com">cppreference.com</a>
+              is the reference.</li>
+            <li><strong>Python</strong> &mdash; plotting and data analysis.</li>
+            <li><strong>git + GitHub Classroom</strong> &mdash; how homework and
+              projects are distributed and collected.</li>
+            <li><strong>VS Code</strong> &mdash; our editor of choice
+              (Vim/Emacs welcome).</li>
+            <li><strong>Claude Code / Codex</strong> &mdash; where much of the
+              AI-driven coding work happens, via WashU's Claude Edu and OpenAI
+              Edu access.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Action required this week</h2>
+          <div class="callout">
+            <p>On Canvas, complete the assignment</p>
+            <p style="font-size: 1.15em;"><strong>&ldquo;AI Literacy for the
+              WashU Scholar&rdquo;</strong></p>
+            <p>Completing it grants you <strong>Claude Edu</strong> access &mdash;
+              the AI platform we will use all semester.</p>
           </div>
+          <!-- <ul>
+               <li class="fragment">Do it <strong>as soon as possible</strong> &mdash; the
+               first homework assumes you have access.</li>
+               <li class="fragment">Any trouble with access, email me right away.</li>
+               </ul> -->
         </section>
 
         <section>
-          <h2>Hierarchy of Memory</h2>
-          <p>Memory access is faster for memory that is closer to the CPU</p>
-          <img data-src="figures/memory-hierarchy.png"
-            style="display: inline-block; width: 60%;">
+          <h2>References</h2>
+          <ul>
+            <li><em>Numerical Recipes: The Art of Scientific Computing</em>,
+              3rd ed. (2007) &mdash; covers most of the course in depth; free to
+              read at the <a href="http://numerical.recipes/book/book.html">official
+              website</a>.</li>
+            <li><em>Computational Physics</em>, Mark Newman.</li>
+            <li><em>Algorithms in C++</em>, Robert Sedgewick.</li>
+          </ul>
+          <p class="why">No required textbook &mdash; the slides and homework are
+            self-contained; these are for depth.</p>
+        </section>
+
+        <!-- ============ Part II: floating point ============ -->
+
+        <section class="divider">
+          <h2>Floating point numbers</h2>
+          <p>How computers represent the real line and where it breaks</p>
         </section>
 
         <section>
-          <h2>Computers Talk in Binary</h2>
-          <img data-src="figures/binary.png"
-            style="display: inline-block; width: 60%;">
+          <h2>A finite budget of bits</h2>
+          <p>There are uncountably many real numbers; a <code>float</code> has
+            32 bits &mdash; at most $2^{32}$ distinct values to cover them all.</p>
+          <p class="fragment">The solution is binary scientific notation: store a
+            sign, a fraction, and an exponent. The "fraction" is also called "significand" or "mantissa".</p>
+          <svg class="fragment" viewBox="0 0 960 190" style="width: 88%; margin: 0 auto; display: block;"
+            role="img" aria-label="IEEE 754 single precision layout: 1 sign bit, 8 exponent bits, 23 fraction bits.">
+            <rect x="20"  y="40" width="28"  height="70" rx="6" fill="#440154" fill-opacity="0.85"/>
+            <rect x="54"  y="40" width="230" height="70" rx="6" fill="#365C8D" fill-opacity="0.85"/>
+            <rect x="290" y="40" width="650" height="70" rx="6" fill="#1FA187" fill-opacity="0.85"/>
+            <text x="34"  y="85" text-anchor="middle" font-size="30" fill="#FAFAF7" font-weight="600">s</text>
+            <text x="169" y="85" text-anchor="middle" font-size="30" fill="#FAFAF7" font-weight="600">exponent e</text>
+            <text x="615" y="85" text-anchor="middle" font-size="30" fill="#FAFAF7" font-weight="600">fraction f</text>
+            <text x="34"  y="145" text-anchor="middle" font-size="24" fill="#55636F">1</text>
+            <text x="169" y="145" text-anchor="middle" font-size="24" fill="#55636F">8 bits</text>
+            <text x="615" y="145" text-anchor="middle" font-size="24" fill="#55636F">23 bits</text>
+            <text x="480" y="30" text-anchor="middle" font-size="24" fill="#55636F">IEEE 754 single precision (32 bits)</text>
+          </svg>
+          <p class="fragment" style="text-align: center;">
+            $x = (-1)^s \times 1.f \times 2^{\,e-127}$</p>
+          <aside class="notes">
+            The implicit leading 1 in the fraction is a favorite quiz question.
+            Note the exponent bias. Double precision: 11 exponent bits, 52
+            fraction bits, bias 1023.
+          </aside>
         </section>
 
         <section>
-          <h2>Representing Binary Using Hexadecimal Numbers</h2>
-          <img data-src="figures/hex-to-binary.jpg"
-            style="display: inline-block; width: 60%;">
+          <h2>The C++ floating point types</h2>
+          <table style="margin: 0 auto;">
+            <thead>
+              <tr><th>Type</th><th>Bits</th><th>&sim;Decimal digits</th><th>Typical use</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>float</code></td><td>32</td><td>7</td>
+                <td>graphics, games, ML</td></tr>
+              <tr><td><code>double</code></td><td>64</td><td>16</td>
+                <td>scientific computing's workhorse</td></tr>
+              <tr><td><code>long double</code></td><td>80/128</td><td>&ge;18</td>
+                <td>occasional extra headroom</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment">Machine learning pushed the other way:
+            <code>fp16</code>, <code>bf16</code>, even <code>fp8</code> &mdash;
+            trading accuracy for speed and memory.</p>
+          <!-- <p class="fragment why">These digit counts are nominal. In Homework 1
+               you will measure the .</p> -->
         </section>
 
         <section>
-          <h2>Assembly Program</h2>
-          <p>A simple function that return the square of the input</p>
-          <div class="row" style="text-align: center; display:flex;
-            justify-content: center;">
-            <div class="column" style="width: 40%; float: left;">
-              <pre><code data-trim data-noescape>
-                int square(int num) {
-                    return num * num;
-                }
-              </code></pre>
-            </div>
-            <div class="column" style="width: 40%; float: left;">
-              <pre><code data-trim data-noescape>
-                square(int):
-                0f af ff
-                imul   edi,edi
-                89 f8
-                mov    eax,edi
-                c3
-                ret
-              </code></pre>
-            </div>
-          </div>
-          <p>Compilers translate high-level languages to assembly</p>
-          <p><a href="https://godbolt.org/">Compiler Explorer</a></p>
-        </section>
-
-        <section>
-          <h2>Floating Point Numbers</h2>
-          <p>Real numbers are represented using floating point numbers, which
-            is very similar to the scientific notation</p>
-          <br>
-          <p>However, both the fractional part and the integrand are represented in binary!</p>
-          <br>
-        </section>
-
-        <section>
-          <h2>Floating Point Numbers</h2>
-          <img data-src="figures/IEEE-754-floating-point-32b.jpg"
-            style="display: inline-block; width: 80%;">
-        </section>
-
-        <section>
-          <h2>Floating Point Numbers</h2>
-          <p>Decimal real numbers may not have an exact representation in binary</p>
-          <div class="row" style="text-align: center; display:flex;
-            justify-content: center; width: 100%;">
-            <div class="column" style="width: 65%; float: left;">
-              <p>Code</p>
+          <h2>Not every decimal exists in binary</h2>
+          <p>$0.1$ has no finite binary representation &mdash; just as $1/3$ has
+            none in decimal. The computer stores the nearest representable
+            number instead.</p>
+          <div class="cols">
+            <div class="col">
+              <p style="text-align: center;">Code</p>
               <pre><code class="language-c++" data-trim data-noescape>
 double a = (1.0 - 0.1) - 0.9;
 double b = (1.0 - 0.05 - 0.05) - 0.9;
-std::cout << a << std::endl;
-std::cout << b << std::endl;
+std::cout &lt;&lt; a &lt;&lt; std::endl;
+std::cout &lt;&lt; b &lt;&lt; std::endl;
               </code></pre>
             </div>
-            <div class="column" style="width: 65%; float: left;">
-              <p>Output</p>
+            <div class="col">
+              <p style="text-align: center;">Output</p>
               <pre><code class="language-bash" data-trim data-noescape>
 0
 -1.11022e-16
               </code></pre>
             </div>
           </div>
-          <p>Due to rounding error, $(a + b) + c$ may not be exactly the same as
-            $a + (b + c)$.</p>
+          <p class="fragment">Rounding makes arithmetic non-associative:
+            $(a+b)+c$ need not equal $a+(b+c)$.</p>
         </section>
 
         <section>
-          <h2>Floating Point Numbers</h2>
-          <p>Unit in the Last Place (ULP) is often used to quantify how accurate certain floating point calculations are.</p>
-          <br>
-          <p class="fragment">1 ULP is the distance between two adjacent floating point numbers, i.e. difference when changing the mantissa by 1.</p>
-          <br>
-          <p class="fragment">Since the ULP scales with the exponent, it is often useful to refer to the ULP of exponent 0. This is often quoted as "floating point epsilon" or "machine precision".</p>
-        </section>
-
-        <!-- <section>
-             <h2>Floating Point Numbers</h2>
-             <p>Floating point numbers have a "machine precision", which is defined
-             to be the maximum relative rounding error during floating point calculations:</p>
-             <br>
-             <p>Minimum $\epsilon$ such that $1.0 + \epsilon \neq 1.0$</p>
-             <br>
-             <p>It is unrealistic to expect a floating point calculation to be more
-             accurate than this machine precision</p>
-             </section>
-        -->
-        <section>
-          <h2>Floating Point Numbers</h2>
-          <p><code>float</code>: single precision numbers, 32 bits, 4 bytes, widely used in computer graphics and video games</p>
-          <p><code>double</code>: double precision numbers, 64 bits, 8 bytes, most widely used in scientific computing</p>
-          <p><code>long double</code>: quadruple precision numbers, 128 bits, 16 bytes, sometimes used in scientific computing</p>
-          <p>C++ standard does not provide a 16-bit half precision type, but
-            custom 16-bit floating point numbers are now quite popular with
-            machine learning. Now they even go to <code>fp8</code> or lower for further reduction in accuracy and speed up.</p>
+          <h2>Machine epsilon and ULP</h2>
+          <p><strong>Unit in the Last Place (ULP)</strong>: the distance between
+            two adjacent floating point numbers &mdash; the change from flipping the
+            last bit of the fraction.</p>
+          <p class="fragment">The ULP scales with the exponent, so we usually
+            quote the ULP at exponent 0. That number is the
+            <strong>machine epsilon</strong>: the relative precision of the
+            format.</p>
+          <p class="fragment">1 ULP is the best accuracy any single floating
+            point operation can promise. Expecting more from a calculation is
+            expecting magic.</p>
         </section>
 
         <section>
-          <h2>Floating Point Numbers</h2>
-          <p>Do not directly compare whether two floating points are equal.
-            Instead test whether the absolute value of their difference is within
-            some tolerance limit</p>
-          <div class="row" style="text-align: center; display:flex;
-            justify-content: center;">
-            <div class="column" style="width: 55%; float: left;">
-              <p>Do NOT</p>
+          <h2>The edges of the format</h2>
+          <ul>
+            <li><strong>Two zeros:</strong> $+0$ and $-0$ exist, and compare
+              equal.</li>
+            <li class="fragment"><strong>Infinities:</strong>
+              <code>1.0/0.0</code> gives <code>inf</code> &mdash; also produced by
+              overflow.</li>
+            <li class="fragment"><strong>NaN</strong> (&ldquo;not a
+              number&rdquo;): <code>0.0/0.0</code>, <code>sqrt(-1.0)</code>&hellip;
+              It propagates through arithmetic and is the only value with
+              <code>x != x</code>.</li>
+            <li class="fragment"><strong>Subnormals:</strong> when the exponent
+            is zero, the number convention becomes slightly different, decreasing uniformly to 0.</li>
+          </ul>
+          <!-- <p class="fragment why">A NaN in your output is a gift: it means the
+               bug announced itself. Silent rounding error is the one that costs
+               you a week.</p> -->
+        </section>
+
+        <section>
+          <h2>Never compare floats directly</h2>
+          <p>Test whether the difference is within a tolerance instead:</p>
+          <div class="cols">
+            <div class="col">
+              <p style="text-align: center;">Do NOT</p>
               <pre><code class="language-c++" data-trim data-noescape>
 double a = 1.345;
 double b = 1.123;
@@ -347,56 +392,58 @@ double c = a + b;
 if (c == 2.468) { ... }
               </code></pre>
             </div>
-            <div class="column" style="width: 55%; float: left;">
-              <p>Do</p>
+            <div class="col">
+              <p style="text-align: center;">Do</p>
               <pre><code class="language-c++" data-trim data-noescape>
 double a = 1.345;
 double b = 1.123;
 double c = a + b;
 double EPSILON = 1e-10;
-if (std::abs(c - 2.468) < EPSILON) {
- ...
+if (std::abs(c - 2.468) &lt; EPSILON) {
+  ...
 }
               </code></pre>
             </div>
           </div>
+          <p class="fragment why">Choosing the tolerance is problem-dependent. We will return to this
+            all semester.</p>
         </section>
 
         <section>
-          <h2>Floating Point Numbers</h2>
+          <h2>One more ambush: integer arithmetic</h2>
           <ul>
-            <li>If you just write "<code>1.0</code>", it is interpreted as a <code>double</code> in
-              C++.</li>
-            <br>
-            <li>If you write <code>1</code>, it is interpreted as an integer.
-              Operations between two integers give an integer result. Therefore <code>1/2</code> will yield <code>0</code>.</li>
-            <br>
-            <li>Write numbers with a decimal point to avoid potential bugs!</li>
+            <li>Write <code>1.0</code> and C++ reads a <code>double</code>;
+              write <code>1</code> and it reads an integer.</li>
+            <li class="fragment">Operations between integers give integers:
+              <code>1/2</code> is <code>0</code>, not <code>0.5</code>.</li>
+            <li class="fragment">Always write numbers with a decimal point and this
+              class of bug never happens to you.</li>
           </ul>
         </section>
 
         <section>
-          <h2>Floating Point Numbers</h2>
-          <p><a href="https://dl.acm.org/doi/10.1145/103162.103163">What every computer scientist should know about floating-point arithmetic</a></p>
+          <h2>Where this goes next</h2>
+          <ul>
+            <li>Homework 1 (out Wednesday) is a floating point laboratory: you
+              will probe the limits of each type experimentally, and reconcile
+              what you predicted with what you measure.</li>
+            <li class="fragment">Deeper reading:
+              <a href="https://dl.acm.org/doi/10.1145/103162.103163">What every
+              computer scientist should know about floating-point
+              arithmetic</a> (Goldberg 1991).</li>
+            <li class="fragment"><strong>Next lecture:</strong> a crash course
+              in C++.</li>
+          </ul>
+          <div class="callout fragment">
+            <p>Before you leave: bookmark the course website, and start the
+              <strong>&ldquo;AI Literacy for the WashU Scholar&rdquo;</strong>
+              assignment on Canvas tonight.</p>
+          </div>
         </section>
-        <!-- <section>
-             <h2>A Crash Course in C++</h2>
-             </section>
-        -->
+
       </div>
-    </div><!-- <script src="js/head.min.js"></script> -->
-    <!-- <script>
-         head.js(
-         "vendor/jquery.min.js",
-         // "vendor/three.js/build/three.min.js",
-         // "vendor/three.js/examples/js/controls/OrbitControls.js",
-         /* "vendor/socket.io-client/dist/socket.io.js", */
-         // "vendor/THREE.MeshLine.js",
-         /* "vendor/dat.gui.min.js",*/
-         "vendor/EventEmitter.js",
-         // "js/samples.js",
-         );
-         </script> -->
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 1</div>
+    </div>
     <script src="../dist/reveal.js"></script>
     <script src="../plugin/math/math.js"></script>
     <script src="../plugin/notes/notes.js"></script>
@@ -412,43 +459,24 @@ if (std::abs(c - 2.468) < EPSILON) {
         slideNumber: true,
         history: true,
         center: true,
-        width: "100%",
-        height: "100%",
-        disableLayout: false,
-        navigationMode: "default",
-        // minScale: 1,
-        // maxScale: 1,
-        margin: 0.1,
-        padding: 0,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
         hash: true,
         math: {
           mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
           config: 'TeX-AMS_HTML-full',
-          // pass other options into `MathJax.Hub.Config()`
           TeX: { Macros: { RR: "{\\bf R}" } }
         },
-        // Learn about plugins: https://revealjs.com/plugins/
         plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
       });
       Reveal.configure({
         keyboard: {
           81: null, // Do not respond to Q
-          // 32: null, // Do not respond to space
         }
       });
-      // Reveal.addEventListener("slidechanged", function(event) {
-      //   var foot1 = document.getElementById("footer1");
-      //   var foot2 = document.getElementById("footer2");
-      //
-      //   if (Reveal.getIndices().h === 0) {
-      //     foot1.style.display = "none";
-      //     foot2.style.display = "none";
-      //   } else {
-      //     foot1.style.display = "block";
-      //     foot2.style.display = "block";
-      //   }
-      // });
-      //
     </script>
   </body>
 </html>

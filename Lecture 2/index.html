@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 2</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 2</p>
+          <h1>Just Enough C++<br>and git</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+        </section>
+
+        <section>
+          <h2>Today</h2>
+          <ul>
+            <li><strong>Just enough C++</strong>: the small subset you will
+              write every week. It is chosen so that you can also
+              <em>read</em> code you did not write.</li>
+            <li class="fragment"><strong>Writing code you can trust</strong>:
+              a few software engineering habits that make your results
+              reproducible.</li>
+            <li class="fragment"><strong>git</strong>: keeps every version of
+              your code, is how you submit homework, and lets you see what
+              your AI agent changed.</li>
+          </ul>
+          <p class="fragment why">C++ is a huge language and we will skip most
+            of it. When you meet a construct you do not recognize, look it up
+            online or ask your agent.</p>
+        </section>
+
+        <!-- ============ Part I: just enough C++ ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Just enough C++</h2>
+          <p>The subset you will use</p>
+        </section>
+
+        <section>
+          <h2>Why C++?</h2>
+          <ul>
+            <li><strong>Fast.</strong> It compiles to machine code. Most large
+              scientific codes, from LHC analysis software to LIGO detection pipelines, are written in it.</li>
+            <li class="fragment"><strong>Typed.</strong> The compiler checks
+              your program before it runs, so a whole class of bugs is caught
+              before execution.</li>
+            <li class="fragment"><strong>Explicit.</strong> You can see how
+              memory is laid out and what each operation costs.</li>
+          </ul>
+          <p class="fragment">We will still use Python for plotting and
+            analyzing the data your C++ code produces.</p>
+          <aside class="notes">
+            Don't relitigate the language war. One slide, then move on. The
+            2025 deck spent seven slides on C++ vs Python comparisons.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Hello, world</h2>
+          <pre><code class="language-c++" data-trim data-noescape>
+#include &lt;iostream&gt;
+
+int main() {
+  std::cout &lt;&lt; "Hello, world!" &lt;&lt; std::endl;
+  return 0;
+}
+          </code></pre>
+          <ul style="font-size: 0.85em;">
+            <li><code>#include</code> pulls in a library. This one is for
+              console input and output.</li>
+            <li class="fragment">Execution always starts at
+              <code>main()</code>.</li>
+            <li class="fragment"><code>std::</code> marks names from the
+              standard library.</li>
+            <li class="fragment">Every statement ends with a semicolon. The
+              compiler is not flexible about this.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Compile, then run</h2>
+          <p>C++ is a compiled language: you translate the whole program to
+            machine code first, then execute it.</p>
+          <pre><code class="language-bash" data-trim data-noescape>
+$ g++ -std=c++20 hello.cpp -o hello
+$ ./hello
+Hello, world!
+          </code></pre>
+          <ul style="font-size: 0.85em;">
+            <li><code>-std=c++20</code>: which edition of the language.</li>
+            <li><code>-o hello</code>: name of the executable.</li>
+          </ul>
+          <p class="fragment why">The workflow is always edit &rarr;
+            compile &rarr; run. If the compile fails, there is nothing to
+            run.</p>
+        </section>
+
+        <section>
+          <h2>Variables have types</h2>
+          <pre><code class="language-c++" data-trim data-noescape>
+int    steps  = 1000;        // whole numbers
+double dt     = 0.001;       // floating point (Lecture 1!)
+bool   done   = false;       // true / false
+std::string label = "run_a"; // text
+
+auto energy = 0.5 * m * v * v;  // compiler deduces: double
+          </code></pre>
+          <ul style="font-size: 0.85em;">
+            <li>A variable's type is fixed when it is declared and never
+              changes.</li>
+            <li class="fragment">Remember Lecture 1: <code>int</code> division
+              truncates. <code>1/2</code> is <code>0</code>; write
+              <code>1.0/2.0</code>.</li>
+            <li class="fragment">You can write <code>auto</code> when the type is
+              obvious from the right-hand side.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Doing math</h2>
+          <pre><code class="language-c++" data-trim data-noescape>
+#include &lt;cmath&gt;
+
+double r     = std::sqrt(x * x + y * y);
+double angle = std::atan2(y, x);
+double decay = std::exp(-t / tau);
+double power = std::pow(base, exponent);  // avoid for squares
+          </code></pre>
+          <ul style="font-size: 0.85em;">
+            <li><code>&lt;cmath&gt;</code> has everything: <code>sqrt</code>,
+              <code>sin</code>, <code>cos</code>, <code>exp</code>,
+              <code>log</code>, <code>abs</code>&hellip;</li>
+            <li class="fragment">For $x^2$, write <code>x * x</code>.
+              <code>std::pow(x, 2)</code> is slower and no clearer.</li>
+            <li class="fragment">Constants: <code>std::numbers::pi</code> from
+              <code>&lt;numbers&gt;</code>. Do not type 3.14159.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Making decisions, repeating work</h2>
+          <div class="cols">
+            <div class="col">
+              <pre><code class="language-c++" data-trim data-noescape>
+if (energy &lt; 0.0) {
+  std::cout &lt;&lt; "bound orbit\n";
+} else {
+  std::cout &lt;&lt; "escapes\n";
+}
+              </code></pre>
+            </div>
+            <div class="col">
+              <pre><code class="language-c++" data-trim data-noescape>
+// the canonical loop
+for (int i = 0; i &lt; n; ++i) {
+  x += v * dt;
+}
+
+while (t &lt; t_end) {
+  t += dt;
+}
+              </code></pre>
+            </div>
+          </div>
+          <ul style="font-size: 0.85em;">
+            <li class="fragment">Comparison is <code>==</code>; assignment is
+              <code>=</code>. If you mix them up, the code still compiles,
+              but it is wrong.</li>
+            <li class="fragment">Combine conditions with <code>&amp;&amp;</code>
+              (and), <code>||</code> (or), <code>!</code> (not).</li>
+            <li class="fragment">For loops are fast in C++. Don't be afraid to use them!</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2><code>std::vector</code>: your workhorse</h2>
+          <p>One data structure covers 95% of this course: a dynamic array.</p>
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
+#include &lt;vector&gt;
+
+std::vector&lt;double&gt; x(1000, 0.0);  // 1000 zeros
+x[42] = 3.7;                       // index from 0!
+x.push_back(1.0);                  // grow by one
+std::cout &lt;&lt; x.size() &lt;&lt; "\n";     // 1001
+for (double xi : x) {              // loop over elements
+  total += xi;
+}
+          </code></pre>
+          <p class="fragment why">You will see old-style arrays
+            (<code>double x[1000]</code>) and manual
+            <code>new</code>/<code>delete</code> in other people's code. You
+            have no reason to write them.</p>
+        </section>
+
+        <section>
+          <h2>Functions</h2>
+          <p>Name a computation once; use it everywhere.</p>
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
+double kinetic_energy(double m, double v) {
+  return 0.5 * m * v * v;
+}
+
+int main() {
+  double ke = kinetic_energy(1.67e-27, 3.0e5);
+}
+          </code></pre>
+          <ul style="font-size: 0.85em;">
+            <li>The first line says what the function takes (two
+              <code>double</code>s) and what it returns (a
+              <code>double</code>).</li>
+            <li class="fragment">Functions returning nothing are declared
+              <code>void</code>.</li>
+            <li class="fragment">A function must be declared before the point
+              where it is called, so order in the file matters.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Copies vs references</h2>
+          <p>By default, arguments are <strong>copied</strong>. For a
+            million-element vector, that means copying a million numbers on
+            every call.</p>
+          <pre><code class="language-c++" data-trim data-noescape>
+double mean(const std::vector&lt;double&gt;&amp; x) {  // no copy
+  double sum = 0.0;
+  for (double xi : x) sum += xi;
+  return sum / x.size();
+}
+          </code></pre>
+          <ul style="font-size: 0.85em;">
+            <li class="fragment"><code>const&amp;</code> = read-only reference:
+              no copy, and the compiler will not let you modify it. Use this
+              for anything big.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>References that modify</h2>
+          <p>Drop the <code>const</code> when the function's job is to change
+            the caller's data.</p>
+          <pre><code class="language-c++" data-trim data-noescape>
+void normalize(std::vector&lt;double&gt;&amp; x) {  // no const
+  double m = mean(x);
+  for (double&amp; xi : x) xi -= m;
+}
+          </code></pre>
+          <ul style="font-size: 0.85em;">
+            <li class="fragment"><code>&amp;</code> = reference: work on the
+              caller's object directly. The caller sees the change.</li>
+            <li class="fragment">Default to <code>const&amp;</code>. Use a
+              plain <code>&amp;</code> only when modifying is the point.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Bundling data: <code>struct</code></h2>
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
+struct Particle {
+  double x, y;    // position
+  double vx, vy;  // velocity
+  double m;       // mass
+};
+
+Particle p{0.0, 0.0, 1.0, 0.5, 2.0};
+p.x += p.vx * dt;
+std::vector&lt;Particle&gt; cloud(10000);  // 10000 particles
+          </code></pre>
+          <p class="fragment" style="font-size: 0.85em;">A <code>struct</code>
+            is a group of named values that travel together. That is as
+            object-oriented as this course gets: you will read classes with
+            methods and inheritance in library code, but rarely write them.</p>
+        </section>
+
+        <!-- <section>
+             <h2>Putting it together</h2>
+             <pre style="font-size: 0.45em;"><code class="language-c++" data-trim data-noescape>
+             // A complete program: a ball dropped from 10 m.
+             #include &lt;iostream&gt;
+
+             int main() {
+             double x = 10.0, v = 0.0;          // height, velocity
+             const double g = 9.8, dt = 0.01;
+             double t = 0.0;
+
+             while (x &gt; 0.0) {
+             v -= g * dt;                     // Euler step
+             x += v * dt;
+             t += dt;
+             }
+             std::cout &lt;&lt; "landed at t = " &lt;&lt; t &lt;&lt; " s\n";
+             }
+             </code></pre>
+             </section>
+
+             <section>
+             <h2>Does it work?</h2>
+             <p>Exact answer: $t = \sqrt{2h/g} = 1.4286$ s.</p>
+             <p class="fragment">The program prints
+             <code>landed at t = 1.43 s</code>.</p>
+             <ul>
+             <li class="fragment">Close, but not equal.</li>
+             <li class="fragment">It can only ever answer in multiples of
+             <code>dt</code>.</li>
+             </ul>
+             <p class="fragment why">How wrong is it, and how would you make it
+             better? Most of this course is about that question.</p>
+             </section>
+        -->
+        <section>
+          <h2>Reading compiler errors</h2>
+          <ul>
+            <li>The compiler will reject your program, often. That is good: a
+              compile error is the cheapest bug report you will ever get.</li>
+            <li class="fragment"><strong>Read the first error only.</strong>
+              One missing semicolon can produce 200 lines of errors, and all but
+              the first are usually consequences of it. Fix the first one and
+              recompile.</li>
+            <li class="fragment">The message names the file and line number:
+              <code>ball.cpp:9:12: error: ...</code>. Start there.</li>
+            <li class="fragment">Errors involving standard-library templates can
+              run to pages. Do not try to decode them by hand. Paste the
+              error to your agent and ask what it means.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>What we are skipping, on purpose</h2>
+          <ul>
+            <li>Pointers and manual memory management
+              (<code>new</code>/<code>delete</code>)</li>
+            <li>Writing classes, inheritance, virtual functions</li>
+            <li>Writing templates (you will happily <em>use</em> them:
+              <code>std::vector&lt;double&gt;</code> is one)</li>
+            <li>Build systems (CMake), until the projects need them</li>
+          </ul>
+          <p class="fragment">You will run into all of these when reading
+            library code and agent output. We will introduce each one when
+            the course needs it.</p>
+          <p class="fragment why">The goal: be able to write the subset from
+            today, and read anything.</p>
+        </section>
+
+        <!-- ============ Part II: code you can trust ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Code you can trust</h2>
+          <p>A little software engineering goes a long way</p>
+        </section>
+
+        <section>
+          <h2>Why bother? You're physicists</h2>
+          <ul>
+            <li>A result you cannot reproduce is not a result. If the code
+              only ran once, on your laptop, in a directory you have since
+              deleted, nobody can check it. That includes you.</li>
+            <li class="fragment">Your most frequent collaborator is yourself
+              three weeks from now, who has forgotten everything and needs
+              the code to explain itself.</li>
+            <li class="fragment">This semester, some of the code in your
+              project will have been written by an agent, not a person.
+              These habits are what let you check that code instead of just
+              trusting it.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Habits that pay for themselves</h2>
+          <ul style="font-size: 0.9em;">
+            <li><strong>Names mean things.</strong> <code>dt</code>,
+              <code>n_steps</code>, <code>total_energy</code>, not
+              <code>a</code>, <code>tmp</code>, <code>foo2</code>.</li>
+            <li class="fragment"><strong>No magic numbers.</strong>
+              Write <code>const double G = 6.674e-11;</code> once, at the top,
+              instead of typing the number into five formulas.</li>
+            <li class="fragment"><strong>Small functions.</strong> If you
+              cannot say what a function does in one sentence, it is two
+              functions.</li>
+            <li class="fragment"><strong>Comments say <em>why</em>.</strong>
+              The code already says what. <code>// leapfrog needs half-step
+              kick first</code> is useful; <code>// increment i</code> is
+              noise.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Test against what you know</h2>
+          <p style="font-size: 0.85em;">Every physics program has cases where
+            you already know the answer: limits, symmetries, conserved
+            quantities, textbook problems.</p>
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
+#include &lt;cassert&gt;
+#include &lt;cmath&gt;
+// free fall from rest: x(t) = h - g t^2 / 2
+double t_land = drop_time(10.0);
+assert(std::abs(t_land - std::sqrt(2.0 * 10.0 / 9.8)) &lt; 1e-3);
+
+// zero velocity means zero kinetic energy
+assert(kinetic_energy(5.0, 0.0) == 0.0);
+          </code></pre>
+          <p class="fragment why">You trust a program because it passes checks
+            you designed, not because it looks right or because an AI was
+            confident about it.</p>
+        </section>
+
+        <!-- ============ Part III: git ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; git</h2>
+          <p>A time machine and a lab notebook for code</p>
+        </section>
+
+        <section>
+          <h2>The problem</h2>
+          <pre style="font-size: 0.5em;"><code class="language-bash" data-trim data-noescape>
+$ ls
+project.cpp
+project_v2.cpp
+project_v2_fixed.cpp
+project_final.cpp
+project_final_REAL.cpp
+project_final_REAL_use_this_one.cpp
+          </code></pre>
+          <ul style="font-size: 0.9em;">
+            <li class="fragment">Which one produced the plot in your report?
+              Nobody knows.</li>
+            <li class="fragment">What changed between v2 and v2_fixed? Nobody
+              knows.</li>
+            <li class="fragment">git replaces this pile with one folder and a
+              complete, searchable history of every version.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>The mental model</h2>
+          <svg viewBox="0 0 960 420" style="width: 74%; margin: 0 auto; display: block;"
+            role="img" aria-label="Git areas: working directory, staging area, local history, and GitHub remote, connected by add, commit, push and pull.">
+            <defs>
+              <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#55636F"/>
+              </marker>
+            </defs>
+            <rect x="20"  y="80" width="220" height="120" rx="12" fill="#440154" fill-opacity="0.13" stroke="#440154" stroke-width="2"/>
+            <rect x="330" y="80" width="220" height="120" rx="12" fill="#365C8D" fill-opacity="0.13" stroke="#365C8D" stroke-width="2"/>
+            <rect x="640" y="80" width="220" height="120" rx="12" fill="#1FA187" fill-opacity="0.13" stroke="#1FA187" stroke-width="2"/>
+            <rect x="330" y="290" width="220" height="100" rx="12" fill="#A0DA39" fill-opacity="0.16" stroke="#5F7A15" stroke-width="2"/>
+            <text x="130" y="130" text-anchor="middle" font-size="27" font-weight="600" fill="#440154">working</text>
+            <text x="130" y="162" text-anchor="middle" font-size="27" font-weight="600" fill="#440154">directory</text>
+            <text x="440" y="130" text-anchor="middle" font-size="27" font-weight="600" fill="#365C8D">staging</text>
+            <text x="440" y="162" text-anchor="middle" font-size="27" font-weight="600" fill="#365C8D">area</text>
+            <text x="750" y="130" text-anchor="middle" font-size="27" font-weight="600" fill="#14766A">history</text>
+            <text x="750" y="162" text-anchor="middle" font-size="24" fill="#14766A">(commits)</text>
+            <text x="440" y="335" text-anchor="middle" font-size="27" font-weight="600" fill="#5F7A15">GitHub</text>
+            <text x="440" y="367" text-anchor="middle" font-size="24" fill="#5F7A15">(remote)</text>
+            <line x1="240" y1="140" x2="325" y2="140" stroke="#55636F" stroke-width="3" marker-end="url(#arr)"/>
+            <text x="283" y="120" text-anchor="middle" font-size="22" font-family="monospace" fill="#182430">add</text>
+            <line x1="550" y1="140" x2="635" y2="140" stroke="#55636F" stroke-width="3" marker-end="url(#arr)"/>
+            <text x="593" y="120" text-anchor="middle" font-size="22" font-family="monospace" fill="#182430">commit</text>
+            <line x1="680" y1="205" x2="560" y2="300" stroke="#55636F" stroke-width="3" marker-end="url(#arr)"/>
+            <text x="650" y="265" text-anchor="middle" font-size="22" font-family="monospace" fill="#182430">push</text>
+            <line x1="320" y1="300" x2="180" y2="205" stroke="#55636F" stroke-width="3" marker-end="url(#arr)"/>
+            <text x="230" y="265" text-anchor="middle" font-size="22" font-family="monospace" fill="#182430">pull</text>
+          </svg>
+          <p class="fragment" style="font-size: 0.85em;">A <strong>commit</strong>
+            is a snapshot of the whole project, with a message, an author,
+            and a timestamp. Think of it as a lab notebook entry you can go
+            back to.</p>
+        </section>
+
+        <section>
+          <h2>The daily loop</h2>
+          <pre><code class="language-bash" data-trim data-noescape>
+$ git status                     # what changed?
+$ git add ball.cpp               # stage what belongs together
+$ git commit -m "Add air resistance to Euler integrator"
+          </code></pre>
+          <ul style="font-size: 0.9em;">
+            <li class="fragment">Commit whenever the code reaches a state you
+              might want to return to. That usually means several times per
+              work session, not once a week.</li>
+            <li class="fragment">The message should say what changed and why.
+              Not &ldquo;stuff&rdquo;, not &ldquo;asdf&rdquo;.</li>
+            <li class="fragment">Small, focused commits make the history
+              readable. One idea per commit.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Using the time machine</h2>
+          <pre><code class="language-bash" data-trim data-noescape>
+$ git log --oneline              # the notebook's table of contents
+9f3e2a1 Add air resistance to Euler integrator
+b7c81d0 First working free-fall simulation
+
+$ git diff                       # what have I changed since last commit?
+$ git diff b7c81d0               # ...since that older commit?
+
+$ git restore ball.cpp           # discard uncommitted changes
+          </code></pre>
+          <p class="fragment why">When a working program breaks,
+            <code>git diff</code> shows exactly what you changed since it
+            last worked. An afternoon of guessing becomes thirty seconds of
+            reading.</p>
+        </section>
+
+        <section>
+          <h2>GitHub: the shared copy</h2>
+          <ul>
+            <li>git runs entirely on your machine. <strong>GitHub</strong>
+              hosts a copy of the repository everyone can reach.</li>
+            <li class="fragment"><code>git clone &lt;url&gt;</code> copies a
+              repository from GitHub onto your machine, history included.</li>
+            <li class="fragment"><code>git push</code> sends your new commits
+              to GitHub. <code>git pull</code> fetches what changed
+              there.</li>
+            <li class="fragment">Code that has been pushed survives spilled
+              coffee and stolen laptops.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>How homework flows in this course</h2>
+          <ol>
+            <li><strong>Accept</strong> the GitHub invitation link on Canvas/email.
+              This creates your personal private GitHub repository for that assignment.</li>
+            <li class="fragment"><strong>Clone</strong> it to your machine.</li>
+            <li class="fragment"><strong>Work</strong>: edit, compile, run, and
+              commit as you go.</li>
+            <li class="fragment"><strong>Push</strong>. Whatever is on GitHub at
+              the deadline <em>is</em> your submission.</li>
+          </ol>
+          <p class="fragment why">Push early and push often. There is no
+            separate submit button. If it is not on GitHub, it has not been
+            turned in.</p>
+        </section>
+
+        <section>
+          <h2>git &times; your agent</h2>
+          <ul>
+            <li>Your AI agent works inside the same repository, and a good one
+              commits its work in small steps, like a colleague would.</li>
+            <li class="fragment"><code>git diff</code> is how you
+              <em>review</em> that work: read every line that changed before
+              you build on it.</li>
+            <li class="fragment">Commits are checkpoints. If the agent's change
+              broke everything, going back to the last good commit is one
+              command.</li>
+            <li class="fragment"><strong>Rule for the semester: do not commit,
+              and do not keep, agent code you have not read.</strong></li>
+          </ul>
+          <aside class="notes">
+            This slide ties the lecture together: version control is what lets
+            you check what the agent did. Mention the Friday planted-bug
+            audits.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Get set up this week</h2>
+          <div class="callout" style="font-size: 0.9em;">
+            <p>Before Friday:</p>
+            <p><strong>1.</strong> A C++ compiler. Linux: <code>g++</code>
+              from your package manager; macOS: <code>xcode-select
+              --install</code>; Windows: WSL (Ubuntu), then <code>g++</code>.</p>
+            <p><strong>2.</strong> <strong>git</strong> + a free
+              <a href="https://github.com">GitHub account</a>.</p>
+            <p><strong>3.</strong> <a href="https://code.visualstudio.com">VS
+              Code</a> (or your editor of choice).</p>
+          </div>
+          <p class="fragment">A setup guide is on Canvas to walk you through installing <code>g++</code> and <code>git</code>.</p>
+          <p class="fragment">And if you have not done the
+            <strong>&ldquo;AI Literacy for the WashU Scholar&rdquo;</strong>
+            assignment on Canvas yet: do it ASAP.</p>
+        </section>
+
+        <section>
+          <h2>Where this goes next</h2>
+          <ul>
+            <li><strong>Friday:</strong> bring your laptop. We will do a
+            practice session to walk you through some coding tasks, and get you
+              familiar with the homework workflow.</li>
+            <li class="fragment"><strong>Next week:</strong> we will officially start discussing
+            numerical algorithms. Root-finding on Monday.</li>
+            <li class="fragment">References for today:
+              <ul style="font-size: 0.9em;">
+                <li><a href="https://git-scm.com/book/en/v2">Pro Git</a>, a free
+                  book. Chapters 1&ndash;2 cover everything from today.</li>
+                <li><a href="https://learngitbranching.js.org">learngitbranching.js.org</a>,
+                  interactive git practice in the browser.</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 2</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

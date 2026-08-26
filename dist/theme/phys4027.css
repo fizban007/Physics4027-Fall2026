@@ -431,22 +431,22 @@ section.has-dark-background, section.has-dark-background h1, section.has-dark-ba
   font-size: 0.85em;
 }
 
-/* Section dividers */
-.reveal .divider {
+/* Section dividers (selectors must outweigh the section h2 left-align) */
+.reveal .slides section.divider {
   text-align: center;
 }
 
-.reveal .divider h2 {
+.reveal .slides section.divider h2 {
   text-align: center;
   font-size: 2.3em;
 }
 
-.reveal .divider h2::after {
+.reveal .slides section.divider h2::after {
   margin-left: auto;
   margin-right: auto;
 }
 
-.reveal .divider p {
+.reveal .slides section.divider p {
   text-align: center;
   color: var(--r-muted-color);
 }

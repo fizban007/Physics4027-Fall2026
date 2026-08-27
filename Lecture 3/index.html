@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 3</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 3</p>
+          <h1>Root Finding</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+        </section>
+
+        <section>
+          <h2>Today</h2>
+          <ul>
+            <li><strong>The problem.</strong> Solve $f(x) = 0$ when there is no
+              formula for $x$.</li>
+            <li class="fragment"><strong>Four methods.</strong> Fixed-point
+              iteration, bisection, Newton, secant. What each one needs, how
+              fast it converges, and how it fails.</li>
+            <li class="fragment"><strong>Making it real.</strong> When to stop,
+              how to fail honestly, and how to write it in C++.</li>
+          </ul>
+          <p class="fragment why">Every method today is a loop that improves a
+            guess. The whole subject is how much better each step gets, and
+            what can go wrong.</p>
+          <aside class="notes">
+            First algorithm of the course. Part I ~10 min, Part II ~35 min,
+            Part III ~15 min. The code on the last slides is what the
+            homework asks them to write.
+          </aside>
+        </section>
+
+        <!-- ============ Part I: the problem ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; The problem</h2>
+          <p>Find $x$ such that $f(x) = 0$</p>
+        </section>
+
+        <section>
+          <h2>Where roots come from</h2>
+          <ul style="font-size: 0.9em;">
+            <li><strong>Orbits.</strong> Where is a planet at time $t$? The
+              position follows from the eccentric anomaly $E$, which solves
+              Kepler's equation $E - e\sin E = M(t)$. No closed form; solved
+              billions of times a day by orbit propagators.</li>
+            <li class="fragment"><strong>Quantum wells.</strong> The bound-state
+              energies of a finite square well solve
+              $\tan z = \sqrt{(z_0/z)^2 - 1}$.</li>
+            <li class="fragment"><strong>Lagrange points.</strong> Where gravity
+              and the centrifugal force balance is a fifth-degree polynomial
+              in the distance. That is Homework 2.</li>
+          </ul>
+          <p class="fragment why">In each case $f$ is cheap to evaluate and the
+            unknown is a single number. That is the setting for today.</p>
+        </section>
+
+        <section>
+          <h2>When a formula exists</h2>
+          <p style="font-size: 0.9em; margin-bottom: 0;">$ax^2 + bx + c = 0$:
+            $\;x_{1,2} = \dfrac{-b \pm \sqrt{b^2 - 4ac}}{2a}$</p>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">When $b^2 \gg 4ac$, one root is
+              $-b + \sqrt{b^2 - 4ac}$: two nearly equal numbers subtracted.
+              Lecture 1 told you what happens next.</li>
+            <li class="fragment">$a = 1$, $b = 10^8$, $c = 1$: the small root
+              is $-1.0\times10^{-8}$. The formula gives
+              $-7.45\times10^{-9}$, 25% off.</li>
+            <li class="fragment">The fix avoids the subtraction: with
+              $q = -\tfrac12\big(b + \operatorname{sgn}(b)\sqrt{b^2-4ac}\big)$,
+              take $x_1 = q/a$ and $x_2 = c/q$.</li>
+          </ul>
+          <p class="fragment why">Even the high-school formula needs care in
+            floating point. And most equations have no formula at all.</p>
+        </section>
+
+        <section>
+          <h2>When no formula exists</h2>
+          <p style="font-size: 0.9em;">$x = 2 - e^{-x}$, or equivalently
+            $f(x) = x - 2 + e^{-x} = 0$.</p>
+          <img src="figures/fx.png" style="width: 56%; margin: 0 auto; display: block;"
+            alt="f(x) = x - 2 + exp(-x) crossing zero at x = 1.8414">
+          <p class="fragment why" style="font-size: 0.72em;">No finite
+            combination of $+$, $\times$, roots, and standard functions gives
+            $x_*$. Every method today produces a sequence $x_0, x_1, x_2,
+            \dots$ that approaches $x_* = 1.84140566\ldots$</p>
+        </section>
+
+        <!-- ============ Part II: four methods ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Four methods</h2>
+          <p>Fixed point &middot; bisection &middot; Newton &middot; secant</p>
+        </section>
+
+        <section>
+          <h2>Fixed-point iteration</h2>
+          <ul style="font-size: 0.9em;">
+            <li>Rewrite $f(x) = 0$ in the form $x = g(x)$. For example
+              $g(x) = x - f(x)$, or any other rearrangement.</li>
+            <li class="fragment">Start from a guess $x_0$ and iterate:
+              $$x_{n+1} = g(x_n)$$</li>
+            <li class="fragment">Stop when $x_{n+1}$ and $x_n$ agree to the
+              precision you want.</li>
+            <li class="fragment">Our example is already in that form:
+              $g(x) = 2 - e^{-x}$.</li>
+          </ul>
+          <p class="fragment why">A solution of $x = g(x)$ is a <em>fixed
+            point</em> of $g$: feed it in and you get it back. The iteration
+            bets that $g$ pulls nearby points toward it.</p>
+        </section>
+
+        <section>
+          <h2>Fixed-point iteration, by hand</h2>
+          <div class="cols">
+            <div class="col">
+              <p style="font-size: 0.9em;">$x_{n+1} = 2 - e^{-x_n}$ from
+                $x_0 = 1$:</p>
+              <table style="font-size: 0.7em;">
+                <thead><tr><th>$n$</th><th>$x_n$</th><th>$|x_n - x_*|$</th></tr></thead>
+                <tbody>
+                  <tr><td>0</td><td>1.00000</td><td>$8.4\times10^{-1}$</td></tr>
+                  <tr><td>1</td><td>1.63212</td><td>$2.1\times10^{-1}$</td></tr>
+                  <tr><td>2</td><td>1.80449</td><td>$3.7\times10^{-2}$</td></tr>
+                  <tr><td>3</td><td>1.83544</td><td>$6.0\times10^{-3}$</td></tr>
+                  <tr><td>4</td><td>1.84046</td><td>$9.5\times10^{-4}$</td></tr>
+                  <tr><td>5</td><td>1.84126</td><td>$1.5\times10^{-4}$</td></tr>
+                  <tr><td>6</td><td>1.84138</td><td>$2.4\times10^{-5}$</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="col">
+              <ul style="font-size: 0.85em;">
+                <li class="fragment">Each step shrinks the error by about the
+                  same factor, here $0.16$.</li>
+                <li class="fragment">That is one more correct digit every
+                  1.3 steps. Slow, but steady.</li>
+                <li class="fragment">Why $0.16$? Next slide.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Why it works (when it works)</h2>
+          <p style="font-size: 0.9em;">Expand $g$ around the fixed point $x_*$,
+            where $g(x_*) = x_*$:</p>
+          $$x_{n+1} - x_* = g(x_n) - g(x_*) = g'(x_*)\,(x_n - x_*) + \cdots$$
+          <ul style="font-size: 0.85em;">
+            <li class="fragment">Each step multiplies the error by
+              $g'(x_*)$. The iteration converges if $|g'(x_*)| < 1$, and
+              then $|x_n - x_*| \approx |g'(x_*)|^n\,|x_0 - x_*|$.</li>
+            <li class="fragment">This is <em>linear</em> convergence: a fixed
+              number of digits per step.</li>
+            <li class="fragment">For $g(x) = 2 - e^{-x}$:
+              $g'(x_*) = e^{-x_*} = 0.159$. That is the $0.16$ in the
+              table.</li>
+          </ul>
+          <p class="fragment why">The closer $|g'(x_*)|$ is to 1, the slower
+            it goes. At $|g'(x_*)| \ge 1$ it does not go at all.</p>
+        </section>
+
+        <section>
+          <h2>When $|g'| > 1$: turn it around</h2>
+          <img src="figures/cobweb.png" style="width: 64%; margin: 0 auto; display: block;"
+            alt="Cobweb plots: converging iteration for g = 2 - exp(-x), diverging for g = -ln(2 - x)">
+          <p class="fragment" style="font-size: 0.72em;">The same equation
+            rearranged as $x = -\ln(2 - x)$ has $|g'(x_*)| = 6.3$: the
+            iteration runs away. If $g$ does not contract, its inverse does,
+            because $(g^{-1})' = 1/g'$. Solve $x = g^{-1}(x)$ instead.</p>
+          <aside class="notes">
+            Cobweb: vertical to the curve, horizontal to the diagonal, repeat.
+            Left: steps shrink toward the fixed point. Right: same fixed
+            point, steps grow and leave.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Bisection</h2>
+          <img src="figures/bisection.png" style="width: 66%; margin: 0 auto; display: block;"
+            alt="Bisection: brackets halving around the root of f">
+          <ul style="font-size: 0.8em;">
+            <li>Find $a$, $b$ with $f(a)$ and $f(b)$ of opposite sign. If $f$
+              is continuous, a root lies between them.</li>
+            <li class="fragment">Take the midpoint. Keep the half where the
+              sign still changes. Repeat.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Bisection: one bit per step</h2>
+          <ul style="font-size: 0.9em;">
+            <li>After $n$ steps the interval has width $(b - a)/2^n$. To
+              reach width $\varepsilon$:
+              $$n = \log_2\frac{b - a}{\varepsilon}$$</li>
+            <li class="fragment">$[1, 2]$ down to $10^{-15}$: 50 steps.
+              Fixed-point iteration at rate $0.16$ needed 19. Newton will
+              need 5.</li>
+            <li class="fragment">But the count does not depend on $f$ at all.
+              Bisection is the only method today that <em>cannot</em> fail
+              to converge once it has a bracket.</li>
+          </ul>
+          <p class="fragment why">Slow and certain. The midpoint error is not
+            even monotone (it can jump up when the root sits near an
+            endpoint), but the bracket always shrinks.</p>
+        </section>
+
+        <section>
+          <h2>Bisection: what it cannot see</h2>
+          <ul style="font-size: 0.9em;">
+            <li><strong>No sign change.</strong> $f(x) = x^2$ touches zero
+              without crossing. There is no bracket, so bisection never
+              starts.</li>
+            <li class="fragment"><strong>A sign change that is not a root.</strong>
+              $f(x) = 1/x$ on $[-1, 2]$ changes sign, and bisection converges
+              confidently to $x = 0$, which is a pole.</li>
+            <li class="fragment"><strong>Several roots in the bracket.</strong>
+              You get one of them, and you do not choose which.</li>
+          </ul>
+          <p class="fragment why">Bisection finds a sign change, not a root.
+            Continuity is what makes the two the same thing, and it is your
+            job to know whether $f$ has it.</p>
+        </section>
+
+        <section>
+          <h2>Newton's method</h2>
+          <img src="figures/newton.png" style="width: 54%; margin: 0 auto; display: block;"
+            alt="Newton's method: tangent lines from x0 = 1 land at x1 = 2, then x2 near the root">
+          <ul style="font-size: 0.8em;">
+            <li>Follow the tangent line at $x_n$ down to the axis:
+              $x_{n+1} = x_n - f(x_n)/f'(x_n)$.</li>
+            <li class="fragment">It is fixed-point iteration with
+              $g(x) = x - f(x)/f'(x)$, and that choice of $g$ is special.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Why Newton is fast</h2>
+          <p style="font-size: 0.9em;">Expand $f$ around $x_*$ to second order
+            and use $f(x_*) = 0$:</p>
+          $$x_{n+1} - x_* = \frac{f''(x_*)}{2f'(x_*)}\,(x_n - x_*)^2 + \cdots$$
+          <ul style="font-size: 0.85em;">
+            <li class="fragment">The error is <em>squared</em> each step:
+              quadratic convergence. The number of correct digits
+              doubles.</li>
+            <li class="fragment">In fixed-point language:
+              $g'(x) = f f''/(f')^2$, so $g'(x_*) = 0$. The linear term
+              is gone.</li>
+            <li class="fragment">Our example from $x_0 = 1$: errors
+              $1.6\times10^{-1}$, $2.1\times10^{-3}$, $4.1\times10^{-7}$,
+              $1.6\times10^{-14}$. Four steps.</li>
+          </ul>
+          <p class="fragment why">The price: you need $f'$, and you need to
+            start close enough that the second-order expansion is honest.</p>
+        </section>
+
+        <section>
+          <h2>When Newton goes wrong</h2>
+          <img src="figures/newton_runaway.png" style="width: 50%; margin: 0 auto; display: block;"
+            alt="Newton's method on arctan x from x0 = 1.5: each step lands farther from the root">
+          <ul style="font-size: 0.8em;">
+            <li>$f(x) = \arctan x$ from $x_0 = 1.5$: each tangent overshoots
+              and lands farther away. From $x_0 = 1.3$ it converges.</li>
+            <li class="fragment">$f'(x_n) \approx 0$ sends $x_{n+1}$ to the
+              far side of the universe. Cycles happen too.</li>
+            <li class="fragment">No bracket means no guarantee. Newton is
+              fast <em>near</em> a root and unpredictable elsewhere.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Secant method</h2>
+          <img src="figures/secant.png" style="width: 48%; margin: 0 auto; display: block;"
+            alt="Secant method: the line through (x0, f(x0)) and (x1, f(x1)) crosses the axis at x2">
+          <ul style="font-size: 0.75em;">
+            <li>No $f'$? Use the slope of the line through the last two
+              points instead of the tangent:
+              $$x_{n+1} = x_n - f(x_n)\,\frac{x_n - x_{n-1}}{f(x_n) - f(x_{n-1})}$$</li>
+            <li class="fragment">Needs two starting points, not a bracket,
+              and only $f$.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Secant: almost Newton, at half the cost</h2>
+          <ul style="font-size: 0.9em;">
+            <li>Convergence order is the golden ratio,
+              $\varphi = (1 + \sqrt5)/2 \approx 1.62$: the error obeys
+              $e_{n+1} \approx C\,e_n\,e_{n-1}$.</li>
+            <li class="fragment">Each step costs <em>one</em> new evaluation
+              of $f$. Newton costs $f$ and $f'$.</li>
+            <li class="fragment">Per evaluation, secant usually wins: two
+              secant steps (two evaluations) have order
+              $\varphi^2 \approx 2.6$; one Newton step (two evaluations)
+              has order 2.</li>
+            <li class="fragment">Fails the same ways Newton does, plus one of
+              its own: if $f(x_n) = f(x_{n-1})$, the slope is $0/0$.</li>
+          </ul>
+          <p class="fragment why">Most library root finders are a secant or
+            Newton step when it behaves, and a bisection step when it does
+            not. Brent's method is the standard combination.</p>
+        </section>
+
+        <section>
+          <h2>All four on the same equation</h2>
+          <p style="font-size: 0.8em;">$|x_n - x_*|$ for
+            $f(x) = x - 2 + e^{-x}$. Fixed point and Newton from $x_0 = 1$;
+            bisection on $[1, 2]$; secant from $x_0 = 1$, $x_1 = 2$.</p>
+          <table style="font-size: 0.66em; margin: 0 auto;">
+            <thead><tr><th>$n$</th><th>fixed point</th><th>bisection</th><th>secant</th><th>Newton</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>$2.1\times10^{-1}$</td><td>$9.1\times10^{-2}$</td><td>$1.8\times10^{-2}$</td><td>$1.6\times10^{-1}$</td></tr>
+              <tr><td>2</td><td>$3.7\times10^{-2}$</td><td>$3.4\times10^{-2}$</td><td>$2.5\times10^{-4}$</td><td>$2.1\times10^{-3}$</td></tr>
+              <tr><td>3</td><td>$6.0\times10^{-3}$</td><td>$2.9\times10^{-2}$</td><td>$4.2\times10^{-7}$</td><td>$4.1\times10^{-7}$</td></tr>
+              <tr><td>4</td><td>$9.5\times10^{-4}$</td><td>$2.3\times10^{-3}$</td><td>$9.9\times10^{-12}$</td><td>$1.6\times10^{-14}$</td></tr>
+              <tr><td>5</td><td>$1.5\times10^{-4}$</td><td>$1.3\times10^{-2}$</td><td>$0$</td><td>$0$</td></tr>
+            </tbody>
+          </table>
+          <ul style="font-size: 0.75em; margin-top: 0.6em;">
+            <li class="fragment">Needs: a contracting $g$ / a bracket /
+              two starts / $f'$ and a good start.</li>
+            <li class="fragment">Rate: linear ($0.16$) / linear ($0.5$,
+              not monotone) / order $1.6$ / order $2$.</li>
+          </ul>
+          <aside class="notes">
+            Real numbers from a 20-line program, not sketched. Point out the
+            bisection column jumping up at n=5. Ask: which column would you
+            trust on a function you have never plotted?
+          </aside>
+        </section>
+
+        <!-- ============ Part III: making it real ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; Making it real</h2>
+          <p>Stopping, failing, and C++</p>
+        </section>
+
+        <section>
+          <h2>When to stop</h2>
+          <ul style="font-size: 0.85em;">
+            <li>Three natural tests: the residual $|f(x_n)| < \varepsilon$;
+              the step $|x_{n+1} - x_n| < \varepsilon$; the bracket
+              $b - a < \varepsilon$.</li>
+            <li class="fragment">Absolute or relative? $|x_{n+1} - x_n| <
+              \varepsilon\,|x_n|$ is the same test for a root at $10^{-3}$
+              and at $10^{9}$. Absolute tolerance only makes sense when you
+              know the scale, or the root may be zero.</li>
+            <li class="fragment"><strong>The floor.</strong> Near
+              $x_* = 1.84$, doubles are $2.2\times10^{-16}$ apart (Lecture
+              1). Ask for $|x_{n+1} - x_n| < 10^{-20}$ and the loop never
+              ends. The residual has a floor too: about
+              $\epsilon\,|x_* f'(x_*)|$.</li>
+          </ul>
+          <p class="fragment why">A tolerance is a promise about the answer.
+            Do not promise more digits than the format has.</p>
+        </section>
+
+        <section>
+          <h2>Failing honestly</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Every loop gets a maximum number of iterations. A method that
+              is not converging must stop and say so, not spin forever.</li>
+            <li class="fragment">NaN propagates silently: <code>NaN &lt;
+              tol</code> is false, so a NaN iterate never triggers the stop
+              test. Check with <code>std::isnan</code>.</li>
+            <li class="fragment">The caller must be told. Return both the
+              answer and whether it is one:</li>
+          </ul>
+          <pre style="font-size: 0.45em;"><code class="language-c++" data-trim data-noescape>
+std::tuple&lt;bool, double&gt; result = bisection(f, 1.0, 2.0, 1e-12);
+auto [ok, x] = result;            // structured binding: unpack the tuple
+if (!ok) { std::cout &lt;&lt; "did not converge\n"; }
+          </code></pre>
+          <p class="fragment why">This is the convention Homework 2 asks for:
+            <code>{converged, x}</code>, with <code>false</code> for a bad
+            bracket, too many iterations, or NaN.</p>
+        </section>
+
+        <section>
+          <h2>Passing a function to a function</h2>
+          <p style="font-size: 0.8em;">A root finder needs $f$ as an
+            argument. Lecture 2 said: use templates, do not write them. Here
+            is the one exception, and it is short.</p>
+          <pre style="font-size: 0.45em;"><code class="language-c++" data-trim data-noescape>
+template &lt;typename F&gt;                 // F: anything callable as f(x)
+double evaluate(const F&amp; f, double x) {
+  return f(x);
+}
+double square(double x) { return x * x; }
+evaluate(square, 3.0);                             // 9.0
+evaluate([](double x) { return x * x; }, 3.0);     // 9.0, with a lambda
+const double e = 0.3, M = 1.0;                     // problem parameters
+auto kepler = [e, M](double E) { return E - e * std::sin(E) - M; };
+evaluate(kepler, 1.0);                             // [e, M]: it may use them
+          </code></pre>
+          <p class="fragment why" style="font-size: 0.7em;">A <em>lambda</em>
+            is a function without a name, written where it is used. The
+            brackets list the outside variables it may use.</p>
+        </section>
+
+        <section>
+          <h2>Bisection in C++</h2>
+          <pre style="font-size: 0.42em;"><code class="language-c++" data-trim data-noescape>
+template &lt;typename F&gt;   // f(a) and f(b) must have opposite signs
+std::tuple&lt;bool, double&gt; bisection(const F&amp; f, double a, double b, double tol) {
+  const int max_iter = 200;             // 2^-200 is far below epsilon
+  double fa = f(a);
+  if (fa * f(b) > 0.0) return {false, a};   // no sign change: no bracket
+  for (int i = 0; i &lt; max_iter; ++i) {
+    const double mid = 0.5 * (a + b);
+    const double fm = f(mid);
+    if (std::abs(fm) &lt; tol) return {true, mid};
+    if (fa * fm &lt; 0.0) { b = mid; } else { a = mid; fa = fm; }
+  }
+  return {false, 0.5 * (a + b)};
+}
+          </code></pre>
+          <p class="fragment why" style="font-size: 0.7em;">Needs
+            <code>&lt;cmath&gt;</code> and <code>&lt;tuple&gt;</code>. Run on
+            $x - 2 + e^{-x}$, $[1, 2]$: $1.84141$. On $x^2$, $[1, 2]$:
+            <code>false</code>. Test both kinds.</p>
+        </section>
+
+        <section>
+          <h2>Where this goes next</h2>
+          <ul>
+            <li><strong>Homework 2:</strong> implement all four methods as
+              templates with the <code>{converged, x}</code> convention,
+              then use them on a real problem.</li>
+            <li class="fragment"><strong>Next lecture:</strong> numerical
+              integration. Same theme, new question: how much accuracy per
+              function evaluation?</li>
+            <li class="fragment">References:
+              <ul style="font-size: 0.9em;">
+                <li>Numerical Recipes, 3rd ed., chapter 9 (root finding).</li>
+                <li>Burden &amp; Faires, <em>Numerical Analysis</em>,
+                  chapter 2.</li>
+                <li>3Blue1Brown, <em>Newton's fractal</em>: what happens
+                  when Newton starts far away, in pictures.</li>
+              </ul>
+            </li>
+          </ul>
+          <aside class="notes">
+            Adjust the Homework 2 line once the assignment is final.
+          </aside>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 3</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

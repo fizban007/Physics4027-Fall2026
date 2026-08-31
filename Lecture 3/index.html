@@ -30,17 +30,15 @@
         <section>
           <h2>Today</h2>
           <ul>
-            <li><strong>The problem.</strong> Solve $f(x) = 0$ when there is no
-              formula for $x$.</li>
-            <li class="fragment"><strong>Four methods.</strong> Fixed-point
-              iteration, bisection, Newton, secant. What each one needs, how
-              fast it converges, and how it fails.</li>
-            <li class="fragment"><strong>Making it real.</strong> When to stop,
-              how to fail honestly, and how to write it in C++.</li>
+            <li><strong>The problem.</strong> Solve $f(x) = 0$.</li>
+            <li class="fragment"><strong>Iterative methods.</strong> Improving a
+              guess step by step, and how fast the error shrinks.</li>
+            <li class="fragment"><strong>Implementation.</strong> Tolerances,
+              failure, and passing a function to a function in C++.</li>
           </ul>
-          <p class="fragment why">Every method today is a loop that improves a
-            guess. The whole subject is how much better each step gets, and
-            what can go wrong.</p>
+          <!-- <p class="fragment why">Every method today is a loop that improves a
+               guess. The whole subject is how much better each step gets, and
+               what can go wrong.</p> -->
           <aside class="notes">
             First algorithm of the course. Part I ~10 min, Part II ~35 min,
             Part III ~15 min. The code on the last slides is what the
@@ -69,8 +67,7 @@
               and the centrifugal force balance is a fifth-degree polynomial
               in the distance. That is Homework 2.</li>
           </ul>
-          <p class="fragment why">In each case $f$ is cheap to evaluate and the
-            unknown is a single number. That is the setting for today.</p>
+          
         </section>
 
         <section>
@@ -78,9 +75,9 @@
           <p style="font-size: 0.9em; margin-bottom: 0;">$ax^2 + bx + c = 0$:
             $\;x_{1,2} = \dfrac{-b \pm \sqrt{b^2 - 4ac}}{2a}$</p>
           <ul style="font-size: 0.8em;">
-            <li class="fragment">When $b^2 \gg 4ac$, one root is
-              $-b + \sqrt{b^2 - 4ac}$: two nearly equal numbers subtracted.
-              Lecture 1 told you what happens next.</li>
+            <li class="fragment">When $b^2 \gg 4ac$, one root computes as
+              $-b + \sqrt{b^2 - 4ac}$: two nearly equal numbers subtracted,
+              i.e. catastrophic cancellation (lecture 1).</li>
             <li class="fragment">$a = 1$, $b = 10^8$, $c = 1$: the small root
               is $-1.0\times10^{-8}$. The formula gives
               $-7.45\times10^{-9}$, 25% off.</li>
@@ -88,8 +85,8 @@
               $q = -\tfrac12\big(b + \operatorname{sgn}(b)\sqrt{b^2-4ac}\big)$,
               take $x_1 = q/a$ and $x_2 = c/q$.</li>
           </ul>
-          <p class="fragment why">Even the high-school formula needs care in
-            floating point. And most equations have no formula at all.</p>
+          <p class="fragment why">Most equations do not have a formula at
+            all.</p>
         </section>
 
         <section>
@@ -98,16 +95,16 @@
             $f(x) = x - 2 + e^{-x} = 0$.</p>
           <img src="figures/fx.png" style="width: 56%; margin: 0 auto; display: block;"
             alt="f(x) = x - 2 + exp(-x) crossing zero at x = 1.8414">
-          <p class="fragment why" style="font-size: 0.72em;">No finite
-            combination of $+$, $\times$, roots, and standard functions gives
-            $x_*$. Every method today produces a sequence $x_0, x_1, x_2,
-            \dots$ that approaches $x_* = 1.84140566\ldots$</p>
+          <p class="fragment why" style="font-size: 0.72em;">There is no
+            closed-form solution. A numerical method instead produces a
+            sequence $x_0, x_1, x_2, \dots$ approaching
+            $x_* = 1.84140566\ldots$</p>
         </section>
 
         <!-- ============ Part II: four methods ============ -->
 
         <section class="divider">
-          <h2>Part II &middot; Four methods</h2>
+          <h2>Part II &middot; Iterative methods</h2>
           <p>Fixed point &middot; bisection &middot; Newton &middot; secant</p>
         </section>
 
@@ -123,13 +120,12 @@
             <li class="fragment">Our example is already in that form:
               $g(x) = 2 - e^{-x}$.</li>
           </ul>
-          <p class="fragment why">A solution of $x = g(x)$ is a <em>fixed
-            point</em> of $g$: feed it in and you get it back. The iteration
-            bets that $g$ pulls nearby points toward it.</p>
+          <p class="fragment why">$x_*$ is called a <em>fixed point</em> of
+            $g$: plugging it in gives it back.</p>
         </section>
 
         <section>
-          <h2>Fixed-point iteration, by hand</h2>
+          <h2>Fixed-point iteration</h2>
           <div class="cols">
             <div class="col">
               <p style="font-size: 0.9em;">$x_{n+1} = 2 - e^{-x_n}$ from
@@ -151,8 +147,8 @@
               <ul style="font-size: 0.85em;">
                 <li class="fragment">Each step shrinks the error by about the
                   same factor, here $0.16$.</li>
-                <li class="fragment">That is one more correct digit every
-                  1.3 steps. Slow, but steady.</li>
+                <li class="fragment">About one more correct digit every 1.3
+                  steps.</li>
                 <li class="fragment">Why $0.16$? Next slide.</li>
               </ul>
             </div>
@@ -160,7 +156,7 @@
         </section>
 
         <section>
-          <h2>Why it works (when it works)</h2>
+          <h2>Convergence</h2>
           <p style="font-size: 0.9em;">Expand $g$ around the fixed point $x_*$,
             where $g(x_*) = x_*$:</p>
           $$x_{n+1} - x_* = g(x_n) - g(x_*) = g'(x_*)\,(x_n - x_*) + \cdots$$
@@ -174,12 +170,12 @@
               $g'(x_*) = e^{-x_*} = 0.159$. That is the $0.16$ in the
               table.</li>
           </ul>
-          <p class="fragment why">The closer $|g'(x_*)|$ is to 1, the slower
-            it goes. At $|g'(x_*)| \ge 1$ it does not go at all.</p>
+          <p class="fragment why">Convergence is slow when $|g'(x_*)|$ is
+            close to 1, and absent when it exceeds 1.</p>
         </section>
 
         <section>
-          <h2>When $|g'| > 1$: turn it around</h2>
+          <h2>When $|g'| > 1$</h2>
           <img src="figures/cobweb.png" style="width: 64%; margin: 0 auto; display: block;"
             alt="Cobweb plots: converging iteration for g = 2 - exp(-x), diverging for g = -ln(2 - x)">
           <p class="fragment" style="font-size: 0.72em;">The same equation
@@ -194,7 +190,7 @@
         </section>
 
         <section>
-          <h2>Bisection</h2>
+          <h2>Bisection method</h2>
           <img src="figures/bisection.png" style="width: 66%; margin: 0 auto; display: block;"
             alt="Bisection: brackets halving around the root of f">
           <ul style="font-size: 0.8em;">
@@ -206,7 +202,7 @@
         </section>
 
         <section>
-          <h2>Bisection: one bit per step</h2>
+          <h2>Bisection method</h2>
           <ul style="font-size: 0.9em;">
             <li>After $n$ steps the interval has width $(b - a)/2^n$. To
               reach width $\varepsilon$:
@@ -214,30 +210,28 @@
             <li class="fragment">$[1, 2]$ down to $10^{-15}$: 50 steps.
               Fixed-point iteration at rate $0.16$ needed 19. Newton will
               need 5.</li>
-            <li class="fragment">But the count does not depend on $f$ at all.
-              Bisection is the only method today that <em>cannot</em> fail
-              to converge once it has a bracket.</li>
+            <li class="fragment">The count does not depend on $f$. With a valid
+              bracket, bisection cannot fail.</li>
           </ul>
-          <p class="fragment why">Slow and certain. The midpoint error is not
-            even monotone (it can jump up when the root sits near an
-            endpoint), but the bracket always shrinks.</p>
+          <p class="fragment why">The midpoint error is not monotone (it can
+            jump when the root is near an endpoint), but the bracket always
+            shrinks.</p>
         </section>
 
         <section>
-          <h2>Bisection: what it cannot see</h2>
+          <h2>Bisection method</h2>
           <ul style="font-size: 0.9em;">
             <li><strong>No sign change.</strong> $f(x) = x^2$ touches zero
               without crossing. There is no bracket, so bisection never
               starts.</li>
             <li class="fragment"><strong>A sign change that is not a root.</strong>
               $f(x) = 1/x$ on $[-1, 2]$ changes sign, and bisection converges
-              confidently to $x = 0$, which is a pole.</li>
+              to $x = 0$, which is a pole, not a root.</li>
             <li class="fragment"><strong>Several roots in the bracket.</strong>
               You get one of them, and you do not choose which.</li>
           </ul>
-          <p class="fragment why">Bisection finds a sign change, not a root.
-            Continuity is what makes the two the same thing, and it is your
-            job to know whether $f$ has it.</p>
+          <p class="fragment why">Bisection finds a sign change; only
+            continuity makes that a root.</p>
         </section>
 
         <section>
@@ -248,12 +242,12 @@
             <li>Follow the tangent line at $x_n$ down to the axis:
               $x_{n+1} = x_n - f(x_n)/f'(x_n)$.</li>
             <li class="fragment">It is fixed-point iteration with
-              $g(x) = x - f(x)/f'(x)$, and that choice of $g$ is special.</li>
+              $g(x) = x - f(x)/f'(x)$.</li>
           </ul>
         </section>
 
         <section>
-          <h2>Why Newton is fast</h2>
+          <h2>Newton's method</h2>
           <p style="font-size: 0.9em;">Expand $f$ around $x_*$ to second order
             and use $f(x_*) = 0$:</p>
           $$x_{n+1} - x_* = \frac{f''(x_*)}{2f'(x_*)}\,(x_n - x_*)^2 + \cdots$$
@@ -268,21 +262,21 @@
               $1.6\times10^{-1}$, $2.1\times10^{-3}$, $4.1\times10^{-7}$,
               $1.6\times10^{-14}$. Four steps.</li>
           </ul>
-          <p class="fragment why">The price: you need $f'$, and you need to
-            start close enough that the second-order expansion is honest.</p>
+          <p class="fragment why">The price: it needs $f'$, and a starting
+            point close enough to the root.</p>
         </section>
 
         <section>
-          <h2>When Newton goes wrong</h2>
+          <h2>Newton's method</h2>
           <img src="figures/newton_runaway.png" style="width: 50%; margin: 0 auto; display: block;"
             alt="Newton's method on arctan x from x0 = 1.5: each step lands farther from the root">
           <ul style="font-size: 0.8em;">
             <li>$f(x) = \arctan x$ from $x_0 = 1.5$: each tangent overshoots
               and lands farther away. From $x_0 = 1.3$ it converges.</li>
-            <li class="fragment">$f'(x_n) \approx 0$ sends $x_{n+1}$ to the
-              far side of the universe. Cycles happen too.</li>
-            <li class="fragment">No bracket means no guarantee. Newton is
-              fast <em>near</em> a root and unpredictable elsewhere.</li>
+            <li class="fragment">$f'(x_n) \approx 0$ sends $x_{n+1}$ very far
+              away. The iteration can also get stuck in a cycle.</li>
+            <li class="fragment">There is no bracket and no guarantee: fast
+              near a root, unpredictable far from one.</li>
           </ul>
         </section>
 
@@ -300,27 +294,27 @@
         </section>
 
         <section>
-          <h2>Secant: almost Newton, at half the cost</h2>
+          <h2>Secant method</h2>
           <ul style="font-size: 0.9em;">
             <li>Convergence order is the golden ratio,
               $\varphi = (1 + \sqrt5)/2 \approx 1.62$: the error obeys
               $e_{n+1} \approx C\,e_n\,e_{n-1}$.</li>
             <li class="fragment">Each step costs <em>one</em> new evaluation
               of $f$. Newton costs $f$ and $f'$.</li>
-            <li class="fragment">Per evaluation, secant usually wins: two
-              secant steps (two evaluations) have order
+            <li class="fragment">Per function evaluation, secant is usually
+              faster: two secant steps (two evaluations) give order
               $\varphi^2 \approx 2.6$; one Newton step (two evaluations)
-              has order 2.</li>
-            <li class="fragment">Fails the same ways Newton does, plus one of
-              its own: if $f(x_n) = f(x_{n-1})$, the slope is $0/0$.</li>
+              gives order 2.</li>
+            <li class="fragment">Shares Newton's failure modes, plus one more:
+              if $f(x_n) = f(x_{n-1})$, the slope is $0/0$.</li>
           </ul>
-          <p class="fragment why">Most library root finders are a secant or
-            Newton step when it behaves, and a bisection step when it does
-            not. Brent's method is the standard combination.</p>
+          <p class="fragment why">Practical root finders combine a fast method
+            with bisection as a fallback; Brent's method is the standard
+            example.</p>
         </section>
 
         <section>
-          <h2>All four on the same equation</h2>
+          <h2>Comparison</h2>
           <p style="font-size: 0.8em;">$|x_n - x_*|$ for
             $f(x) = x - 2 + e^{-x}$. Fixed point and Newton from $x_0 = 1$;
             bisection on $[1, 2]$; secant from $x_0 = 1$, $x_1 = 2$.</p>
@@ -350,8 +344,8 @@
         <!-- ============ Part III: making it real ============ -->
 
         <section class="divider">
-          <h2>Part III &middot; Making it real</h2>
-          <p>Stopping, failing, and C++</p>
+          <h2>Part III &middot; Implementation</h2>
+          <p>Tolerance, failure, and C++</p>
         </section>
 
         <section>
@@ -370,20 +364,20 @@
               ends. The residual has a floor too: about
               $\epsilon\,|x_* f'(x_*)|$.</li>
           </ul>
-          <p class="fragment why">A tolerance is a promise about the answer.
-            Do not promise more digits than the format has.</p>
+          <p class="fragment why">Do not ask for more digits than the format
+            has.</p>
         </section>
 
         <section>
-          <h2>Failing honestly</h2>
+          <h2>Reporting failure</h2>
           <ul style="font-size: 0.8em;">
-            <li>Every loop gets a maximum number of iterations. A method that
-              is not converging must stop and say so, not spin forever.</li>
+            <li>Always set a maximum number of iterations; without one, a
+              non-converging iteration loops forever.</li>
             <li class="fragment">NaN propagates silently: <code>NaN &lt;
               tol</code> is false, so a NaN iterate never triggers the stop
               test. Check with <code>std::isnan</code>.</li>
-            <li class="fragment">The caller must be told. Return both the
-              answer and whether it is one:</li>
+            <li class="fragment">Return both the answer and whether the
+              iteration converged:</li>
           </ul>
           <pre style="font-size: 0.45em;"><code class="language-c++" data-trim data-noescape>
 std::tuple&lt;bool, double&gt; result = bisection(f, 1.0, 2.0, 1e-12);
@@ -397,9 +391,9 @@ if (!ok) { std::cout &lt;&lt; "did not converge\n"; }
 
         <section>
           <h2>Passing a function to a function</h2>
-          <p style="font-size: 0.8em;">A root finder needs $f$ as an
-            argument. Lecture 2 said: use templates, do not write them. Here
-            is the one exception, and it is short.</p>
+          <p style="font-size: 0.8em;">Root-finding functions take $f$ as an
+            argument. This requires writing a function template: the one
+            exception to lecture 2's rule.</p>
           <pre style="font-size: 0.45em;"><code class="language-c++" data-trim data-noescape>
 template &lt;typename F&gt;                 // F: anything callable as f(x)
 double evaluate(const F&amp; f, double x) {
@@ -437,7 +431,7 @@ std::tuple&lt;bool, double&gt; bisection(const F&amp; f, double a, double b, dou
           <p class="fragment why" style="font-size: 0.7em;">Needs
             <code>&lt;cmath&gt;</code> and <code>&lt;tuple&gt;</code>. Run on
             $x - 2 + e^{-x}$, $[1, 2]$: $1.84141$. On $x^2$, $[1, 2]$:
-            <code>false</code>. Test both kinds.</p>
+            <code>false</code>.</p>
         </section>
 
         <section>
@@ -447,15 +441,14 @@ std::tuple&lt;bool, double&gt; bisection(const F&amp; f, double a, double b, dou
               templates with the <code>{converged, x}</code> convention,
               then use them on a real problem.</li>
             <li class="fragment"><strong>Next lecture:</strong> numerical
-              integration. Same theme, new question: how much accuracy per
-              function evaluation?</li>
+              integration.</li>
             <li class="fragment">References:
               <ul style="font-size: 0.9em;">
                 <li>Numerical Recipes, 3rd ed., chapter 9 (root finding).</li>
                 <li>Burden &amp; Faires, <em>Numerical Analysis</em>,
                   chapter 2.</li>
-                <li>3Blue1Brown, <em>Newton's fractal</em>: what happens
-                  when Newton starts far away, in pictures.</li>
+                <li>3Blue1Brown, <em>Newton's fractal</em> (what Newton does
+                  far from a root).</li>
               </ul>
             </li>
           </ul>

@@ -34,7 +34,7 @@
             <li class="fragment"><strong>Iterative methods.</strong> Improving a
               guess step by step, and how fast the error shrinks.</li>
             <li class="fragment"><strong>Implementation.</strong> Tolerances,
-              failure, and passing a function to a function in C++.</li>
+              failure, and function as an argument in C++.</li>
           </ul>
           <!-- <p class="fragment why">Every method today is a loop that improves a
                guess. The whole subject is how much better each step gets, and
@@ -54,30 +54,39 @@
         </section>
 
         <section>
-          <h2>Where roots come from</h2>
-          <ul style="font-size: 0.9em;">
-            <li><strong>Orbits.</strong> Where is a planet at time $t$? The
-              position follows from the eccentric anomaly $E$, which solves
-              Kepler's equation $E - e\sin E = M(t)$. No closed form; solved
-              billions of times a day by orbit propagators.</li>
-            <li class="fragment"><strong>Quantum wells.</strong> The bound-state
-              energies of a finite square well solve
-              $\tan z = \sqrt{(z_0/z)^2 - 1}$.</li>
-            <li class="fragment"><strong>Lagrange points.</strong> Where gravity
-              and the centrifugal force balance is a fifth-degree polynomial
-              in the distance. That is Homework 2.</li>
+          <h2>Why $f(x) = 0$?</h2>
+          <ul style="font-size: 0.85em;">
+            <li><strong>Orbit periods.</strong> The turning points of an orbit
+              solve $E = V_{\rm eff}(r)$. Any perturbation to $1/r$ makes
+              this transcendental, and the period integral
+              $\oint dr/\sqrt{E - V_{\rm eff}(r)}$ cannot even be written
+              down until the roots are in hand.</li>
+            <li class="fragment"><strong>Wave dispersion.</strong> A wave with
+              wavenumber $k$ can only oscillate at frequencies with
+              $D(\omega, k) = 0$. Deriving the dispersion relation is
+              physics; solving it is nontrivial numerics.</li>
+            <li class="fragment"><strong>Phase transitions.</strong> The BCS
+              gap $\Delta(T)$ is defined implicitly by
+              $1 = \lambda \int \tanh\!\big(\sqrt{\xi^2 + \Delta^2}/2T\big)
+              /\sqrt{\xi^2 + \Delta^2}\,d\xi$: an equation to solve, not a
+              formula to evaluate.</li>
           </ul>
-          
+          <p class="fragment why">Often $f(x) = 0$ is not the problem itself
+            but a step inside it, solved thousands of times.</p>
         </section>
 
         <section>
           <h2>When a formula exists</h2>
-          <p style="font-size: 0.9em; margin-bottom: 0;">$ax^2 + bx + c = 0$:
-            $\;x_{1,2} = \dfrac{-b \pm \sqrt{b^2 - 4ac}}{2a}$</p>
+          <div style="display: flex; align-items: center; justify-content: center;
+            gap: 1.2em; font-size: 0.9em; margin: 20px 0 8px;">
+            <span>$ax^2 + bx + c = 0:$</span>
+            <span style="flex: 0 0 7%; height: 3px;"></span>
+            <span>$x_{1,2} = \dfrac{-b \pm \sqrt{b^2 - 4ac}}{2a}$</span>
+          </div>
           <ul style="font-size: 0.8em;">
             <li class="fragment">When $b^2 \gg 4ac$, one root computes as
               $-b + \sqrt{b^2 - 4ac}$: two nearly equal numbers subtracted,
-              i.e. catastrophic cancellation (lecture 1).</li>
+              i.e. catastrophic cancellation (Lecture 1).</li>
             <li class="fragment">$a = 1$, $b = 10^8$, $c = 1$: the small root
               is $-1.0\times10^{-8}$. The formula gives
               $-7.45\times10^{-9}$, 25% off.</li>
@@ -105,7 +114,7 @@
 
         <section class="divider">
           <h2>Part II &middot; Iterative methods</h2>
-          <p>Fixed point &middot; bisection &middot; Newton &middot; secant</p>
+          <p>Fixed point &middot; Bisection &middot; Newton &middot; Secant</p>
         </section>
 
         <section>
@@ -121,7 +130,7 @@
               $g(x) = 2 - e^{-x}$.</li>
           </ul>
           <p class="fragment why">$x_*$ is called a <em>fixed point</em> of
-            $g$: plugging it in gives it back.</p>
+            $g$: plugging it in gives back $x_*$.</p>
         </section>
 
         <section>
@@ -145,11 +154,13 @@
             </div>
             <div class="col">
               <ul style="font-size: 0.85em;">
+                <li class="fragment">Always need to start from a guess $x_0$. We
+                choose $x_0 = 1$ arbitrarily.</li>
                 <li class="fragment">Each step shrinks the error by about the
                   same factor, here $0.16$.</li>
                 <li class="fragment">About one more correct digit every 1.3
                   steps.</li>
-                <li class="fragment">Why $0.16$? Next slide.</li>
+                <li class="fragment">Why $0.16$?</li>
               </ul>
             </div>
           </div>
@@ -171,7 +182,7 @@
               table.</li>
           </ul>
           <p class="fragment why">Convergence is slow when $|g'(x_*)|$ is
-            close to 1, and absent when it exceeds 1.</p>
+            close to 1. The iteration will diverge when it exceeds 1.</p>
         </section>
 
         <section>
@@ -203,23 +214,39 @@
 
         <section>
           <h2>Bisection method</h2>
+          <p style="font-size: 0.9em;">Start from $[a_0, b_0]$ with
+            $f(a_0)\,f(b_0) < 0$. For $n = 0, 1, 2, \dots$:</p>
+          $$x_{n+1} = \tfrac12\,(a_n + b_n)$$
+          $$[a_{n+1},\, b_{n+1}] =
+            \begin{cases}
+              [a_n,\, x_{n+1}] & \text{if } f(a_n)\,f(x_{n+1}) < 0,\\[3pt]
+              [x_{n+1},\, b_n] & \text{otherwise,}
+            \end{cases}$$
+          <p class="fragment" style="font-size: 0.9em;">until $b_n - a_n$ (or
+            $|f(x_{n+1})|$) is small enough.</p>
+          <p class="fragment why">Each update preserves the sign change
+            $f(a_n)\,f(b_n) < 0$, so the interval contains a root at every
+            step.</p>
+        </section>
+
+        <section>
+          <h2>Bisection method</h2>
           <ul style="font-size: 0.9em;">
             <li>After $n$ steps the interval has width $(b - a)/2^n$. To
               reach width $\varepsilon$:
               $$n = \log_2\frac{b - a}{\varepsilon}$$</li>
             <li class="fragment">$[1, 2]$ down to $10^{-15}$: 50 steps.
-              Fixed-point iteration at rate $0.16$ needed 19. Newton will
-              need 5.</li>
+              Fixed-point iteration at rate $0.16$ needed 19.</li>
             <li class="fragment">The count does not depend on $f$. With a valid
               bracket, bisection cannot fail.</li>
           </ul>
-          <p class="fragment why">The midpoint error is not monotone (it can
-            jump when the root is near an endpoint), but the bracket always
-            shrinks.</p>
+          <!-- <p class="fragment why">The midpoint error is not monotone (it can
+               jump when the root is near an endpoint), but the bracket always
+               shrinks.</p> -->
         </section>
 
         <section>
-          <h2>Bisection method</h2>
+          <h2>Drawbacks of Bisection method</h2>
           <ul style="font-size: 0.9em;">
             <li><strong>No sign change.</strong> $f(x) = x^2$ touches zero
               without crossing. There is no bracket, so bisection never
@@ -251,23 +278,24 @@
           <p style="font-size: 0.9em;">Expand $f$ around $x_*$ to second order
             and use $f(x_*) = 0$:</p>
           $$x_{n+1} - x_* = \frac{f''(x_*)}{2f'(x_*)}\,(x_n - x_*)^2 + \cdots$$
-          <ul style="font-size: 0.85em;">
-            <li class="fragment">The error is <em>squared</em> each step:
-              quadratic convergence. The number of correct digits
-              doubles.</li>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">The error is <em>squared</em> each step
+              (quadratic convergence): $k$ correct digits means
+              $e_n \sim 10^{-k}$, and $e_n^2 \sim 10^{-2k}$ means $2k$
+              correct digits.</li>
             <li class="fragment">In fixed-point language:
               $g'(x) = f f''/(f')^2$, so $g'(x_*) = 0$. The linear term
               is gone.</li>
-            <li class="fragment">Our example from $x_0 = 1$: errors
-              $1.6\times10^{-1}$, $2.1\times10^{-3}$, $4.1\times10^{-7}$,
-              $1.6\times10^{-14}$. Four steps.</li>
+            <!-- <li class="fragment">Our example from $x_0 = 1$:
+                 $1.6\times10^{-1}$, $2.1\times10^{-3}$, $4.1\times10^{-7}$,
+                 $1.6\times10^{-14}$: digits $1 \to 3 \to 7 \to 14$.</li> -->
           </ul>
           <p class="fragment why">The price: it needs $f'$, and a starting
             point close enough to the root.</p>
         </section>
 
         <section>
-          <h2>Newton's method</h2>
+          <h2>Drawbacks of Newton's method</h2>
           <img src="figures/newton_runaway.png" style="width: 50%; margin: 0 auto; display: block;"
             alt="Newton's method on arctan x from x0 = 1.5: each step lands farther from the root">
           <ul style="font-size: 0.8em;">
@@ -379,74 +407,86 @@
             <li class="fragment">Return both the answer and whether the
               iteration converged:</li>
           </ul>
-          <pre style="font-size: 0.45em;"><code class="language-c++" data-trim data-noescape>
+          <pre style="font-size: 0.45em;" class="fragment"><code class="language-c++" data-trim data-noescape>
 std::tuple&lt;bool, double&gt; result = bisection(f, 1.0, 2.0, 1e-12);
-auto [ok, x] = result;            // structured binding: unpack the tuple
+bool ok  = std::get&lt;0&gt;(result);   // std::get&lt;n&gt;: the n-th tuple element
+double x = std::get&lt;1&gt;(result);
 if (!ok) { std::cout &lt;&lt; "did not converge\n"; }
           </code></pre>
-          <p class="fragment why">This is the convention Homework 2 asks for:
-            <code>{converged, x}</code>, with <code>false</code> for a bad
-            bracket, too many iterations, or NaN.</p>
+          <!-- <p class="fragment why">This is the convention Homework 2 asks for:
+               <code>{converged, x}</code>, with <code>false</code> for a bad
+               bracket, too many iterations, or NaN.</p> -->
         </section>
 
         <section>
           <h2>Passing a function to a function</h2>
-          <p style="font-size: 0.8em;">Root-finding functions take $f$ as an
-            argument. This requires writing a function template: the one
-            exception to lecture 2's rule.</p>
-          <pre style="font-size: 0.45em;"><code class="language-c++" data-trim data-noescape>
+          <p style="font-size: 0.85em;">Root-finding functions take $f$ as an
+            argument. This requires writing a function template:</p>
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
 template &lt;typename F&gt;                 // F: anything callable as f(x)
 double evaluate(const F&amp; f, double x) {
   return f(x);
 }
+
 double square(double x) { return x * x; }
-evaluate(square, 3.0);                             // 9.0
-evaluate([](double x) { return x * x; }, 3.0);     // 9.0, with a lambda
-const double e = 0.3, M = 1.0;                     // problem parameters
-auto kepler = [e, M](double E) { return E - e * std::sin(E) - M; };
-evaluate(kepler, 1.0);                             // [e, M]: it may use them
+evaluate(square, 3.0);                // 9.0
           </code></pre>
-          <p class="fragment why" style="font-size: 0.7em;">A <em>lambda</em>
-            is a function without a name, written where it is used. The
-            brackets list the outside variables it may use.</p>
+          <p class="fragment why">The compiler generates a version of
+            <code>evaluate</code> for every type <code>F</code> it is called
+            with.</p>
         </section>
 
         <section>
-          <h2>Bisection in C++</h2>
-          <pre style="font-size: 0.42em;"><code class="language-c++" data-trim data-noescape>
-template &lt;typename F&gt;   // f(a) and f(b) must have opposite signs
-std::tuple&lt;bool, double&gt; bisection(const F&amp; f, double a, double b, double tol) {
-  const int max_iter = 200;             // 2^-200 is far below epsilon
-  double fa = f(a);
-  if (fa * f(b) > 0.0) return {false, a};   // no sign change: no bracket
-  for (int i = 0; i &lt; max_iter; ++i) {
-    const double mid = 0.5 * (a + b);
-    const double fm = f(mid);
-    if (std::abs(fm) &lt; tol) return {true, mid};
-    if (fa * fm &lt; 0.0) { b = mid; } else { a = mid; fa = fm; }
-  }
-  return {false, 0.5 * (a + b)};
-}
+          <h2>Lambda functions</h2>
+          <p style="font-size: 0.85em;">A function can also be written with no
+            name:</p>
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
+const double e = 0.3, M = 1.0;
+auto kepler = [e, M](double E) { return E - e * std::sin(E) - M; };
+evaluate(kepler, 1.0);
+
+evaluate([](double x) { return x * x; }, 3.0);   // 9.0
           </code></pre>
-          <p class="fragment why" style="font-size: 0.7em;">Needs
-            <code>&lt;cmath&gt;</code> and <code>&lt;tuple&gt;</code>. Run on
-            $x - 2 + e^{-x}$, $[1, 2]$: $1.84141$. On $x^2$, $[1, 2]$:
-            <code>false</code>.</p>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">The brackets are the <em>capture list</em>:
+              the outside variables the lambda may use.</li>
+            <li class="fragment">This is how a root finder gets an $f$ with
+              parameters in it: capture them.</li>
+          </ul>
         </section>
 
+        <!-- <section>
+             <h2>Bisection in C++</h2>
+             <pre style="font-size: 0.42em;"><code class="language-c++" data-trim data-noescape>
+             template &lt;typename F&gt;   // f(a) and f(b) must have opposite signs
+             std::tuple&lt;bool, double&gt; bisection(const F&amp; f, double a, double b, double tol) {
+             const int max_iter = 200;             // 2^-200 is far below epsilon
+             double fa = f(a);
+             if (fa * f(b) > 0.0) return {false, a};   // no sign change: no bracket
+             for (int i = 0; i &lt; max_iter; ++i) {
+             const double mid = 0.5 * (a + b);
+             const double fm = f(mid);
+             if (std::abs(fm) &lt; tol) return {true, mid};
+             if (fa * fm &lt; 0.0) { b = mid; } else { a = mid; fa = fm; }
+             }
+             return {false, 0.5 * (a + b)};
+             }
+             </code></pre>
+             <p class="fragment why" style="font-size: 0.7em;">Needs
+             <code>&lt;cmath&gt;</code> and <code>&lt;tuple&gt;</code>. Run on
+             $x - 2 + e^{-x}$, $[1, 2]$: $1.84141$. On $x^2$, $[1, 2]$:
+             <code>false</code>.</p>
+             </section>
+        -->
         <section>
           <h2>Where this goes next</h2>
           <ul>
-            <li><strong>Homework 2:</strong> implement all four methods as
-              templates with the <code>{converged, x}</code> convention,
-              then use them on a real problem.</li>
-            <li class="fragment"><strong>Next lecture:</strong> numerical
-              integration.</li>
+            <li class="fragment"><strong>Next Lecture:</strong> interpolation</li>
             <li class="fragment">References:
               <ul style="font-size: 0.9em;">
-                <li>Numerical Recipes, 3rd ed., chapter 9 (root finding).</li>
+                <li>Numerical Recipes, 3rd ed., Chapter 9 (root finding).</li>
                 <li>Burden &amp; Faires, <em>Numerical Analysis</em>,
-                  chapter 2.</li>
+                  Chapter 2.</li>
                 <li>3Blue1Brown, <em>Newton's fractal</em> (what Newton does
                   far from a root).</li>
               </ul>

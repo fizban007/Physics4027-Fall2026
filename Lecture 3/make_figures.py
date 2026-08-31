@@ -13,8 +13,11 @@ V = ["#440154", "#365C8D", "#1FA187", "#A0DA39"]   # viridis picks, dark to ligh
 plt.rcParams.update({
     "figure.facecolor": PAPER, "axes.facecolor": PAPER, "savefig.facecolor": PAPER,
     "axes.edgecolor": MUTED, "axes.labelcolor": INK, "xtick.color": INK, "ytick.color": INK,
-    "text.color": INK, "font.size": 15, "axes.spines.top": False, "axes.spines.right": False,
-    "lines.linewidth": 2.2, "font.family": "sans-serif",
+    "text.color": INK, "font.size": 16, "axes.spines.top": False, "axes.spines.right": False,
+    "lines.linewidth": 2.2,
+    # Real LaTeX for all text, so figures match the MathJax on the slides.
+    "text.usetex": True, "font.family": "serif",
+    "text.latex.preamble": r"\usepackage{amsmath}",
 })
 
 def f(x):  return x - 2.0 + np.exp(-x)

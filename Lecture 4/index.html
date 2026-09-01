@@ -68,6 +68,11 @@
           </ul>
           <p class="fragment why">Today: the methods that gain digits faster
             and faster.</p>
+          <aside class="notes">
+            If asked why |g'(x_*)| is the rate (from last lecture):
+            x_{n+1} - x_* = g(x_n) - g(x_*) = g'(x_*)(x_n - x_*) + ...,
+            so each step multiplies the error by g'(x_*).
+          </aside>
         </section>
 
         <section>
@@ -98,6 +103,19 @@
           </ul>
           <p class="fragment why">The price: it needs $f'$, and a starting
             point close enough to the root.</p>
+          <aside class="notes">
+            DERIVATION (the formula appears unproven). Let e_n = x_n - x_*.
+            Taylor around x_n, evaluated at the root:
+            0 = f(x_*) = f(x_n) - f'(x_n) e_n + (1/2) f''(xi) e_n^2,
+            so f(x_n) = f'(x_n) e_n - (1/2) f''(xi) e_n^2.
+            Then e_{n+1} = e_n - f(x_n)/f'(x_n)
+            = e_n - e_n + (1/2) [f''(xi)/f'(x_n)] e_n^2
+            = [f''(xi) / 2 f'(x_n)] e_n^2.
+            As x_n -> x_*, both xi -> x_* and f'(x_n) -> f'(x_*), giving the
+            slide's formula. Key move: expand around x_n and evaluate at
+            x_*, not the other way; the f(x_n) terms cancel by construction
+            of the Newton step.
+          </aside>
         </section>
 
         <section>
@@ -132,6 +150,18 @@
           <p class="fragment why" style="font-size: 0.7em;">Practical root
             finders combine a fast method with bisection as a fallback;
             Brent's method is the standard example.</p>
+          <aside class="notes">
+            DERIVATION of the order phi (stated unproven). Same Taylor
+            argument as Newton but with the secant slope in place of f'
+            gives e_{n+1} = [f''/2f'] e_n e_{n-1} (the divided difference
+            f[x_{n-1}, x_n] ~ f'(x_*) plus a correction linear in each
+            error). Now assume a power law e_{n+1} = A e_n^p. Then
+            e_n = A e_{n-1}^p, so e_n e_{n-1} ~ e_n^{1 + 1/p}, and
+            consistency requires p = 1 + 1/p, i.e. p^2 - p - 1 = 0,
+            whose positive root is phi = (1 + sqrt 5)/2. No need to derive
+            the e_n e_{n-1} relation in class; deriving p from it is the
+            defensible part.
+          </aside>
         </section>
 
         <section>
@@ -180,6 +210,16 @@
           </ul>
           <p class="fragment why">Do not ask for more digits than the format
             has.</p>
+          <aside class="notes">
+            DERIVATION of the residual floor eps |x_* f'(x_*)| (stated
+            unproven). Near x_*, representable doubles are spaced
+            ulp(x_*) ~ eps |x_*| apart (relative spacing, Lecture 1).
+            Moving from one representable x to the next changes f by about
+            f'(x_*) times that spacing, so even at the representable x
+            closest to the root, |f| is generically of order
+            eps |x_* f'(x_*)|. Below that, the computed residual is
+            roundoff noise, not signal.
+          </aside>
         </section>
 
         <section>
@@ -292,6 +332,16 @@ std::tuple&lt;bool, double&gt; bisection(const F&amp; f, double a, double b, dou
             <li class="fragment">What it misses is the curvature: the error
               grows with $f''$ and with the spacing $x_1 - x_0$.</li>
           </ul>
+          <aside class="notes">
+            If pressed on the curvature claim: the exact error is
+            f(x) - p(x) = (1/2) f''(xi) (x - x_0)(x - x_1) for some xi in
+            the interval; with spacing h its largest value (midpoint) is
+            h^2 |f''| / 8. Quick argument for the midpoint case: the chord
+            gives the average of the endpoint values, and Taylor around the
+            midpoint shows [f(x_0) + f(x_1)]/2 - f(mid) = (h^2/8) f'' + ...
+            (the f' terms cancel). The general form is a Rolle's theorem
+            argument, same shape as next lecture's trapezoidal error.
+          </aside>
         </section>
 
         <section>
@@ -327,6 +377,14 @@ std::tuple&lt;bool, double&gt; bisection(const F&amp; f, double a, double b, dou
           <p class="fragment why">Unique means any method that fits a
             degree-$N$ polynomial through these points produces this
             polynomial.</p>
+          <aside class="notes">
+            PROOF of uniqueness (claimed unproven). Existence: each product
+            term is 1 at its own node and 0 at every other, so the sum hits
+            all N+1 values; each term has degree N. Uniqueness: if p and q
+            both have degree at most N and agree at the N+1 nodes, then
+            p - q is a polynomial of degree at most N with N+1 distinct
+            roots, hence identically zero.
+          </aside>
         </section>
 
         <section>

@@ -69,9 +69,12 @@
           <p class="fragment why">Today: the methods that gain digits faster
             and faster.</p>
           <aside class="notes">
-            If asked why |g'(x_*)| is the rate (from last lecture):
-            x_{n+1} - x_* = g(x_n) - g(x_*) = g'(x_*)(x_n - x_*) + ...,
-            so each step multiplies the error by g'(x_*).
+            If asked why |g'(x_*)| is the rate (from last lecture), the
+            exact version is the mean value theorem:
+            x_{n+1} - x_* = g(x_n) - g(x_*) = g'(eta_n)(x_n - x_*) with
+            eta_n between x_n and x_*, exactly. Contraction on an interval
+            where |g'| &lt;= L &lt; 1 gives convergence; continuity of g'
+            makes the asymptotic rate |g'(x_*)|.
           </aside>
         </section>
 
@@ -89,14 +92,18 @@
 
         <section>
           <h2>Newton's method</h2>
-          <p style="font-size: 0.9em;">Expand $f$ around $x_*$ to second order
-            and use $f(x_*) = 0$:</p>
-          $$x_{n+1} - x_* = \frac{f''(x_*)}{2f'(x_*)}\,(x_n - x_*)^2 + \cdots$$
+          <p style="font-size: 0.9em;">Taylor with remainder around $x_n$,
+            evaluated at the root where $f(x_*) = 0$, gives
+            <em>exactly</em></p>
+          $$x_{n+1} - x_* = \frac{f''(\xi_n)}{2f'(x_n)}\,(x_n - x_*)^2,
+            \qquad \xi_n \text{ between } x_n \text{ and } x_*$$
           <ul style="font-size: 0.8em;">
             <li class="fragment">The error is <em>squared</em> each step
               (quadratic convergence): $k$ correct digits means
               $e_n \sim 10^{-k}$, and $e_n^2 \sim 10^{-2k}$ means $2k$
               correct digits.</li>
+            <li class="fragment">As $x_n \to x_*$, the coefficient settles
+              at $f''(x_*)\,/\,2f'(x_*)$.</li>
             <li class="fragment">In fixed-point language:
               $g'(x) = f f''/(f')^2$, so $g'(x_*) = 0$. The linear term
               is gone.</li>
@@ -104,17 +111,25 @@
           <p class="fragment why">The price: it needs $f'$, and a starting
             point close enough to the root.</p>
           <aside class="notes">
-            DERIVATION (the formula appears unproven). Let e_n = x_n - x_*.
-            Taylor around x_n, evaluated at the root:
-            0 = f(x_*) = f(x_n) - f'(x_n) e_n + (1/2) f''(xi) e_n^2,
-            so f(x_n) = f'(x_n) e_n - (1/2) f''(xi) e_n^2.
-            Then e_{n+1} = e_n - f(x_n)/f'(x_n)
-            = e_n - e_n + (1/2) [f''(xi)/f'(x_n)] e_n^2
-            = [f''(xi) / 2 f'(x_n)] e_n^2.
-            As x_n -> x_*, both xi -> x_* and f'(x_n) -> f'(x_*), giving the
-            slide's formula. Key move: expand around x_n and evaluate at
-            x_*, not the other way; the f(x_n) terms cancel by construction
-            of the Newton step.
+            DERIVATION, two steps; keep them separate. Step 1 is EXACT (no
+            limits, nothing dropped). Taylor with the Lagrange remainder
+            around x_n, evaluated at the root, with e_n = x_n - x_*:
+            0 = f(x_*) = f(x_n) - f'(x_n) e_n + (1/2) f''(xi_n) e_n^2,
+            xi_n strictly between x_n and x_* (needs f'' continuous; note
+            (x_* - x_n)^2 = e_n^2, so the sign is harmless). Solve for
+            f(x_n), put it into e_{n+1} = e_n - f(x_n)/f'(x_n); the e_n
+            terms cancel and e_{n+1} = [f''(xi_n) / 2 f'(x_n)] e_n^2,
+            exactly, whenever f'(x_n) != 0. This alone gives quadratic
+            convergence: near the root |e_{n+1}| &lt;= (M/2m) e_n^2 with
+            M = max |f''|, m = min |f'| on an interval around x_*.
+            Step 2 concerns ONLY the coefficient, never the e_n^2 factor:
+            xi_n is trapped between x_n and x_*, so |xi_n - x_*| &lt;= |e_n|
+            and continuity gives f''(xi_n) -> f''(x_*),
+            f'(x_n) -> f'(x_*). Quantified (f'' Lipschitz): coefficient
+            = f''(x_*)/2f'(x_*) + O(e_n), so the asymptotic form is off by
+            O(e_n^3), all of it from the coefficient. The sloppy shortcut
+            to avoid at the board: taking these limits inside an equation
+            that still holds e_n^2 fixed. The remainder form never does.
           </aside>
         </section>
 
@@ -151,16 +166,20 @@
             finders combine a fast method with bisection as a fallback;
             Brent's method is the standard example.</p>
           <aside class="notes">
-            DERIVATION of the order phi (stated unproven). Same Taylor
-            argument as Newton but with the secant slope in place of f'
-            gives e_{n+1} = [f''/2f'] e_n e_{n-1} (the divided difference
-            f[x_{n-1}, x_n] ~ f'(x_*) plus a correction linear in each
-            error). Now assume a power law e_{n+1} = A e_n^p. Then
+            DERIVATION of the order phi (stated unproven). The exact error
+            identity, via divided differences:
+            e_{n+1} = e_n e_{n-1} * f[x_{n-1}, x_n, x_*] / f[x_{n-1}, x_n],
+            and the mean-value forms f[x_{n-1}, x_n] = f'(eta_n),
+            f[x_{n-1}, x_n, x_*] = f''(xi_n)/2 with eta_n, xi_n in the
+            interval spanned by the three points. So exactly
+            e_{n+1} = [f''(xi_n) / 2 f'(eta_n)] e_n e_{n-1}: same structure
+            as Newton, coefficient at intermediate points, no limits taken.
+            For the order: assume a power law e_{n+1} = A e_n^p. Then
             e_n = A e_{n-1}^p, so e_n e_{n-1} ~ e_n^{1 + 1/p}, and
-            consistency requires p = 1 + 1/p, i.e. p^2 - p - 1 = 0,
-            whose positive root is phi = (1 + sqrt 5)/2. No need to derive
-            the e_n e_{n-1} relation in class; deriving p from it is the
-            defensible part.
+            consistency requires p = 1 + 1/p, i.e. p^2 - p - 1 = 0, whose
+            positive root is phi = (1 + sqrt 5)/2. In class the power-law
+            step is the defensible part; quote the exact identity and
+            derive p from it.
           </aside>
         </section>
 

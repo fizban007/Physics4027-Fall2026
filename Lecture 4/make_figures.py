@@ -46,12 +46,6 @@ ax.legend(frameon=False, fontsize=13, ncol=3, loc="lower center",
           bbox_to_anchor=(0.5, 1.0))
 save(fig, "interp")
 
-# 2. Runge's phenomenon: degree-10 polynomial through 11 equally spaced nodes
-def runge(x):
-    return 1.0 / (1.0 + 25.0 * x * x)
-
-nodes = np.linspace(-1, 1, 11)
-x = np.linspace(-1, 1, 800)
 # Lagrange interpolant evaluated directly from the formula
 def lagrange(xq, xi, yi):
     total = np.zeros_like(xq)
@@ -62,6 +56,30 @@ def lagrange(xq, xi, yi):
                 term *= (xq - xi[j]) / (xi[i] - xi[j])
         total += term
     return total
+
+# 2. the same 11 equally spaced nodes on a smooth function: excellent
+nodes = np.linspace(-1, 1, 11)
+x = np.linspace(-1, 1, 800)
+good = np.sin(2.0 * x)
+p10 = lagrange(x, nodes, np.sin(2.0 * nodes))
+print(f"sin(2x), degree 10, max |error| = {np.max(np.abs(good - p10)):.2e}")
+
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(9, 3.6))
+a1.plot(x, good, color=V[0], label=r"$f(x) = \sin 2x$")
+a1.plot(x, p10, color=V[2], ls="--", label="degree-10 interpolation")
+a1.plot(nodes, np.sin(2.0 * nodes), "o", color=V[0], ms=6, zorder=5)
+a1.set_xlabel("$x$")
+a1.legend(frameon=False, fontsize=12, loc="upper left")
+a2.plot(x, (good - p10) * 1e6, color=V[1])
+a2.axhline(0, color=MUTED, lw=1)
+a2.set_xlabel("$x$")
+a2.set_ylabel(r"$(f - p_{10}) \times 10^{6}$")
+fig.tight_layout()
+save(fig, "interp_good")
+
+# 3. Runge's phenomenon: degree-10 polynomial through 11 equally spaced nodes
+def runge(x):
+    return 1.0 / (1.0 + 25.0 * x * x)
 
 fig, ax = plt.subplots(figsize=(8, 3.8))
 ax.plot(x, runge(x), color=V[0], label=r"$f(x) = 1/(1 + 25x^2)$")

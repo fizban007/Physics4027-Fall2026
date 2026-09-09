@@ -138,42 +138,39 @@
 
         <section>
           <h2>Trapezoidal rule: the error</h2>
-          <p style="font-size: 0.85em;">Each trapezoid is the linear
-            interpolation $p_1$ of $f$ through the interval's endpoints.
-            Lecture 4's error formula, exact for every $x$:</p>
-          $$f(x) - p_1(x) = \tfrac12 f''(\xi(x))\,(x - x_i)(x - x_{i+1}),
-            \qquad \xi(x) \in [x_i, x_{i+1}]$$
-          <ul style="font-size: 0.75em;">
-            <li class="fragment">Integrate. The product $(x - x_i)(x - x_{i+1})$
-              never changes sign, so $f''$ can be evaluated at a single
-              interior point $\xi_i$, and
-              $\int_{x_i}^{x_{i+1}} (x - x_i)(x - x_{i+1})\,dx = -h^3/6$
-              gives a per-interval error of
-              $-\tfrac{1}{12} f''(\xi_i)\,h^3$.</li>
-            <li class="fragment">Sum over the $N$ intervals: the sum over
-              $f''$ approximates an integral,
-              $$\varepsilon = -\frac{h^2}{12}\sum_i f''(\xi_i)\,h
-                \approx -\frac{h^2}{12}\int_a^b f''\,dx
-                = \frac{h^2}{12}\left[f'(a) - f'(b)\right].$$</li>
-            <li class="fragment">The error is $O(h^2)$, and the rule is exact
-              when $f$ is linear ($f'' = 0$).</li>
+          <p style="font-size: 0.8em;">Take one interval of width $h$ and
+            expand $f$ around its midpoint $m$:
+            $f(x) \approx f(m) + f'(m)(x - m) + \tfrac12 f''(m)(x - m)^2$.</p>
+          <ul style="font-size: 0.73em;">
+            <li class="fragment">The exact integral:
+              $\int f\,dx \approx f(m)\,h + \tfrac{1}{24}f''(m)\,h^3$.
+              The $f'$ term integrates to zero by symmetry.</li>
+            <li class="fragment">The trapezoid: both endpoints sit $h/2$
+              from the midpoint, so
+              $\tfrac{h}{2}\left[f(m - \tfrac{h}{2}) + f(m + \tfrac{h}{2})\right]
+              \approx f(m)\,h + \tfrac18 f''(m)\,h^3$.</li>
+            <li class="fragment">One interval is therefore off by
+              $\left(\tfrac{1}{24} - \tfrac18\right)f''(m)\,h^3
+              = -\tfrac{1}{12}f''(m)\,h^3$. Summing all
+              $N = (b-a)/h$ intervals, as before:
+              $$\varepsilon \approx -\frac{h^2}{12}\int_a^b f''\,dx
+                = \frac{h^2}{12}\left[f'(a) - f'(b)\right]$$</li>
           </ul>
+          <p class="fragment why" style="font-size: 0.72em;">The error is
+            $O(h^2)$ and comes entirely from the curvature: a straight
+            line ($f'' = 0$) is integrated exactly.</p>
           <aside class="notes">
-            DERIVATION, both steps exact until the last. (1) Lecture 4's
-            error formula for linear interpolation, with the remainder
-            point xi_i in the interval; integrating the product gives
-            -h^3/6 by direct computation (substitute u = x - x_i). The
-            mean value theorem for integrals justifies pulling f''(xi_i)
-            out at a possibly different interior point (f'' continuous,
-            and the product does not change sign on the interval). (2) The
-            sum sum_i f''(xi_i) h is a Riemann sum for int f'' = f'(b) -
-            f'(a); the replacement costs O(h) relative, i.e. O(h^4) total,
-            which is the honest meaning of the approx sign. AVOID the 2025
-            shortcut (expand around both endpoints, average, and let the
-            1/4 silently become 1/12 by telescoping): the averaged
-            expansion's h^2/4 term and its h^3/12 f'' term must be
-            combined before summing to get 1/12, and skipping that step is
-            not defensible at the board.
+            DERIVATION checks. Integral of the quadratic term:
+            (1/2) f'' int_{-h/2}^{h/2} u^2 du = (1/2) f'' h^3/12 =
+            f'' h^3/24. Endpoint average: (1/2)[f(m+h/2) + f(m-h/2)] =
+            f(m) + (1/2) f'' (h/2)^2 = f(m) + f'' h^2/8; times h gives
+            the h^3/8 term. The odd terms (f' and the third derivative)
+            cancel in BOTH the integral and the endpoint average, by the
+            same symmetry; that is why the next correction is h^5 per
+            interval, h^4 total, and why only even powers appear in
+            Euler-Maclaurin (next slide). Summing: sum over f''(m_i) h
+            approximates int f'' = f'(b) - f'(a), the same step as on
+            the O(h) slide.
           </aside>
         </section>
 
@@ -190,8 +187,8 @@
               Removing the $h^2$ term therefore improves the error to
               $h^4$, two orders at once.</li>
           </ul>
-          <p class="fragment why">This is why Simpson's rule below gains two
-            orders over trapezoidal, not one.</p>
+          <!-- <p class="fragment why">This is why Simpson's rule below gains two
+               orders over trapezoidal, not one.</p> -->
           <aside class="notes">
             The full Euler-Maclaurin proof (integration by parts against
             Bernoulli polynomials) is beyond lecture scope; quote it and

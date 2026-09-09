@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 5</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 5</p>
+          <h1>Numerical Integration</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+        </section>
+
+        <section>
+          <h2>Today</h2>
+          <ul>
+            <li><strong>Rules on a grid.</strong> Trapezoidal and Simpson's
+              rules: last lecture's interpolation, integrated.</li>
+            <li class="fragment"><strong>Adaptive refinement.</strong> How
+              many points are enough, and how to know.</li>
+            <li class="fragment"><strong>Gauss quadrature.</strong> What
+              happens when the points are allowed to move.</li>
+          </ul>
+          <aside class="notes">
+            Week 3. This delivers Lecture 4's closing promise: integration
+            rules are built from interpolation. Stop after Gauss; improper
+            integrals and multi-D next time.
+          </aside>
+        </section>
+
+        <!-- ============ Part I: rules on a grid ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Rules on a grid</h2>
+          <p>Trapezoidal &middot; Simpson</p>
+        </section>
+
+        <section>
+          <h2>Why integrate numerically?</h2>
+          <ul style="font-size: 0.85em;">
+            <li><strong>Pendulum period.</strong> At finite amplitude
+              $\theta_0$, the period is
+              $T = 4\sqrt{L/g}\int_0^{\pi/2}
+              d\phi\,\big/\sqrt{1 - \sin^2(\theta_0/2)\sin^2\phi}$: an
+              elliptic integral, with no closed form.</li>
+            <li class="fragment"><strong>Orbit periods.</strong> Lecture 3
+              found the turning points of $E = V_{\rm eff}(r)$; the period
+              is then $2\oint dr\big/\sqrt{2(E - V_{\rm eff}(r))/m}$. Root
+              finding and quadrature together finish the problem.</li>
+            <li class="fragment"><strong>Radiated power.</strong> The power a
+              blackbody emits in a given wavelength band is
+              $\int_{\lambda_1}^{\lambda_2} B_\lambda\,d\lambda$; over all
+              wavelengths there is a formula (Stefan&ndash;Boltzmann), over
+              a band there is none.</li>
+          </ul>
+          <p class="fragment why">Like root finding, quadrature is rarely
+            the problem itself: it is a step inside one.</p>
+        </section>
+
+        <section>
+          <h2>Starting from the definition</h2>
+          <img src="figures/rectangles.png" style="width: 40%; margin: 0 auto; display: block;"
+            alt="Left-endpoint rectangles under a smooth curve">
+          <p style="font-size: 0.85em;">The Riemann sum with $N$ intervals of
+            width $h = (b - a)/N$:</p>
+          $$\int_a^b f(x)\,dx \approx \sum_{i=0}^{N-1} f(x_i)\,h$$
+          <p class="fragment why" style="font-size: 0.72em;">It converges,
+            but the error only shrinks like $h$. We can do much better for
+            the same work.</p>
+        </section>
+
+        <section>
+          <h2>Trapezoidal rule</h2>
+          <img src="figures/trapezoids.png" style="width: 40%; margin: 0 auto; display: block;"
+            alt="Trapezoids under the same curve">
+          <p style="font-size: 0.85em;">Replace $f$ on each interval by its
+            <em>linear interpolation</em> (last lecture!), and integrate
+            that:</p>
+          $$\int_a^b f(x)\,dx \approx
+            \left[\tfrac12 f(x_0) + f(x_1) + \cdots + f(x_{N-1})
+            + \tfrac12 f(x_N)\right] h$$
+          <p class="fragment why" style="font-size: 0.72em;">Interior points
+            are shared by two trapezoids; the endpoints are not. Hence the
+            two halves.</p>
+        </section>
+
+        <section>
+          <h2>Trapezoidal rule: the error</h2>
+          <p style="font-size: 0.85em;">Last lecture's interpolation error
+            formula does the work. On one interval $[x_i, x_{i+1}]$,</p>
+          $$f(x) - p_1(x) = \tfrac12 f''(\xi_i)\,(x - x_i)(x - x_{i+1})$$
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Integrate it:
+              $\int_{x_i}^{x_{i+1}} (x - x_i)(x - x_{i+1})\,dx = -h^3/6$,
+              so one interval contributes error
+              $-\tfrac{1}{12} f''(\xi_i)\,h^3$.</li>
+            <li class="fragment">Sum over the $N$ intervals: the $f''$
+              values sample an integral,
+              $$\varepsilon = -\frac{h^2}{12}\sum_i f''(\xi_i)\,h
+                \approx -\frac{h^2}{12}\int_a^b f''\,dx
+                = \frac{h^2}{12}\left[f'(a) - f'(b)\right].$$</li>
+            <li class="fragment">The error shrinks as $h^2$: halve $h$, gain
+              a factor of 4. Exact when $f$ is linear ($f'' = 0$).</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION, both steps exact until the last. (1) Lecture 4's
+            error formula for linear interpolation, with the remainder
+            point xi_i in the interval; integrating the product gives
+            -h^3/6 by direct computation (substitute u = x - x_i). The
+            mean value theorem for integrals justifies pulling f''(xi_i)
+            out at a possibly different interior point (f'' continuous,
+            and the product does not change sign on the interval). (2) The
+            sum sum_i f''(xi_i) h is a Riemann sum for int f'' = f'(b) -
+            f'(a); the replacement costs O(h) relative, i.e. O(h^4) total,
+            which is the honest meaning of the approx sign. AVOID the 2025
+            shortcut (expand around both endpoints, average, and let the
+            1/4 silently become 1/12 by telescoping): the averaged
+            expansion's h^2/4 term and its h^3/12 f'' term must be
+            combined before summing to get 1/12, and skipping that step is
+            not defensible at the board.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The Euler&ndash;Maclaurin formula</h2>
+          <p style="font-size: 0.85em;">The trapezoidal error has an exact
+            expansion, the <em>Euler&ndash;Maclaurin formula</em>:</p>
+          $$\varepsilon = \sum_{k=1}^{\infty} \frac{B_{2k}}{(2k)!}\,h^{2k}
+            \left[f^{(2k-1)}(a) - f^{(2k-1)}(b)\right]$$
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">$B_{2k}$ are the Bernoulli numbers
+              ($B_2 = \tfrac16$ gives the $\tfrac{1}{12}$).</li>
+            <li class="fragment">Only <em>even</em> powers of $h$ appear.
+              Kill the $h^2$ term and the error drops straight to $h^4$,
+              two orders at once.</li>
+          </ul>
+          <p class="fragment why">That observation is worth a slide of its
+            own. It is coming.</p>
+          <aside class="notes">
+            The full Euler-Maclaurin proof (integration by parts against
+            Bernoulli polynomials) is beyond lecture scope; quote it and
+            cite Numerical Recipes 4.2 if pressed. What CAN be shown
+            quickly: the h^2 coefficient from the previous slide, and the
+            absence of odd powers by symmetry: on one interval, odd-order
+            terms of the expansion around the midpoint integrate to zero
+            and the trapezoid value is symmetric in a and b, so the error
+            is even in h.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Simpson's rule</h2>
+          <img src="figures/simpsons-family-couch.jpg" style="width: 46%; margin: 0 auto; display: block;"
+            alt="The Simpsons on their couch">
+        </section>
+
+        <section>
+          <h2>Simpson's rule</h2>
+          <img src="figures/simpson.png" style="width: 40%; margin: 0 auto; display: block;"
+            alt="Parabolas through pairs of intervals under the curve">
+          <p style="font-size: 0.85em;">Interpolate a <em>parabola</em>
+            through each pair of intervals and integrate it. With $N$ even:</p>
+          $$\int_a^b f(x)\,dx \approx \frac{h}{3}\left[f(x_0) + 4f(x_1)
+            + 2f(x_2) + \cdots + 4f(x_{N-1}) + f(x_N)\right]$$
+          <p class="fragment why" style="font-size: 0.72em;">The pattern
+            $1, 4, 2, 4, \dots, 2, 4, 1$: each parabola spans two intervals
+            and weights its midpoint by 4.</p>
+        </section>
+
+        <section>
+          <h2>Simpson's rule: the error</h2>
+          <ul style="font-size: 0.85em;">
+            <li>The error is
+              $$\varepsilon = \frac{h^4}{180}\left[f'''(a) - f'''(b)\right]
+                + O(h^6),$$
+              two orders better than trapezoidal, for the same number of
+              function evaluations.</li>
+            <li class="fragment">A parabola should buy exactness for
+              quadratics. Simpson's rule is in fact exact for
+              <em>cubics</em> too: one order comes free.</li>
+            <li class="fragment">Why? A cubic minus its interpolating
+              parabola is odd about the midpoint of the pair; its integral
+              vanishes by symmetry.</li>
+          </ul>
+          <p class="fragment why">Even-power error expansions are a running
+            theme: symmetric rules gain an extra order for free.</p>
+          <aside class="notes">
+            DERIVATION of cubic exactness. On [x0, x2] with midpoint x1,
+            write the cubic as c(x) = q(x) + alpha (x - x1)^3 with q the
+            quadratic that interpolates c at the three nodes... cleaner:
+            let d(x) = c(x) - p_2(x) where p_2 interpolates c at x0, x1,
+            x2. d is a cubic vanishing at the three nodes, so
+            d(x) = alpha (x - x0)(x - x1)(x - x2), which is odd about x1;
+            its integral over [x0, x2] is zero. So int c = int p_2 =
+            Simpson. The h^4/180 coefficient for one pair follows from the
+            interpolation error with the quartic term; per-pair error is
+            -(h^5/90) f''''(xi), and summing over N/2 pairs telescopes to
+            the slide's boundary form (same move as the trapezoid).
+          </aside>
+        </section>
+
+        <section>
+          <h2>Measured convergence</h2>
+          <p style="font-size: 0.8em;">Both rules on
+            $\int_0^2 x^4 \sinh^{-1}(x)\,dx = 8.15336\ldots$, against the
+            exact value:</p>
+          <img src="figures/convergence.png" style="width: 58%; margin: 0 auto; display: block;"
+            alt="Log-log convergence: trapezoidal follows N^-2, Simpson follows N^-4">
+          <ul style="font-size: 0.75em;">
+            <li class="fragment">Measured slopes: $-1.99$ and $-4.02$. The
+              error formulas are not decoration; the data lands on
+              them.</li>
+          </ul>
+          <aside class="notes">
+            Real numbers from the figure script, not sketched. Ask: to gain
+            a factor of 10^6 in accuracy, how much more work does each rule
+            need? (1000x vs 32x.)
+          </aside>
+        </section>
+
+        <!-- ============ Part II: adaptive refinement ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Adaptive refinement</h2>
+          <p>How many points are enough?</p>
+        </section>
+
+        <section>
+          <h2>Refine until it stops changing</h2>
+          <p style="font-size: 0.85em;">You rarely know the right $N$ in
+            advance. Double it instead, reusing every value you already
+            have:</p>
+          $$\begin{align}
+            S_1 &= \tfrac12\left[f(a) + f(b)\right]h_1,
+              & h_1 &= b - a \\
+            S_2 &= \tfrac12 S_1 + f\!\left(\tfrac{a+b}{2}\right)h_2,
+              & h_2 &= \tfrac12 h_1 \\
+            S_3 &= \tfrac12 S_2 + \left[f\!\left(a + \tfrac{h_1}{4}\right)
+              + f\!\left(a + \tfrac{3h_1}{4}\right)\right]h_3,
+              & h_3 &= \tfrac12 h_2
+          \end{align}$$
+          <p class="fragment why" style="font-size: 0.72em;">Each level only
+            evaluates $f$ at the <em>new</em> midpoints. No value is ever
+            computed twice.</p>
+        </section>
+
+        <section>
+          <h2>An error estimate for free</h2>
+          <ul style="font-size: 0.85em;">
+            <li>The trapezoidal error is
+              $\varepsilon \approx \tfrac{h^2}{12}[f'(a) - f'(b)]$, and the
+              boundary term does not change under refinement: halving $h$
+              divides the error by 4.</li>
+            <li class="fragment">So consecutive levels measure their own
+              error:
+              $$\varepsilon_n \approx \tfrac13\,(S_n - S_{n-1})$$</li>
+            <li class="fragment">Refine until $|\varepsilon_n|$ (or
+              $|\varepsilon_n / S_n|$) drops below your tolerance.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the 1/3. Let I be the true value. S_{n-1} = I + e,
+            S_n = I + e/4 (error divided by 4). Subtract:
+            S_n - S_{n-1} = -3e/4, so e/4 (the error OF S_n) =
+            -(S_n - S_{n-1})/3... sign aside, |error of S_n| =
+            |S_n - S_{n-1}|/3. Same structure as a convergence test in
+            root finding: the computable difference of successive
+            approximations stands in for the uncomputable error.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Cancel the error instead</h2>
+          <p style="font-size: 0.85em;">If $S_{n-1}$ carries error $e$ and
+            $S_n$ carries $e/4$, a linear combination can cancel $e$
+            entirely:</p>
+          $$S'_n = \frac{4 S_n - S_{n-1}}{3}$$
+          <p class="fragment" style="font-size: 0.9em;">Work out what
+            $S'_n$ is in terms of the function values, and you find it is
+            <em>exactly Simpson's rule</em> on the finer grid.</p>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Its error estimate:
+              $\varepsilon_n \approx \tfrac{1}{15}(S'_n - S'_{n-1})$.</li>
+            <li class="fragment">Strategy: run the doubling trapezoidal
+              levels $S_1, S_2, \dots$, form $S'_n$ at each level, stop when
+              the estimate is below tolerance.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION that S' is Simpson: on one coarse interval with
+            midpoint m, S_{n-1} = (h/1)[f(a)/2 + f(b)/2] (h = b-a) and
+            S_n = (h/2)[f(a)/2 + f(m) + f(b)/2]. Then (4 S_n - S_{n-1})/3
+            = (h/6)[f(a) + 4 f(m) + f(b)] = Simpson on [a, b]. The 1/15:
+            Simpson's error scales as h^4, so consecutive levels have
+            errors e and e/16; S'_n - S'_{n-1} = -15/16 e, giving
+            |error of S'_n| = |S'_n - S'_{n-1}|/15. This whole idea
+            (combine two step sizes to cancel the leading error term) is
+            Richardson extrapolation; iterating it is Romberg integration.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The routine you will write</h2>
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
+template &lt;typename F&gt;
+std::tuple&lt;bool, double&gt; adaptive_simpson(const F&amp; f, double a, double b,
+                                          double tol) {
+  // repeat the doubling trapezoidal levels, form S' at each level,
+  // stop when the error estimate drops below tol
+}
+          </code></pre>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Same conventions as the root finders:
+              <code>{converged, value}</code>, a maximum refinement depth,
+              <code>false</code> if the tolerance is never reached.</li>
+            <li class="fragment">The tolerance discussion from root finding
+              applies unchanged: absolute or relative, and there is a floor
+              set by rounding.</li>
+          </ul>
+        </section>
+
+        <!-- ============ Part III: Gauss quadrature ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; Gauss quadrature</h2>
+          <p>Let the points move</p>
+        </section>
+
+        <section>
+          <h2>Free the nodes</h2>
+          <ul style="font-size: 0.85em;">
+            <li>Every rule so far has the shape
+              $$\int_a^b f(x)\,dx \approx \sum_{i=0}^{n-1} w_i\,f(x_i),$$
+              with the $x_i$ fixed on an even grid. Rules of that family
+              are called <em>Newton&ndash;Cotes</em> formulas.</li>
+            <li class="fragment">Now let the $x_i$ move. That doubles the
+              free parameters: $n$ weights <em>and</em> $n$ node positions,
+              $2n$ in total.</li>
+            <li class="fragment">A polynomial of degree $2n - 1$ has $2n$
+              coefficients. Chosen well, $n$ evaluations can integrate
+              every such polynomial <em>exactly</em>.</li>
+          </ul>
+          <p class="fragment why">$n = 5$: exact for degree-9 polynomials,
+            from five function values. The question is where the nodes
+            go.</p>
+        </section>
+
+        <section>
+          <h2>Gauss&ndash;Legendre quadrature</h2>
+          <img src="figures/legendre.png" style="width: 46%; margin: 0 auto; display: block;"
+            alt="Legendre polynomials P1 through P5 on [-1,1]">
+          <ul style="font-size: 0.8em;">
+            <li>On $[-1, 1]$: the nodes $x_i$ are the $n$ roots of the
+              Legendre polynomial $P_n(x)$, and the weights are
+              $$w_i = \frac{2}{(1 - x_i^2)\left[P'_n(x_i)\right]^2}.$$</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Nodes and weights, $n = 10$</h2>
+          <table style="font-size: 0.62em; margin: 0 auto;">
+            <thead><tr><th>$\pm x_i$</th><th>$w_i$</th></tr></thead>
+            <tbody>
+              <tr><td>0.1488743389816312</td><td>0.2955242247147529</td></tr>
+              <tr><td>0.4333953941292472</td><td>0.2692667193099963</td></tr>
+              <tr><td>0.6794095682990244</td><td>0.2190863625159821</td></tr>
+              <tr><td>0.8650633666889845</td><td>0.1494513491505806</td></tr>
+              <tr><td>0.9739065285171717</td><td>0.0666713443086881</td></tr>
+            </tbody>
+          </table>
+          <ul style="font-size: 0.75em; margin-top: 0.6em;">
+            <li class="fragment">The nodes come in $\pm$ pairs with equal
+              weights, and none of them are endpoints. They crowd toward
+              the edges (compare Chebyshev-like spacing, and remember where
+              interpolation error piles up).</li>
+            <li class="fragment">In practice: tabulated, or computed once
+              by Newton's method on $P_n(x) = 0$.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Any interval</h2>
+          <p style="font-size: 0.85em;">Gauss&ndash;Legendre lives on
+            $[-1, 1]$. For $[a, b]$, substitute
+            $x = \tfrac12(b - a)\,t + \tfrac12(b + a)$:</p>
+          $$\int_a^b f(x)\,dx = \frac{b - a}{2}\int_{-1}^1
+            f\big(x(t)\big)\,dt \approx \frac{b - a}{2}
+            \sum_{i=0}^{n-1} w_i\, f\big(x(t_i)\big)$$
+          <p class="fragment why" style="font-size: 0.72em;">A linear map
+            and one overall factor. Every quadrature library does this for
+            you; every homework implementation should too.</p>
+        </section>
+
+        <section>
+          <h2>What that buys</h2>
+          <p style="font-size: 0.8em;">The same test integral,
+            $\int_0^2 x^4 \sinh^{-1}(x)\,dx$, cost measured in function
+            evaluations:</p>
+          <img src="figures/gauss_convergence.png" style="width: 58%; margin: 0 auto; display: block;"
+            alt="Gauss-Legendre reaches 1e-14 with 12 evaluations; Simpson is at 1e-4 with 17">
+          <ul style="font-size: 0.75em;">
+            <li class="fragment">Twelve evaluations: error
+              $4 \times 10^{-14}$. Simpson needs roughly $10^5$ intervals
+              for that. The convergence is not a power of $h$ at all; it is
+              geometric.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Why it is exact at degree $2n-1$</h2>
+          <p style="font-size: 0.8em;">Take any polynomial $f$ of degree
+            $\le 2n - 1$ and divide by $P_n$:</p>
+          $$f(x) = P_n(x)\,q(x) + r(x), \qquad \deg q,\ \deg r \le n - 1$$
+          <ul style="font-size: 0.78em;">
+            <li class="fragment"><strong>The $q$ piece integrates to
+              zero:</strong> $P_n$ is orthogonal to every polynomial of
+              lower degree, and $\int P_n q = 0$.</li>
+            <li class="fragment"><strong>The rule never sees $q$:</strong>
+              at the nodes, $P_n(x_i) = 0$, so $f(x_i) = r(x_i)$.</li>
+            <li class="fragment"><strong>The $r$ piece is easy:</strong>
+              $\deg r \le n - 1$, so $r$ is its own interpolation through
+              the $n$ nodes, and the weights $w_i = \int_{-1}^1 \ell_i(x)\,dx$
+              integrate it exactly.</li>
+          </ul>
+          <p class="fragment why">Choosing roots of $P_n$ makes the rule
+            blind to exactly the part of $f$ that integrates to zero.</p>
+          <aside class="notes">
+            DERIVATION, full chain. (1) Polynomial division gives f = P_n q
+            + r with deg q, r &lt;= n-1 (2n-1 = n + (n-1)). (2) Legendre
+            orthogonality: int_{-1}^1 P_n P_m = 0 for m &lt; n, and q is a
+            combination of P_0..P_{n-1}, so int P_n q = 0. Hence
+            int f = int r exactly. (3) At the nodes f(x_i) = r(x_i) since
+            P_n(x_i) = 0. (4) r has degree &lt;= n-1 and n values pin it
+            down (Lecture 4 uniqueness!): r = sum r(x_i) l_i(x) with the
+            Lagrange basis on the nodes. Integrate: int r = sum r(x_i)
+            int l_i = sum w_i r(x_i) = sum w_i f(x_i). Chain: sum w_i
+            f(x_i) = int r = int f, exact. The closed form of the slide's
+            weight formula (2 / (1-x_i^2) P_n'(x_i)^2) equals int l_i via
+            Legendre identities; quote it (Numerical Recipes 4.6) rather
+            than derive. Note the weights are all positive, which keeps
+            the rule numerically stable.
+          </aside>
+        </section>
+
+        <section>
+          <h2>When Gauss is the wrong tool</h2>
+          <ul style="font-size: 0.85em;">
+            <li><strong>Non-smooth integrands.</strong> The magic assumed
+              $f$ is close to a high-degree polynomial. A kink, a
+              singularity ($1/\sqrt{x}$), or a discontinuity breaks the
+              geometric convergence.</li>
+            <li class="fragment"><strong>Oscillatory integrands.</strong>
+              $\sin(1/x)$ near $0$ is not polynomial-like at any
+              degree.</li>
+            <li class="fragment"><strong>No cheap error estimate.</strong>
+              Unlike the doubling trapezoid, successive $n$ share no nodes,
+              so checking means starting over.</li>
+          </ul>
+          <p class="fragment why">Smooth integrand, known cost budget:
+            Gauss. Unknown territory, need an error bar: adaptive
+            Simpson.</p>
+        </section>
+
+        <section>
+          <h2>Where this goes next</h2>
+          <ul>
+            <li class="fragment"><strong>Next lecture:</strong> improper
+              integrals (infinite ranges, endpoint singularities) and
+              integrals in more than one dimension.</li>
+            <li class="fragment">References:
+              <ul style="font-size: 0.9em;">
+                <li>Numerical Recipes, 3rd ed., Chapter 4 (quadrature).</li>
+                <li>Burden &amp; Faires, <em>Numerical Analysis</em>,
+                  Chapter 4.</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 5</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

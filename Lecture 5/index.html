@@ -85,12 +85,12 @@
         </section>
 
         <section>
-          <h2>Why the error is $O(h)$</h2>
+          <h2>Riemann sum error</h2>
           <ul style="font-size: 0.72em;">
             <li>On one interval, the rectangle ignores the variation of
-              $f$. By Taylor expansion,
-              $f(x) - f(x_i) \approx f'(\xi)\,(x - x_i)$, so one interval
-              contributes error
+              $f$. By the mean value theorem,
+              $f(x) - f(x_i) = f'(\xi)\,(x - x_i)$ for some $\xi$ between
+              $x_i$ and $x$, so one interval contributes error
               $$\int_{x_i}^{x_{i+1}} \left[f(x) - f(x_i)\right] dx
                 = \tfrac12 f'(\xi_i)\,h^2.$$</li>
             <li class="fragment">There are $N = (b - a)/h$ intervals. Summing
@@ -496,8 +496,8 @@ std::tuple&lt;bool, double&gt; adaptive_simpson(const F&amp; f, double a, double
               $\int_{-1}^1 r(x)\,dx = \sum_i w_i\,r(x_i)$, and that is
               what defines the weights $w_i$.</li>
           </ul>
-          <p class="fragment why">The rule never sees the part of $f$ that it
-            would integrate to zero anyway.</p>
+          <!-- <p class="fragment why">The rule never sees the part of $f$ that it
+               would integrate to zero anyway.</p> -->
           <aside class="notes">
             DERIVATION, full chain. (1) Polynomial division gives f = P_n q
             + r with deg q, r &lt;= n-1 (2n-1 = n + (n-1)). (2) Legendre
@@ -546,9 +546,7 @@ std::tuple&lt;bool, double&gt; adaptive_simpson(const F&amp; f, double a, double
         <section>
           <h2>Where this goes next</h2>
           <ul>
-            <li class="fragment"><strong>Next lecture:</strong> improper
-              integrals (infinite ranges, endpoint singularities) and
-              integrals in more than one dimension.</li>
+            <li class="fragment"><strong>Next lecture:</strong> Solving ODEs, Runge-Kutta methods.</li>
             <li class="fragment">References:
               <ul style="font-size: 0.9em;">
                 <li>Numerical Recipes, 3rd ed., Chapter 4 (quadrature).</li>

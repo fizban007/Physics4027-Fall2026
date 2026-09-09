@@ -137,37 +137,64 @@
         </section>
 
         <section>
-          <h2>Trapezoidal rule: the error</h2>
-          <p style="font-size: 0.85em;">With $N$ intervals of width
-            $h = (b - a)/N$, the error of the trapezoidal rule is</p>
-          $$\varepsilon = \frac{h^2}{12}\left[f'(a) - f'(b)\right]
-            + O(h^4)$$
-          <ul style="font-size: 0.85em;">
-            <li class="fragment">Sketch: expand $f$ around each interval's
-              midpoint; the trapezoid overshoots the exact integral by
-              $\tfrac{1}{12} f''(m)\,h^3$ per interval, and the $N$
-              per-interval errors add up to $O(h^2)$.</li>
-            <li class="fragment">The error comes from the curvature:
-              straight lines ($f'' = 0$) are integrated exactly.</li>
-          </ul>
+          <h2>Trapezoidal rule: error on one interval</h2>
+          <p style="font-size: 0.85em;">One interval, centered at $m$, width
+            $h$. Expand $f$ around $m$:
+            $\,f(x) \approx f(m) + f'(m)(x - m) + \tfrac12 f''(m)(x - m)^2$.</p>
+          <div class="fragment">
+            $$\text{exact:}\qquad
+              \int_{m - h/2}^{\,m + h/2} f(x)\,dx
+              \;\approx\; f(m)\,h + \frac{f''(m)}{24}\,h^3$$
+          </div>
+          <div class="fragment">
+            $$\text{trapezoid:}\qquad
+              \frac{h}{2}\left[f\!\left(m - \tfrac{h}{2}\right)
+              + f\!\left(m + \tfrac{h}{2}\right)\right]
+              \;\approx\; f(m)\,h + \frac{f''(m)}{8}\,h^3$$
+            <p style="font-size: 0.65em; text-align: center; margin-top: -0.2em;">
+              (plug $x = m \pm h/2$ into the expansion; the $f'$ terms
+              cancel in the sum)</p>
+          </div>
+          <p class="fragment" style="font-size: 0.9em;">Subtract:
+            one interval is off by
+            $\left(\tfrac{1}{24} - \tfrac{1}{8}\right) f''(m)\,h^3
+            = -\tfrac{1}{12}\,f''(m)\,h^3$.</p>
           <aside class="notes">
-            BOARD DERIVATION. One interval, centered at m, width h.
-            Expand: f(x) = f(m) + f'(m)(x-m) + (1/2) f''(m)(x-m)^2 + ...
-            (1) Exact integral from m-h/2 to m+h/2: the f' term is odd
-            about m and integrates to zero; the quadratic term gives
-            (1/2) f'' * (h^3/12) = f'' h^3/24. So: f(m) h + f'' h^3/24.
-            (2) Trapezoid: f(m +- h/2) = f(m) +- f'(m) h/2 +
-            (1/2) f''(m) h^2/4; in the average the f' terms cancel:
-            (h/2)[f(m-h/2) + f(m+h/2)] = f(m) h + f'' h^3/8.
-            (3) Exact minus trapezoid: (1/24 - 1/8) f'' h^3 =
-            -f'' h^3/12 per interval.
-            (4) Sum over N intervals: -(h^2/12) sum of f''(m_i) h, and
-            that sum is a Riemann sum for int_a^b f'' = f'(b) - f'(a),
-            giving the slide's formula.
-            The same midpoint symmetry kills the third-derivative terms
-            on both sides, so the next correction is h^5 per interval,
-            h^4 total: only even powers, which is the Euler-Maclaurin
-            slide.
+            DERIVATION checks. Exact side: the f' term integrates to zero
+            by symmetry about m, and (1/2) f'' int_{-h/2}^{h/2} u^2 du =
+            (1/2) f'' (h^3/12) = f'' h^3 / 24. Trapezoid side:
+            f(m +- h/2) = f(m) +- f'(m) h/2 + (1/2) f''(m) h^2/4; the
+            average is f(m) + f'' h^2 / 8, times h. The same symmetry
+            kills the third-derivative terms on both sides, so the next
+            correction is h^5: this is why only even powers appear in
+            Euler-Maclaurin, two slides ahead.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Trapezoidal rule: total error</h2>
+          <p style="font-size: 0.85em;">Add up the $N = (b - a)/h$
+            intervals, with midpoints $m_1, \dots, m_N$:</p>
+          $$\varepsilon \;\approx\; \sum_{i=1}^{N}
+            \left(-\frac{f''(m_i)}{12}\,h^3\right)
+            = -\frac{h^2}{12} \sum_{i=1}^{N} f''(m_i)\,h
+            \;\approx\; -\frac{h^2}{12} \int_a^b f''(x)\,dx$$
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">The last sum is a Riemann sum, so
+              $$\varepsilon \approx \frac{h^2}{12}
+                \left[f'(a) - f'(b)\right].$$</li>
+            <li class="fragment">$N$ terms of size $h^3$ give $O(h^2)$:
+              the same bookkeeping as the rectangle rule, one order
+              better.</li>
+          </ul>
+          <p class="fragment why" style="font-size: 0.72em;">The error
+            comes entirely from the curvature: straight lines
+            ($f'' = 0$) are integrated exactly.</p>
+          <aside class="notes">
+            The Riemann-sum replacement sum f''(m_i) h -> int_a^b f'' dx
+            = f'(b) - f'(a) is the only approximation beyond truncating
+            the Taylor series; its relative cost is O(h), i.e. O(h^4)
+            absolute, consistent with Euler-Maclaurin's next term.
           </aside>
         </section>
 
@@ -232,8 +259,8 @@
               parabola is odd about the midpoint of the pair; its integral
               vanishes by symmetry.</li>
           </ul>
-          <p class="fragment why">Symmetric rules gain an extra order for
-            free.</p>
+          <!-- <p class="fragment why">Symmetric rules gain an extra order for
+               free.</p> -->
           <aside class="notes">
             DERIVATION of cubic exactness. On [x0, x2] with midpoint x1,
             write the cubic as c(x) = q(x) + alpha (x - x1)^3 with q the

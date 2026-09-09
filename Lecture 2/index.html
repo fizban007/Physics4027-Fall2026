@@ -629,6 +629,11 @@ $ git restore ball.cpp           # discard uncommitted changes
         height: 720,
         margin: 0.06,
         hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
         math: {
           mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
           config: 'TeX-AMS_HTML-full',

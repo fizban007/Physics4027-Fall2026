@@ -88,8 +88,8 @@
           <h2>Why the error is $O(h)$</h2>
           <ul style="font-size: 0.72em;">
             <li>On one interval, the rectangle ignores the variation of
-              $f$. By Taylor with remainder,
-              $f(x) - f(x_i) = f'(\xi)\,(x - x_i)$, so one interval
+              $f$. By Taylor expansion,
+              $f(x) - f(x_i) \approx f'(\xi)\,(x - x_i)$, so one interval
               contributes error
               $$\int_{x_i}^{x_{i+1}} \left[f(x) - f(x_i)\right] dx
                 = \tfrac12 f'(\xi_i)\,h^2.$$</li>
@@ -104,9 +104,9 @@
               the error by $2^p$; on a log-log plot against $N$, the slope
               is $-p$.</li>
           </ul>
-          <p class="fragment why" style="font-size: 0.72em;">Every rule today
-            repeats this pattern: a per-interval error, times $N$, loses
-            one power of $h$.</p>
+          <!-- <p class="fragment why" style="font-size: 0.72em;">Every rule today
+               repeats this pattern: a per-interval error, times $N$, loses
+               one power of $h$.</p> -->
           <aside class="notes">
             DERIVATION details. f(x) - f(x_i) = f'(xi(x)) (x - x_i) is the
             mean value theorem, exact, with xi(x) between x_i and x.
@@ -138,21 +138,25 @@
 
         <section>
           <h2>Trapezoidal rule: the error</h2>
-          <p style="font-size: 0.85em;">Start from the interpolation error
-            formula of Lecture 4. On one interval $[x_i, x_{i+1}]$,</p>
-          $$f(x) - p_1(x) = \tfrac12 f''(\xi_i)\,(x - x_i)(x - x_{i+1})$$
-          <ul style="font-size: 0.8em;">
-            <li class="fragment">Integrate it:
-              $\int_{x_i}^{x_{i+1}} (x - x_i)(x - x_{i+1})\,dx = -h^3/6$,
-              so one interval contributes error
+          <p style="font-size: 0.85em;">Each trapezoid is the linear
+            interpolation $p_1$ of $f$ through the interval's endpoints.
+            Lecture 4's error formula, exact for every $x$:</p>
+          $$f(x) - p_1(x) = \tfrac12 f''(\xi(x))\,(x - x_i)(x - x_{i+1}),
+            \qquad \xi(x) \in [x_i, x_{i+1}]$$
+          <ul style="font-size: 0.75em;">
+            <li class="fragment">Integrate. The product $(x - x_i)(x - x_{i+1})$
+              never changes sign, so $f''$ can be evaluated at a single
+              interior point $\xi_i$, and
+              $\int_{x_i}^{x_{i+1}} (x - x_i)(x - x_{i+1})\,dx = -h^3/6$
+              gives a per-interval error of
               $-\tfrac{1}{12} f''(\xi_i)\,h^3$.</li>
             <li class="fragment">Sum over the $N$ intervals: the sum over
               $f''$ approximates an integral,
               $$\varepsilon = -\frac{h^2}{12}\sum_i f''(\xi_i)\,h
                 \approx -\frac{h^2}{12}\int_a^b f''\,dx
                 = \frac{h^2}{12}\left[f'(a) - f'(b)\right].$$</li>
-            <li class="fragment">The error shrinks as $h^2$: halve $h$, gain
-              a factor of 4. Exact when $f$ is linear ($f'' = 0$).</li>
+            <li class="fragment">The error is $O(h^2)$, and the rule is exact
+              when $f$ is linear ($f'' = 0$).</li>
           </ul>
           <aside class="notes">
             DERIVATION, both steps exact until the last. (1) Lecture 4's

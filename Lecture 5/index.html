@@ -504,12 +504,20 @@ std::tuple&lt;bool, double&gt; adaptive_simpson(const F&amp; f, double a, double
             orthogonality: int_{-1}^1 P_n P_m = 0 for m &lt; n, and q is a
             combination of P_0..P_{n-1}, so int P_n q = 0. Hence
             int f = int r exactly. (3) At the nodes f(x_i) = r(x_i) since
-            P_n(x_i) = 0. (4) r has degree &lt;= n-1 and n values pin it
-            down (Lecture 4 uniqueness!): r = sum r(x_i) l_i(x) with the
-            Lagrange basis on the nodes. Integrate: int r = sum r(x_i)
-            int l_i = sum w_i r(x_i) = sum w_i f(x_i). Chain: sum w_i
-            f(x_i) = int r = int f, exact. The closed form of the slide's
-            weight formula (2 / (1-x_i^2) P_n'(x_i)^2) equals int l_i via
+            P_n(x_i) = 0. (4) WHY the integral of r is a weighted sum of its
+            node values, in the students' own vocabulary: apply Lecture
+            4's Lagrange formula to r itself. It is EXACT here, not an
+            approximation, because deg r &lt;= n-1 and the interpolant
+            through n points is unique: r(x) = sum_i r(x_i) *
+            [product over j != i of (x - x_j)/(x_i - x_j)]. The product
+            factors are the coefficient terms from the Lecture 4 slide
+            (1 at their own node, 0 at the others): fixed polynomials
+            that depend only on the nodes. Integrate both sides from -1
+            to 1; the constants r(x_i) come out, and w_i is the integral
+            of the i-th product factor, computable once from the nodes.
+            Chain: sum w_i f(x_i) = sum w_i r(x_i) = int r = int f,
+            exact. The closed form of the slide's weight formula
+            (2 / (1-x_i^2) P_n'(x_i)^2) equals these integrals via
             Legendre identities; quote it (Numerical Recipes 4.6) rather
             than derive. Note the weights are all positive, which keeps
             the rule numerically stable.

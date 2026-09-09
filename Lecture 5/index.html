@@ -142,7 +142,7 @@
             $h$. Expand $f$ around $m$:
             $\,f(x) \approx f(m) + f'(m)(x - m) + \tfrac12 f''(m)(x - m)^2$.</p>
           <div class="fragment">
-            $$\text{exact:}\qquad
+            $$\text{integral:}\qquad
               \int_{m - h/2}^{\,m + h/2} f(x)\,dx
               \;\approx\; f(m)\,h + \frac{f''(m)}{24}\,h^3$$
           </div>
@@ -309,10 +309,10 @@
           $$\begin{align}
             S_1 &= \tfrac12\left[f(a) + f(b)\right]h_1,
               & h_1 &= b - a \\
-            S_2 &= \tfrac12 S_1 + f\!\left(\tfrac{a+b}{2}\right)h_2,
+            S_2 &= \tfrac12 S_1 + f\!\left(a + h_2\right)h_2,
               & h_2 &= \tfrac12 h_1 \\
-            S_3 &= \tfrac12 S_2 + \left[f\!\left(a + \tfrac{h_1}{4}\right)
-              + f\!\left(a + \tfrac{3h_1}{4}\right)\right]h_3,
+            S_3 &= \tfrac12 S_2 + \left[f\!\left(a + h_3\right)
+              + f\!\left(a + 3h_3\right)\right]h_3,
               & h_3 &= \tfrac12 h_2
           \end{align}$$
           <p class="fragment why" style="font-size: 0.72em;">Each level
@@ -346,10 +346,11 @@
 
         <section>
           <h2>Cancel the error instead</h2>
-          <p style="font-size: 0.85em;">If $S_{n-1}$ carries error $e$ and
-            $S_n$ carries $e/4$, a linear combination can cancel $e$
+          <p style="font-size: 0.85em;">If $S_{n-1}$ carries error $\varepsilon$ and
+            $S_n$ carries $\varepsilon/4$, a linear combination can cancel $\varepsilon$
             entirely:</p>
           $$S'_n = \frac{4 S_n - S_{n-1}}{3}$$
+          <p>What does this do?</p>
           <p class="fragment" style="font-size: 0.9em;">Writing $S'_n$ out in
             terms of the function values shows that it is <em>exactly
             Simpson's rule</em> on the finer grid.</p>
@@ -485,13 +486,15 @@ std::tuple&lt;bool, double&gt; adaptive_simpson(const F&amp; f, double a, double
           <ul style="font-size: 0.78em;">
             <li class="fragment"><strong>The $q$ piece integrates to
               zero:</strong> $P_n$ is orthogonal to every polynomial of
-              lower degree, and $\int P_n q = 0$.</li>
+              lower degree, so $\int_{-1}^1 P_n(x)\,q(x)\,dx = 0$.</li>
             <li class="fragment"><strong>The rule never sees $q$:</strong>
               at the nodes, $P_n(x_i) = 0$, so $f(x_i) = r(x_i)$.</li>
-            <li class="fragment"><strong>The $r$ piece is easy:</strong>
-              $\deg r \le n - 1$, so $r$ is its own interpolation through
-              the $n$ nodes, and the weights $w_i = \int_{-1}^1 \ell_i(x)\,dx$
-              integrate it exactly.</li>
+            <li class="fragment"><strong>The $r$ piece is what the sum
+              computes:</strong> $\deg r \le n - 1$, so $r$ is completely
+              determined by its $n$ values $r(x_i)$ (Lecture 4). Its
+              exact integral is therefore a weighted sum of those values,
+              $\int_{-1}^1 r(x)\,dx = \sum_i w_i\,r(x_i)$, and that is
+              what defines the weights $w_i$.</li>
           </ul>
           <p class="fragment why">The rule never sees the part of $f$ that it
             would integrate to zero anyway.</p>

@@ -51,27 +51,27 @@
           <p>Trapezoidal &middot; Simpson</p>
         </section>
 
-        <section>
-          <h2>Why integrate numerically?</h2>
-          <ul style="font-size: 0.85em;">
-            <li><strong>Pendulum period.</strong> At finite amplitude
-              $\theta_0$, the period is
-              $T = 4\sqrt{L/g}\int_0^{\pi/2}
-              d\phi\,\big/\sqrt{1 - \sin^2(\theta_0/2)\sin^2\phi}$: an
-              elliptic integral, with no closed form.</li>
-            <li class="fragment"><strong>Orbit periods.</strong> Lecture 3
-              found the turning points of $E = V_{\rm eff}(r)$; the period
-              is then $2\oint dr\big/\sqrt{2(E - V_{\rm eff}(r))/m}$. Computing it
-              takes both root finding and quadrature.</li>
-            <li class="fragment"><strong>Radiated power.</strong> The power a
-              blackbody emits in a given wavelength band is
-              $\int_{\lambda_1}^{\lambda_2} B_\lambda\,d\lambda$; the
-              integral over all wavelengths has a closed form
-              (Stefan&ndash;Boltzmann); a finite band does not.</li>
-          </ul>
-          <p class="fragment why">Quadrature is usually one step inside a
-            larger calculation.</p>
-        </section>
+        <!-- <section>
+             <h2>Why integrate numerically?</h2>
+             <ul style="font-size: 0.85em;">
+             <li><strong>Pendulum period.</strong> At finite amplitude
+             $\theta_0$, the period is
+             $T = 4\sqrt{L/g}\int_0^{\pi/2}
+             d\phi\,\big/\sqrt{1 - \sin^2(\theta_0/2)\sin^2\phi}$: an
+             elliptic integral, with no closed form.</li>
+             <li class="fragment"><strong>Orbit periods.</strong> Lecture 3
+             found the turning points of $E = V_{\rm eff}(r)$; the period
+             is then $2\oint dr\big/\sqrt{2(E - V_{\rm eff}(r))/m}$. Computing it
+             takes both root finding and quadrature.</li>
+             <li class="fragment"><strong>Radiated power.</strong> The power a
+             blackbody emits in a given wavelength band is
+             $\int_{\lambda_1}^{\lambda_2} B_\lambda\,d\lambda$; the
+             integral over all wavelengths has a closed form
+             (Stefan&ndash;Boltzmann); a finite band does not.</li>
+             </ul>
+             <p class="fragment why">Quadrature is usually one step inside a
+             larger calculation.</p>
+             </section> -->
 
         <section>
           <h2>Starting from the definition</h2>
@@ -82,6 +82,44 @@
           $$\int_a^b f(x)\,dx \approx \sum_{i=0}^{N-1} f(x_i)\,h$$
           <p class="fragment why" style="font-size: 0.72em;">This converges,
             but the error shrinks only as $h$.</p>
+        </section>
+
+        <section>
+          <h2>Why the error is $O(h)$</h2>
+          <ul style="font-size: 0.72em;">
+            <li>On one interval, the rectangle ignores the variation of
+              $f$. By Taylor with remainder,
+              $f(x) - f(x_i) = f'(\xi)\,(x - x_i)$, so one interval
+              contributes error
+              $$\int_{x_i}^{x_{i+1}} \left[f(x) - f(x_i)\right] dx
+                = \tfrac12 f'(\xi_i)\,h^2.$$</li>
+            <li class="fragment">There are $N = (b - a)/h$ intervals. Summing
+              $N$ terms of size $h^2$ costs one power of $h$:
+              $$\varepsilon = \frac{h}{2}\sum_i f'(\xi_i)\,h
+                \approx \frac{h}{2}\int_a^b f'\,dx
+                = \frac{h}{2}\left[f(b) - f(a)\right].$$</li>
+            <li class="fragment"><strong>Notation.</strong>
+              $\varepsilon = O(h^p)$ means $|\varepsilon| \le C h^p$ as
+              $h \to 0$, with $C$ independent of $h$. Halving $h$ divides
+              the error by $2^p$; on a log-log plot against $N$, the slope
+              is $-p$.</li>
+          </ul>
+          <p class="fragment why" style="font-size: 0.72em;">Every rule today
+            repeats this pattern: a per-interval error, times $N$, loses
+            one power of $h$.</p>
+          <aside class="notes">
+            DERIVATION details. f(x) - f(x_i) = f'(xi(x)) (x - x_i) is the
+            mean value theorem, exact, with xi(x) between x_i and x.
+            Pulling f' out of the integral uses the integral mean value
+            theorem: (x - x_i) is nonnegative on the interval, so
+            int f'(xi(x)) (x - x_i) dx = f'(xi_i) int (x - x_i) dx =
+            f'(xi_i) h^2/2 for some interior xi_i (f' continuous). The
+            second step is the same Riemann-sum replacement as on the
+            trapezoid slide: sum f'(xi_i) h -> int f' = f(b) - f(a), at
+            relative cost O(h). Geometric picture if asked: each interval's
+            error is roughly the triangle between the flat top and the
+            curve, width h, height |f'| h, area f' h^2 / 2.
+          </aside>
         </section>
 
         <section>

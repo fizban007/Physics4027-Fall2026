@@ -87,7 +87,7 @@ print(f"h=1: euler max err = {np.max(np.abs(ys_e - np.sin(ts_e))):.3f}, "
       f"rk4 max err = {np.max(np.abs(ys_r - np.sin(ts_r))):.2e}")
 
 # 4. convergence: global error at t = 10 vs h, slopes 1 and 4
-hs = np.array([1.0 / 2**k for k in range(0, 10)])
+hs = np.array([1.0 / 2**k for k in range(0, 14)])
 err_e, err_r = [], []
 for h in hs:
     n = int(round(10.0 / h))

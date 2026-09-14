@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 6</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 6</p>
+          <h1>Ordinary Differential Equations</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+        </section>
+
+        <section>
+          <h2>Today</h2>
+          <ul>
+            <li><strong>The problem.</strong> ODEs and initial value
+              problems.</li>
+            <li class="fragment"><strong>Euler's method.</strong> The
+              simplest solver and its error.</li>
+            <li class="fragment"><strong>Runge-Kutta methods.</strong> The
+              midpoint method and RK4.</li>
+            <li class="fragment"><strong>Convergence.</strong> Checking that
+              a numerical solution can be trusted.</li>
+          </ul>
+          <aside class="notes">
+            Week 4, start of the ODE arc: this lecture through the N-body
+            project. Next lecture: stability, deriving RK coefficients,
+            adaptive steps.
+          </aside>
+        </section>
+
+        <!-- ============ Part I: the problem ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; The problem</h2>
+          <p>ODEs &middot; Initial value problems</p>
+        </section>
+
+        <section>
+          <h2>Ordinary differential equations</h2>
+          <p style="font-size: 0.9em;">An ODE relates an unknown function
+            $y(t)$ to its derivative:</p>
+          $$\frac{dy}{dt} = f(t, y)$$
+          <ul style="font-size: 0.85em;">
+            <li class="fragment">Example: $dy/dt = -y$ has the solutions
+              $y(t) = C e^{-t}$. An ODE alone never fixes the constant;
+              some extra condition has to.</li>
+            <li class="fragment">$y$ can be a vector: several unknown
+              functions, coupled through one $f$. Everything today works
+              componentwise.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Newton's equations fit this form</h2>
+          <p style="font-size: 0.9em;">Physics mostly hands us
+            <em>second</em> derivatives. A pendulum:</p>
+          $$\ddot\theta = -\frac{g}{L}\sin\theta$$
+          <p class="fragment" style="font-size: 0.9em;">Define
+            $\omega = \dot\theta$ and it becomes a first-order system:</p>
+          <div class="fragment">
+          $$y = \begin{pmatrix} \theta \\ \omega \end{pmatrix},
+            \qquad
+            \frac{dy}{dt} = f(y) = \begin{pmatrix} \omega \\
+            -\tfrac{g}{L}\sin\theta \end{pmatrix}$$
+          </div>
+          <p class="fragment why">Any $n$-th order ODE becomes a system of
+            $n$ first-order ODEs this way. Solvers only ever need to handle
+            $dy/dt = f(t, y)$.</p>
+        </section>
+
+        <section>
+          <h2>Initial value problems</h2>
+          <p style="font-size: 0.9em;">An <em>initial value problem</em>
+            (IVP) supplies the missing condition at one point:</p>
+          $$\frac{dy}{dt} = f(t, y), \qquad y(t_0) = y_0$$
+          <ul style="font-size: 0.85em;">
+            <li class="fragment">This is time evolution: the state of the
+              system now, predict it later. Most of mechanics, circuits,
+              orbits, and population models take this form.</li>
+            <li class="fragment">The other common type is the
+              <em>boundary value problem</em>: conditions at both ends of
+              an interval, such as a field with fixed values on two
+              plates. IVPs now; BVPs later in the course.</li>
+          </ul>
+        </section>
+
+        <!-- ============ Part II: Euler ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Euler's method</h2>
+          <p>Follow the tangent</p>
+        </section>
+
+        <section>
+          <h2>Euler's method</h2>
+          <p style="font-size: 0.9em;">The ODE gives the slope at every point.
+            Step $h$ along the current slope and repeat:</p>
+          $$y_{n+1} = y_n + h\, f(t_n, y_n)$$
+          <img src="figures/euler_idea.png" style="width: 37%; margin: 0 auto; display: block;"
+            alt="Euler steps on y' = y falling behind the true exponential">
+          <p class="fragment why" style="font-size: 0.72em;">Each step is
+            exact for a straight line, so curvature is what it misses;
+            here every step lands below the curving-up exponential.</p>
+        </section>
+
+        <section>
+          <h2>Euler's method: the error</h2>
+          <ul style="font-size: 0.85em;">
+            <li>One step is a Taylor series cut after the first
+              derivative:
+              $$y(t + h) = y(t) + h\, y'(t) + O(h^2)$$
+              so the error of a single step is $O(h^2)$.</li>
+            <li class="fragment">Reaching a fixed time $T$ takes
+              $N = T/h$ steps. As with the integration rules: per-step
+              error, times $N$, loses one power of $h$. The accumulated
+              error is $O(h)$.</li>
+            <li class="fragment">First order: halve $h$, halve the error,
+              and double the work.</li>
+          </ul>
+          <aside class="notes">
+            The summation argument is looser here than for quadrature:
+            per-step errors do not simply add, because an error made early
+            is itself propagated by the flow (amplified or damped depending
+            on the equation). The honest statement: for smooth f on a fixed
+            interval, global error &lt;= C(T) h with a constant that can
+            grow exponentially with T (Gronwall). At this point in the
+            course, "N steps of h^2 gives h" is the right level; stability,
+            next lecture, is where the propagation question returns.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Drawbacks of Euler's method</h2>
+          <ul style="font-size: 0.9em;">
+            <li>First order is expensive: every digit of accuracy costs a
+              factor of 10 in steps.</li>
+            <li class="fragment">The error compounds: each step starts
+              from the slightly wrong point the previous step
+              produced.</li>
+            <li class="fragment">It can be unstable: for some equations
+              the numerical solution blows up even though the true
+              solution decays. Defined and analyzed next lecture.</li>
+          </ul>
+          <p class="fragment why">Euler is the idea every other solver
+            refines. Almost nobody should use it as-is.</p>
+        </section>
+
+        <!-- ============ Part III: Runge-Kutta ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; Runge-Kutta methods</h2>
+          <p>Better slopes, same idea</p>
+        </section>
+
+        <section>
+          <h2>The midpoint method</h2>
+          <p style="font-size: 0.9em;">Use the Euler step only to
+            <em>estimate</em> the slope at the middle of the interval, then
+            take the real step with that slope:</p>
+          $$\begin{align}
+            k_1 &= f(t_n, y_n) \\
+            k_2 &= f\!\left(t_n + \tfrac{h}{2},\; y_n + \tfrac{h}{2} k_1\right) \\
+            y_{n+1} &= y_n + h\, k_2
+          \end{align}$$
+          <p class="fragment why">Two evaluations of $f$ per step instead
+            of one. What does it buy?</p>
+        </section>
+
+        <section>
+          <h2>The midpoint method is second order</h2>
+          <p style="font-size: 0.85em;">Expand $y(t + h)$ and $y(t)$ around
+            the midpoint, writing $y_m = y(t + h/2)$:</p>
+          $$\begin{align}
+            y(t + h) &= y_m + \tfrac{h}{2}\, y'_m + \tfrac{h^2}{8}\, y''_m + O(h^3) \\
+            y(t) &= y_m - \tfrac{h}{2}\, y'_m + \tfrac{h^2}{8}\, y''_m + O(h^3)
+          \end{align}$$
+          <p class="fragment" style="font-size: 0.85em;">Subtract: the
+            $y''$ terms cancel by symmetry,</p>
+          <div class="fragment">
+          $$y(t + h) = y(t) + h\, y'\!\left(t + \tfrac{h}{2}\right) + O(h^3)$$
+          </div>
+          <p class="fragment why" style="font-size: 0.72em;">Stepping with
+            the midpoint slope is exact through $h^2$. Same symmetry
+            cancellation as the trapezoid error in Lecture 5.</p>
+          <aside class="notes">
+            BOARD DERIVATION, second half if pressed: the method does not
+            know the exact midpoint value y(t + h/2); it uses the Euler
+            estimate y_n + (h/2) k_1, which is off by O(h^2). That error
+            enters the slope through f, contributing O(h^2) to the slope
+            and O(h^3) to the step, the same order as the term already
+            neglected. So the estimate is good enough and the local error
+            stays O(h^3): second-order accurate globally, by the usual
+            times-N bookkeeping.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Fourth-order Runge-Kutta</h2>
+          <p style="font-size: 0.85em;">The same idea pushed further:
+            sample four slopes per step, average them with fixed
+            weights. The midpoint method is called RK2; this is
+            <em>RK4</em>:</p>
+          $$\begin{align}
+            k_1 &= f(t_n,\; y_n) \\
+            k_2 &= f\!\left(t_n + \tfrac{h}{2},\; y_n + \tfrac{h}{2} k_1\right) \\
+            k_3 &= f\!\left(t_n + \tfrac{h}{2},\; y_n + \tfrac{h}{2} k_2\right) \\
+            k_4 &= f\!\left(t_n + h,\; y_n + h\, k_3\right) \\
+            y_{n+1} &= y_n + \tfrac{h}{6}\left(k_1 + 2k_2 + 2k_3 + k_4\right)
+          \end{align}$$
+        </section>
+
+        <section>
+          <h2>One RK4 step</h2>
+          <img src="figures/rk4_stages.png" style="width: 52%; margin: 0 auto; display: block;"
+            alt="The four sampled slopes of one RK4 step on y' = y, landing almost on the true curve">
+          <ul style="font-size: 0.78em;">
+            <li class="fragment">$k_1$: slope at the start. $k_2$, $k_3$:
+              two successively better midpoint slopes. $k_4$: slope at the
+              far end.</li>
+            <li class="fragment">On $y' = y$ with $h = 1$, one step gives
+              $y_1 = 65/24 = 2.7083$, against $e = 2.7183$: the step
+              reproduces the Taylor series of the solution through
+              $h^4$.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>RK4 facts</h2>
+          <ul style="font-size: 0.85em;">
+            <li>Fourth order: local error $O(h^5)$, accumulated error
+              $O(h^4)$. Halve $h$, gain a factor of 16.</li>
+            <li class="fragment">If $f$ depends only on $t$, the ODE is an
+              integral, and RK4 reduces exactly to Simpson's rule: the
+              weights $\tfrac16, \tfrac13, \tfrac13, \tfrac16$ are
+              Simpson's $1, 4, 1$ over a double interval.</li>
+            <li class="fragment">Where the coefficients come from, and why
+              four stages buy four orders, is next lecture.</li>
+          </ul>
+          <p class="fragment why">For much of physics, RK4 is the default
+            solver. In many papers "Runge-Kutta" means RK4.</p>
+          <aside class="notes">
+            Simpson check: with f = f(t), k2 = k3 = f(t + h/2) and the
+            update is (h/6)[f(t) + 4 f(t + h/2) + f(t + h)]: Simpson on
+            one interval pair of width h. So on such problems RK4 IS the
+            Lecture 5 machinery.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Drawbacks of RK4</h2>
+          <ul style="font-size: 0.9em;">
+            <li>The step size is fixed: $h$ has to be chosen for the most
+              difficult part of the solution, and everywhere else the work
+              is wasted.</li>
+            <li class="fragment">It is not built for <em>stiff</em>
+              equations, where stability rather than accuracy limits the
+              step (next lecture).</li>
+            <li class="fragment">Sometimes fourth order is not enough;
+              long integrations of orbits want higher order or structure
+              preservation.</li>
+          </ul>
+        </section>
+
+        <!-- ============ Part IV: convergence ============ -->
+
+        <section class="divider">
+          <h2>Part IV &middot; Does it converge?</h2>
+          <p>Trust, but measure</p>
+        </section>
+
+        <section>
+          <h2>A test problem</h2>
+          <p style="font-size: 0.9em;">$dy/dt = \cos t$ with $y(0) = 0$,
+            whose exact solution is $y = \sin t$. Euler with $h = 0.2$:</p>
+          <img src="figures/euler_cos.png" style="width: 58%; margin: 0 auto; display: block;"
+            alt="Euler solution at h = 0.2 drifting visibly from sin t">
+          <p class="fragment why" style="font-size: 0.72em;">The drift
+            reaches $0.2$ by $t = 10$: first order means the error is
+            about $h$, not about machine precision.</p>
+        </section>
+
+        <section>
+          <h2>RK4 at the same cost</h2>
+          <p style="font-size: 0.9em;">Both methods with the very coarse
+            step $h = 1$:</p>
+          <img src="figures/rk4_vs_euler.png" style="width: 58%; margin: 0 auto; display: block;"
+            alt="At h = 1, Euler is visibly wrong while RK4 tracks sin t">
+          <ul style="font-size: 0.78em;">
+            <li class="fragment">Euler is off by order 1; RK4 is off by
+              $3.5\times10^{-4}$, with only ten steps and forty
+              evaluations of $f$.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Measured convergence</h2>
+          <img src="figures/convergence.png" style="width: 54%; margin: 0 auto; display: block;"
+            alt="Log-log error at t = 10 against h: Euler on the h^1 line, RK4 on the h^4 line down to machine precision">
+          <ul style="font-size: 0.75em;">
+            <li class="fragment">Measured slopes: $1.006$ and $4.005$.</li>
+            <li class="fragment">At the smallest $h$, RK4 leaves its line
+              and lands at $10^{-15}$: the rounding floor, reached after
+              $5000$ steps.</li>
+          </ul>
+          <aside class="notes">
+            Convergence testing is the everyday tool: solve at h and h/2,
+            and if the answer moves by more than you can tolerate, the
+            step is too big. Ask which slope you would rather be on when
+            each digit is a factor 10 (Euler) vs a factor 1.8 (RK4) in
+            cost.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Without an exact solution</h2>
+          <ul style="font-size: 0.9em;">
+            <li>The test problem had $\sin t$ to compare against. A real
+              problem has nothing.</li>
+            <li class="fragment">The practical check: solve at $h$ and at
+              $h/2$, and compare. If the two agree to your tolerance, the
+              answer can be trusted at that level; if not, refine.</li>
+            <li class="fragment">This is the same move as the doubling
+              trapezoid in Lecture 5, and it can be automated into a
+              solver that picks its own step size. That is where the next
+              lecture ends up.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Where this goes next</h2>
+          <ul>
+            <li class="fragment"><strong>Next lecture:</strong> stability,
+              where the RK coefficients come from, and adaptive step
+              size control.</li>
+            <li class="fragment">The ODE machinery culminates in Project 1:
+              an N-body gravity simulation.</li>
+            <li class="fragment">References:
+              <ul style="font-size: 0.9em;">
+                <li>Numerical Recipes, 3rd ed., Chapter 17 (ODEs).</li>
+                <li>Burden &amp; Faires, <em>Numerical Analysis</em>,
+                  Chapter 5.</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 6</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

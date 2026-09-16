@@ -118,14 +118,14 @@
           <h2>Where do the coefficients come from?</h2>
           <p style="font-size: 0.85em;">The exact solution obeys the Taylor
             expansion</p>
-          $$y(t_n + h) = y_n + h\, y' + \frac{h^2}{2} y'' +
+          $$y_{n+1} = y(t_n + h) = y_n + h\, y' + \frac{h^2}{2} y'' +
             \frac{h^3}{6} y^{(3)} + \cdots$$
           <p class="fragment" style="font-size: 0.85em;">and the chain rule
-            on $y' = f(t, y)$ turns each derivative into partial
+            on $y' = f(t, y)$ turns each derivative of $y'$ into total
             derivatives of $f$:</p>
           <div class="fragment">
           $$\begin{align}
-            y'' &= f_t + f_y\, f \\
+            y'' &= \frac{df}{dt} = f_t + f_y\, y' = f_t + f_y\,f \\
             y^{(3)} &= f_{tt} + 2 f\, f_{ty} + f^2 f_{yy}
               + f_y\,(f_t + f_y\, f)
           \end{align}$$
@@ -429,10 +429,14 @@
           <h2>Semi-implicit Euler</h2>
           <p style="font-size: 0.85em;">To avoid a full nonlinear solve,
             linearize $f$ around the current point:</p>
-          $$y_{n+1} = y_n + h\left[f(y_n)
-            + \left.\frac{df}{dy}\right|_{y_n} (y_{n+1} - y_n)\right]
+          $$
+          \begin{align}
+          y_{n+1} = y_n + h\left[f(y_n)
+            + \left.\frac{df}{dy}\right|_{y_n} (y_{n+1} - y_n)\right] \\
             \;\;\Longrightarrow\;\;
-            y_{n+1} = y_n + h\left(1 - h \frac{df}{dy}\right)^{-1} f(y_n)$$
+          y_{n+1} = y_n + h\left(1 - h \frac{df}{dy}\right)^{-1} f(y_n)
+          \end{align}
+          $$
           <ul style="font-size: 0.8em;">
             <li class="fragment">For systems, $df/dy$ is the Jacobian
               matrix, and the inverse is a linear solve per step.</li>
@@ -440,8 +444,8 @@
               methods, but not guaranteed; full stability requires solving
               the nonlinear equation to tolerance.</li>
           </ul>
-          <p class="fragment why">Solving the nonlinear systems this
-            requires comes later in the course.</p>
+          <!-- <p class="fragment why">Solving the nonlinear systems this
+               requires comes later in the course.</p> -->
           <aside class="notes">
             DERIVATION of the rearrangement: move the (df/dy) y_{n+1} term
             to the left, (1 - h df/dy)(y_{n+1} - y_n) = h f(y_n), then

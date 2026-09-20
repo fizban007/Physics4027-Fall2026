@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 8</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 8</p>
+          <h1>Adaptive Step Size Control</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+        </section>
+
+        <section>
+          <h2>Today</h2>
+          <ul>
+            <li><strong>Estimating the error of a step.</strong> Step
+              doubling: take each step twice.</li>
+            <li class="fragment"><strong>From error to step size.</strong>
+              One number decides accept, reject, and the next $h$.</li>
+            <li class="fragment"><strong>A worked example.</strong> The
+              integrator discovers the timescale on its own.</li>
+            <li class="fragment"><strong>Embedded methods.</strong> The
+              error estimate for free: Dormand-Prince and Cash-Karp.</li>
+          </ul>
+          <aside class="notes">
+            Mirrors the 2025 Lecture 8. Dense output and stop conditions
+            are next lecture, together with Project 1.
+          </aside>
+        </section>
+
+        <!-- ============ Part I: estimating the error ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Estimating the error</h2>
+          <p>What one step can learn about itself</p>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <p style="font-size: 0.85em;">The Runge-Kutta family: stage a few
+            slopes, step with a weighted average.</p>
+          $$k_i = f\Big(t_n + c_i h,\;\, y_n + h \sum_{j=1}^{i-1} a_{ij}\, k_j\Big),
+            \qquad y_{n+1} = y_n + h \sum_{i=1}^{s} b_i\, k_i$$
+          <ul style="font-size: 0.85em;">
+            <li class="fragment">In everything so far, $h$ is fixed: chosen
+              beforehand, the same for every step.</li>
+            <li class="fragment">Chosen how? Accuracy and stability both
+              constrain it &mdash; but you have to guess before you have
+              seen the solution.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>The problem with a fixed step</h2>
+          <img src="figures/example_y.png" style="width: 68%; margin: 0 auto; display: block;"
+            alt="A chirped pulse: flat wings, a burst of fast oscillation near t = 0">
+          <p style="font-size: 0.75em; text-align: center; margin: 0.2em 0;">
+            $y(t) = \sin\big(e^{-t^2/a^2}\, \omega t\big)$, with $a = 3$,
+            $\omega = 20$</p>
+          <ul style="font-size: 0.78em;">
+            <li class="fragment">What fixed $h$ would you pick for
+              $t \in [-20, 20]$?</li>
+            <li class="fragment">The $h$ that resolves the burst at $t = 0$
+              is absurdly small for the flat wings. Whatever you choose is
+              wrong somewhere.</li>
+          </ul>
+          <aside class="notes">
+            The instantaneous frequency at t = 0 is omega = 20, so the
+            local period is about 0.3; the wings are essentially constant
+            for |t| &gt; 10. A fixed h pays the worst-case price on the
+            entire interval. Goal for today: the step size should be
+            discovered by the integrator, not guessed by us.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Step doubling</h2>
+          <p style="font-size: 0.85em;">To adapt $h$ we first need to know
+            the error of a step. Simplest idea: take the step twice.</p>
+          $$\begin{align}
+            y^{(1)} &= \mathrm{RK4}(t_n, y_n, h) \\
+            y^{(2)} &= \mathrm{RK4}\big(t_n + \tfrac{h}{2},\;
+              \mathrm{RK4}(t_n, y_n, \tfrac{h}{2}),\; \tfrac{h}{2}\big)
+          \end{align}$$
+          <ul style="font-size: 0.85em;">
+            <li class="fragment">One full step of $h$, and two half steps
+              of $h/2$, from the same starting point.</li>
+            <li class="fragment">The error estimate is the difference:
+              $\varepsilon = |y^{(1)} - y^{(2)}|$.</li>
+            <li class="fragment">How many evaluations of $f$ does one
+              trial cost?</li>
+          </ul>
+          <aside class="notes">
+            Evaluation count: 4 + 4 + 4, minus one because k_1 of the full
+            step and k_1 of the first half step are the same evaluation
+            f(t_n, y_n): 11 per attempted step, versus 4 for a plain RK4
+            step. This factor of ~3 is the price of knowing the error; the
+            embedded methods of Part IV get it down.
+          </aside>
+        </section>
+
+        <section>
+          <h2>How the estimate scales with $h$</h2>
+          <p style="font-size: 0.85em;">RK4 is 4th-order accurate, so one
+            step of size $h$ carries a local error $c\, h^5$:</p>
+          $$\begin{align}
+            y(t_n + h) &= y^{(1)} + c\, h^5 + O(h^6) \\
+            y(t_n + h) &= y^{(2)} + 2\, c\, (h/2)^5 + O(h^6)
+          \end{align}$$
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Subtracting: $\varepsilon = |y^{(1)} -
+              y^{(2)}| = \tfrac{15}{16}\, c\, h^5 \propto h^5$.</li>
+            <li class="fragment">The half-step result is 16 times better;
+              its true error is $\varepsilon / 15$.</li>
+          </ul>
+          <p class="fragment why">The same 15 as adaptive Simpson in
+            Homework 3: two estimates one refinement apart, and Richardson
+            turns their difference into an error bar.</p>
+          <aside class="notes">
+            DERIVATION: the two half steps each commit c (h/2)^5 with the
+            same leading coefficient c (f is smooth, so c barely changes
+            across the step), hence the factor 2. Then y^(2) - y^(1) =
+            c h^5 (1 - 2/32) = (15/16) c h^5, and the error left in y^(2)
+            is c h^5 / 16 = epsilon / 15. Advancing with y^(2) plus
+            epsilon/15 is "local extrapolation" (5th order); we keep it
+            simple and just advance with y^(2).
+          </aside>
+        </section>
+
+        <!-- ============ Part II: from error to step size ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; From error to step size</h2>
+          <p>One number runs the whole show</p>
+        </section>
+
+        <section>
+          <h2>The control law</h2>
+          <p style="font-size: 0.85em;">Suppose the step just taken gave
+            error $\varepsilon$, and we want the next one to give
+            $\varepsilon_\mathrm{target}$. Since $\varepsilon = C h^5$ with
+            the same $C$ nearby:</p>
+          <div class="fragment">
+          $$\frac{\varepsilon_\mathrm{target}}{h'^5} =
+            \frac{\varepsilon}{h^5}
+            \quad\Longrightarrow\quad
+            h' = h \left(\frac{\varepsilon_\mathrm{target}}
+              {\varepsilon}\right)^{1/5}$$
+          </div>
+          <p class="fragment why">The same formula works in both
+            directions: it shrinks $h$ when the step was too coarse, and
+            grows $h$ when the step was wastefully accurate.</p>
+        </section>
+
+        <section>
+          <h2>Choosing the target error</h2>
+          <p style="font-size: 0.85em;">We know nothing about $y(t)$ in
+            advance, so the standard target combines two tolerances:</p>
+          $$\varepsilon_\mathrm{target} = \epsilon_\mathrm{abs}
+            + \epsilon_\mathrm{rel}\, |y|$$
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Pure relative fails when $y$ passes
+              through zero: the target collapses and no step is small
+              enough.</li>
+            <li class="fragment">Pure absolute fails when you do not know
+              the scale of $y$ in advance.</li>
+            <li class="fragment">Which $y$ goes into the target,
+              $y^{(1)}$ or $y^{(2)}$? A free choice; they differ only at
+              the order we are estimating.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Systems: one $h$, many errors</h2>
+          <p style="font-size: 0.85em;">For $N_\mathrm{eq}$ coupled
+            equations, every component $y_i$ has its own $\varepsilon_i$
+            and target &mdash; but there is only one $h$. Collapse them
+            into a scalar:</p>
+          $$\mathrm{err} = \sqrt{\frac{1}{N_\mathrm{eq}}
+            \sum_{i=0}^{N_\mathrm{eq} - 1}
+            \left(\frac{\varepsilon_i}
+              {\varepsilon_{\mathrm{target},i}}\right)^2}$$
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Each term is the error of one component
+              in units of its own target.</li>
+            <li class="fragment">$\mathrm{err} < 1$ means every component
+              is (on RMS average) within tolerance: the step is good.</li>
+          </ul>
+          <aside class="notes">
+            The RMS norm is a convention: the max over components is also
+            used and slightly stricter. Anything that reduces the vector
+            of ratios to one number monotonically works.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The safety factor</h2>
+          <p style="font-size: 0.85em;">In terms of the scalar error, the
+            update becomes</p>
+          $$h' = S\, h \left(\frac{1}{\mathrm{err}}\right)^{1/5}$$
+          <ul style="font-size: 0.85em;">
+            <li class="fragment">$S$ is a <em>safety factor</em>, slightly
+              below 1; in practice $S = 0.9$ works well.</li>
+            <li class="fragment">Why not $S = 1$? The $h^5$ law is only the
+              leading term. Aiming exactly at $\mathrm{err} = 1$ means half
+              the steps land just above it.</li>
+          </ul>
+          <p class="fragment why">A rejected step throws away 11
+            evaluations of $f$. Undershooting the step size by 10% is far
+            cheaper than rejecting.</p>
+        </section>
+
+        <section>
+          <h2>The full algorithm</h2>
+          <ol style="font-size: 0.8em;">
+            <li class="fragment">From $(t, y)$, compute $y^{(1)}$ (one step
+              of $h$) and $y^{(2)}$ (two steps of $h/2$).</li>
+            <li class="fragment">For each component, form $\varepsilon_i =
+              |y_i^{(1)} - y_i^{(2)}|$ and $\varepsilon_{\mathrm{target},i}
+              = \epsilon_\mathrm{abs} + \epsilon_\mathrm{rel}\,
+              |y_i|$.</li>
+            <li class="fragment">Combine into the scalar $\mathrm{err}$
+              (previous slide).</li>
+            <li class="fragment">If $\mathrm{err} < 1$: accept, advance
+              $t \to t + h$ with $y^{(2)}$. Otherwise: reject, stay at
+              $t$.</li>
+            <li class="fragment">Either way, set $h' = S\, h\,
+              (\mathrm{err})^{-1/5}$ and continue. After an accepted step
+              this usually <em>grows</em> $h$.</li>
+          </ol>
+          <p class="fragment why">Rejections are not failures &mdash; they
+            are the controller braking when the solution speeds up.</p>
+        </section>
+
+        <section>
+          <h2>Practical refinements</h2>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Do not grow $h$ on the step right after a
+              rejection; and cap the growth (e.g. at $5\times$) so one
+              flat stretch cannot fling $h$ to infinity.</li>
+            <li class="fragment">An empirically more stable update keeps
+              some memory of the previous step:
+              $$h' = S\, h\, (\mathrm{err})^{-0.7/5}\,
+                (\mathrm{err}_\mathrm{prev})^{0.4/5}$$
+            </li>
+            <li class="fragment">Use an <em>embedded</em> method to cut the
+              11 evaluations per trial (Part IV).</li>
+            <li class="fragment">Use interpolation to produce output at
+              regular $t$ values even though the steps are irregular
+              (<em>dense output</em> &mdash; next lecture).</li>
+          </ul>
+          <aside class="notes">
+            The 0.7/5 and 0.4/5 exponents are quoted, not derived: this is
+            a PI controller from control theory (Gustafsson). If pressed:
+            the second factor is the "integral" memory term, and it damps
+            the oscillations in h that the bare rule produces when the
+            error hovers near 1. Numerical Recipes 17.2 discusses it.
+          </aside>
+        </section>
+
+        <!-- ============ Part III: the example ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; The example</h2>
+          <p>The integrator finds the timescale</p>
+        </section>
+
+        <section>
+          <h2>Setting up the run</h2>
+          <p style="font-size: 0.85em;">The chirped pulse from Part I is
+            the solution of</p>
+          $$\frac{dy}{dt} = \omega\, e^{-t^2/a^2}
+            \left(1 - \frac{2t^2}{a^2}\right)
+            \cos\big(e^{-t^2/a^2}\, \omega t\big)$$
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Adaptive RK4 by step doubling, exactly the
+              algorithm of Part II.</li>
+            <li class="fragment">$\epsilon_\mathrm{abs} =
+              \epsilon_\mathrm{rel} = 10^{-6}$, $\;S = 0.9$, initial
+              $h = 0.1$, from $t = -20$ to $20$.</li>
+          </ul>
+          <aside class="notes">
+            The right-hand side is just the chain-rule derivative of the
+            known y(t): f depends only on t, so this ODE is secretly a
+            quadrature and the exact answer is available to measure errors
+            against. That is exactly why it makes a good demo.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The step size finds the physics</h2>
+          <img src="figures/example_h.png" style="width: 66%; margin: 0 auto; display: block;"
+            alt="Accepted step size versus t, dipping from 2.6 to 0.014 inside the burst">
+          <ul style="font-size: 0.75em;">
+            <li class="fragment">378 accepted steps, 85 rejected, 5093
+              evaluations of $f$. The accepted $h$ spans $0.014$ to $2.6$
+              &mdash; a factor of 180.</li>
+            <li class="fragment">Nobody told the integrator where the burst
+              is. The error estimate discovered it.</li>
+          </ul>
+          <aside class="notes">
+            The minimum h = 0.014 is about 1/20 of the local period 0.31
+            at t = 0: the controller resolves each oscillation with ~20
+            steps. The rejections cluster where the timescale is shrinking
+            (73 of the 85 happen in |t| &lt; 8, on the way into the burst):
+            the controller only learns the error after trying a step, so
+            it brakes late whenever the solution speeds up. The small
+            wiggles in h track the oscillation phase; the spiky envelope
+            mirrors the pulse shape.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Was it worth it?</h2>
+          <img src="figures/example_compare.png" style="width: 50%; margin: 0 auto; display: block;"
+            alt="Error along the run: adaptive holds 1e-7 everywhere; fixed h at equal cost reaches 5e-5">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">Fixed-step RK4 with the <em>same</em> 5093
+              evaluations: max error $5\times10^{-5}$, versus
+              $4\times10^{-7}$ adaptive &mdash; 140 times worse.</li>
+            <li class="fragment">To match the adaptive error it needs about
+              19,400 evaluations: 4 times the cost.</li>
+          </ul>
+          <p class="fragment why">Fixed $h$ wastes accuracy in the wings
+            (error $10^{-10}$ where $10^{-6}$ would do) and still blows the
+            budget in the burst. Adaptivity spends the error budget
+            uniformly.</p>
+        </section>
+
+        <!-- ============ Part IV: embedded methods ============ -->
+
+        <section class="divider">
+          <h2>Part IV &middot; Embedded methods</h2>
+          <p>An error estimate for free</p>
+        </section>
+
+        <section>
+          <h2>The cost of knowing the error</h2>
+          <ul style="font-size: 0.85em;">
+            <li>Step doubling paid 11 evaluations per trial &mdash; in the
+              example, 13.5 evaluations per <em>accepted</em> step, against
+              4 for plain RK4.</li>
+            <li class="fragment">The estimate came from comparing two
+              methods of <em>different accuracy</em> on the same step. But
+              nothing says the two methods must be built from different
+              evaluations.</li>
+            <li class="fragment"><em>Embedded methods:</em> two weighted
+              averages of the <strong>same</strong> stages $k_i$, one of
+              order $p$ and one of order $p - 1$. The error estimate then
+              costs nothing extra.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>An embedded Butcher tableau</h2>
+          <p style="font-size: 0.78em;">An embedded tableau carries two
+            bottom rows: the step is taken with $b_i$, and the second row
+            $b_i^*$ gives a lower-order companion.</p>
+          <div style="font-size: 0.55em;">
+          $$\begin{array}{c|ccccc}
+            c_1 & & & & & \\
+            c_2 & a_{21} & & & & \\
+            c_3 & a_{31} & a_{32} & & & \\
+            \vdots & \vdots & \vdots & \ddots & & \\
+            c_s & a_{s1} & a_{s2} & \cdots & a_{s,s-1} & \\
+            \hline
+            & b_1 & b_2 & \cdots & b_{s-1} & b_s \\
+            & b_1^* & b_2^* & \cdots & b_{s-1}^* & b_s^*
+          \end{array}$$
+          </div>
+          <div class="fragment">
+          $$\varepsilon = |y_{n+1} - y_{n+1}^*|
+            = h \left|\sum_{i=1}^{s} (b_i - b_i^*)\, k_i\right|$$
+          </div>
+          <aside class="notes">
+            DERIVATION of the epsilon formula: both estimates are y_n + h
+            sum b_i k_i with the same k_i, so the difference telescopes to
+            h sum (b_i - b_i^*) k_i. One subtraction of already-computed
+            numbers: that is the "free" in "error estimate for free".
+          </aside>
+        </section>
+
+        <section>
+          <h2>Dormand-Prince 5(4)</h2>
+          <p style="font-size: 0.75em;">Last lecture's Dormand-Prince
+            tableau, now with its second row: a 5th-order method with an
+            embedded 4th-order estimate.</p>
+          <div style="font-size: 0.55em;">
+          $$\begin{array}{c|ccccccc}
+            0 & & & & & & & \\
+            1/5 & 1/5 & & & & & & \\
+            3/10 & 3/40 & 9/40 & & & & & \\
+            4/5 & 44/45 & -56/15 & 32/9 & & & & \\
+            8/9 & 19372/6561 & -25360/2187 & 64448/6561 & -212/729 & & & \\
+            1 & 9017/3168 & -355/33 & 46732/5247 & 49/176 & -5103/18656 & & \\
+            1 & 35/384 & 0 & 500/1113 & 125/192 & -2187/6784 & 11/84 & \\
+            \hline
+            & 35/384 & 0 & 500/1113 & 125/192 & -2187/6784 & 11/84 & 0 \\
+            & 5179/57600 & 0 & 7571/16695 & 393/640 & -92097/339200 & 187/2100 & 1/40
+          \end{array}$$
+          </div>
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">Seven stages, but the last stage row
+              equals the $b$ row: $k_7$ of this step is $k_1$ of the next.
+              Six new evaluations per accepted step, error estimate
+              included.</li>
+            <li class="fragment">This is the default method behind
+              <code>solve_ivp</code> in <code>scipy</code>.</li>
+          </ul>
+          <aside class="notes">
+            The reuse trick is called FSAL, "first same as last". Compare
+            costs on this lecture's example: step doubling paid 13.5
+            evaluations per accepted step; DP45 pays 6-7. Nobody derives
+            these coefficients by hand; they are looked up. Order 5 needs
+            six stages minimum (Lecture 7); the seventh buys FSAL and good
+            error-estimate properties.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Cash-Karp 5(4)</h2>
+          <p style="font-size: 0.75em;">Another embedded 5(4) pair, with
+            friendlier coefficients:</p>
+          <div style="font-size: 0.62em;">
+          $$\begin{array}{c|cccccc}
+            0 & & & & & & \\
+            1/5 & 1/5 & & & & & \\
+            3/10 & 3/40 & 9/40 & & & & \\
+            3/5 & 3/10 & -9/10 & 6/5 & & & \\
+            1 & -11/54 & 5/2 & -70/27 & 35/27 & & \\
+            7/8 & 1631/55296 & 175/512 & 575/13824 & 44275/110592 & 253/4096 & \\
+            \hline
+            & 37/378 & 0 & 250/621 & 125/594 & 0 & 512/1771 \\
+            & 2825/27648 & 0 & 18575/48384 & 13525/55296 & 277/14336 & 1/4
+          \end{array}$$
+          </div>
+          <ul style="font-size: 0.75em;">
+            <li class="fragment">Six stages, no FSAL. Developed with
+              semi-stiff problems in mind; it behaves slightly better than
+              Dormand-Prince there.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Using an embedded method</h2>
+          <p style="font-size: 0.85em;">Only step 1 of the algorithm
+            changes:</p>
+          <p style="font-size: 0.85em;"><s>Compute $y^{(1)}$ and $y^{(2)}$
+            using one RK4 step of $h$ and two of $h/2$.</s></p>
+          <p class="fragment" style="font-size: 0.85em;">Compute $y^{(1)}$
+            and $y^{(2)}$ from the two bottom rows of the Dormand-Prince
+            tableau.</p>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Always advance with the 5th-order
+              $y^{(1)}$; the 4th-order $y^{(2)}$ exists only to be
+              subtracted.</li>
+            <li class="fragment">Everything else &mdash; targets, the
+              scalar $\mathrm{err}$, accept/reject, $h' = S\, h\,
+              (\mathrm{err})^{-1/5}$ &mdash; carries over unchanged.</li>
+          </ul>
+          <aside class="notes">
+            Purists note the estimate measures the 4th-order solution's
+            error while we advance the 5th-order one ("local
+            extrapolation"), so the true error is smaller than epsilon:
+            a conservative estimate, which is fine. Same spirit as
+            advancing with y^(2) in step doubling.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Adaptive DP45, complete</h2>
+          <ol style="font-size: 0.8em;">
+            <li class="fragment">From $(t, y)$, compute the seven stages
+              $k_1, \dots, k_7$; form $y^{(1)}$ (row $b$) and $y^{(2)}$
+              (row $b^*$).</li>
+            <li class="fragment">$\varepsilon_i = |y_i^{(1)} -
+              y_i^{(2)}|$, $\;\varepsilon_{\mathrm{target},i} =
+              \epsilon_\mathrm{abs} + \epsilon_\mathrm{rel}\,
+              |y_i^{(1)}|$.</li>
+            <li class="fragment">Combine into the scalar
+              $\mathrm{err}$.</li>
+            <li class="fragment">$\mathrm{err} < 1$: accept, advance with
+              $y^{(1)}$, reuse $k_7$ as the next $k_1$. Otherwise reject.
+              Either way $h' = S\, h\, (\mathrm{err})^{-1/5}$.</li>
+          </ol>
+          <p class="fragment why">This loop, plus the refinements of
+            Part II, is what production ODE solvers actually run.</p>
+        </section>
+
+        <section>
+          <h2>Where this goes next</h2>
+          <ul>
+            <li class="fragment"><strong>Next lecture:</strong> stopping at
+              a condition rather than a time, dense output, and
+              Project 1 &mdash; whose black-hole geodesics have exactly
+              this structure: long quiet stretches, then a violent whirl
+              near the photon sphere.</li>
+            <li class="fragment">References:
+              <ul style="font-size: 0.9em;">
+                <li>Numerical Recipes, 3rd ed., Section 17.2.</li>
+                <li>Hairer, N&oslash;rsett &amp; Wanner, <em>Solving
+                  Ordinary Differential Equations I</em>, Section II.4.</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 8</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -124,7 +124,23 @@ while True:
 print(f"fixed rk4 needs ~{n} steps ({4*n} evals) to match the adaptive error "
       f"({e:.2e}); cost ratio {4*n/n_eval:.0f}x")
 
-# 3. comparison figure: error along the way, at equal cost in evaluations
+# 3. the computed solution on top of the analytic one, full range and a
+# zoom into the burst; every accepted step is a dot
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(9.5, 3.4))
+# no legend: the slide text says what curve and dots are, and the busy
+# left panel has no empty corner to put one
+a1.plot(tt, y_exact(tt), color=V[0], lw=1.2)
+a1.plot(ts, ys, "o", ms=2.0, color=V[2])
+a1.set_xlabel("$t$")
+a1.set_ylabel("$y$")
+zoom = (ts >= -1.0) & (ts <= 1.0)
+ttz = np.linspace(-1.0, 1.0, 1000)
+a2.plot(ttz, y_exact(ttz), color=V[0], lw=1.6)
+a2.plot(ts[zoom], ys[zoom], "o", ms=4.0, color=V[2])
+a2.set_xlabel("$t$")
+save(fig, "example_solution")
+
+# 4. comparison figure: error along the way, at equal cost in evaluations
 fig, ax = plt.subplots(figsize=(8.0, 3.4))
 ax.semilogy(ts, np.abs(ys - y_exact(ts)) + 1e-18, color=V[2],
             lw=1.4, label=f"adaptive, {n_eval} evaluations")
@@ -136,7 +152,7 @@ ax.set_ylim(1e-12, 1e-1)
 ax.legend(frameon=False, fontsize=12, loc="upper right")
 save(fig, "example_compare")
 
-# 4. the step size history
+# 5. the step size history
 fig, ax = plt.subplots(figsize=(8.0, 3.4))
 ax.semilogy(ts[1:], hs, color=V[0], lw=1.4)
 ax.set_xlabel("$t$")

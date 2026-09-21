@@ -54,7 +54,7 @@
 
         <section>
           <h2>Last time</h2>
-          <p style="font-size: 0.85em;">The Runge-Kutta family: stage a few
+          <p style="font-size: 0.85em;">The Runge-Kutta family: estimate a few
             slopes, step with a weighted average.</p>
           $$k_i = f\Big(t_n + c_i h,\;\, y_n + h \sum_{j=1}^{i-1} a_{ij}\, k_j\Big),
             \qquad y_{n+1} = y_n + h \sum_{i=1}^{s} b_i\, k_i$$
@@ -100,7 +100,7 @@
               \mathrm{RK4}(t_n, y_n, \tfrac{h}{2}),\; \tfrac{h}{2}\big)
           \end{align}$$
           <ul style="font-size: 0.85em;">
-            <li class="fragment">One full step of $h$, and two half steps
+            <li class="fragment">One full RK4 step of $h$, and two RK4 steps
               of $h/2$, from the same starting point.</li>
             <li class="fragment">The error estimate is the difference:
               $\varepsilon = |y^{(1)} - y^{(2)}|$.</li>
@@ -128,11 +128,11 @@
             <li class="fragment">Subtracting: $\varepsilon = |y^{(1)} -
               y^{(2)}| = \tfrac{15}{16}\, c\, h^5 \propto h^5$.</li>
             <li class="fragment">The half-step result is 16 times better;
-              its true error is $\varepsilon / 15$.</li>
+              its true error is roughly $\varepsilon / 15$.</li>
           </ul>
-          <p class="fragment why">The same 15 as adaptive Simpson in
-            Homework 3: two estimates one refinement apart, and Richardson
-            turns their difference into an error bar.</p>
+          <!-- <p class="fragment why">The same 15 as adaptive Simpson in
+               Homework 3: two estimates one refinement apart, and Richardson
+               turns their difference into an error bar.</p> -->
           <aside class="notes">
             DERIVATION: the two half steps each commit c (h/2)^5 with the
             same leading coefficient c (f is smooth, so c barely changes
@@ -148,7 +148,7 @@
 
         <section class="divider">
           <h2>Part II &middot; From error to step size</h2>
-          <p>One number runs the whole show</p>
+          <p>Choosing $h$ according to estimated error</p>
         </section>
 
         <section>
@@ -305,6 +305,28 @@
         </section>
 
         <section>
+          <h2>The computed solution</h2>
+          <img src="figures/example_solution.png" style="width: 72%; margin: 0 auto; display: block;"
+            alt="Every accepted step drawn on the analytic solution, with a zoom into the center of the burst">
+          <ul style="font-size: 0.78em;">
+            <li class="fragment">Every accepted step is a dot, drawn on the
+              analytic solution. Right: a zoom into the center of the
+              burst.</li>
+            <li class="fragment">The dots land on the curve everywhere
+              &mdash; and they crowd into the burst and spread out over the
+              wings.</li>
+          </ul>
+          <aside class="notes">
+            In the zoom there are roughly 18 steps per oscillation; in the
+            wings a single step covers more than 2 units of t. This is the
+            qualitative picture; the h(t) history on the next slide is the
+            same information made quantitative, and the error comparison
+            two slides on puts numbers on "land on the curve" (max
+            deviation 4e-7).
+          </aside>
+        </section>
+
+        <section>
           <h2>The step size finds the physics</h2>
           <img src="figures/example_h.png" style="width: 66%; margin: 0 auto; display: block;"
             alt="Accepted step size versus t, dipping from 2.6 to 0.014 inside the burst">
@@ -354,9 +376,9 @@
         <section>
           <h2>The cost of knowing the error</h2>
           <ul style="font-size: 0.85em;">
-            <li>Step doubling paid 11 evaluations per trial &mdash; in the
-              example, 13.5 evaluations per <em>accepted</em> step, against
-              4 for plain RK4.</li>
+            <li>Step doubling pays 11 evaluations per trial, and incur more
+            evaluations if the step is rejected. The example costed 13.5
+            evaluations per accepted step against 4 for plain RK4.</li>
             <li class="fragment">The estimate came from comparing two
               methods of <em>different accuracy</em> on the same step. But
               nothing says the two methods must be built from different
@@ -418,15 +440,14 @@
           </div>
           <ul style="font-size: 0.72em;">
             <li class="fragment">Seven stages, but the last stage row
-              equals the $b$ row: $k_7$ of this step is $k_1$ of the next.
-              Six new evaluations per accepted step, error estimate
-              included.</li>
+              equals the $b$ row: $k_7$ of this step is $k_1$ of the next,
+              a property called FSAL ("first same as last"). Six new
+              evaluations per accepted step, error estimate included.</li>
             <li class="fragment">This is the default method behind
               <code>solve_ivp</code> in <code>scipy</code>.</li>
           </ul>
           <aside class="notes">
-            The reuse trick is called FSAL, "first same as last". Compare
-            costs on this lecture's example: step doubling paid 13.5
+            Compare costs on this lecture's example: step doubling paid 13.5
             evaluations per accepted step; DP45 pays 6-7. Nobody derives
             these coefficients by hand; they are looked up. Order 5 needs
             six stages minimum (Lecture 7); the seventh buys FSAL and good
@@ -452,9 +473,10 @@
           \end{array}$$
           </div>
           <ul style="font-size: 0.75em;">
-            <li class="fragment">Six stages, no FSAL. Developed with
-              semi-stiff problems in mind; it behaves slightly better than
-              Dormand-Prince there.</li>
+            <li class="fragment">Six stages, no FSAL: all six evaluations
+              are fresh each step. Developed with semi-stiff problems in
+              mind; it behaves slightly better than Dormand-Prince
+              there.</li>
           </ul>
         </section>
 
@@ -509,9 +531,7 @@
           <ul>
             <li class="fragment"><strong>Next lecture:</strong> stopping at
               a condition rather than a time, dense output, and
-              Project 1 &mdash; whose black-hole geodesics have exactly
-              this structure: long quiet stretches, then a violent whirl
-              near the photon sphere.</li>
+              parallel programming. Everything you need for Project 1.</li>
             <li class="fragment">References:
               <ul style="font-size: 0.9em;">
                 <li>Numerical Recipes, 3rd ed., Section 17.2.</li>

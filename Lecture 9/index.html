@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 9</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 9</p>
+          <h1>Dense Output, Events, and OpenMP</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+        </section>
+
+        <section>
+          <h2>Today</h2>
+          <ul>
+            <li><strong>Dense output.</strong> The solution at any $t$, not
+              only where the steps happened to land.</li>
+            <li class="fragment"><strong>Stop conditions and events.</strong>
+              Ending the integration when something happens, and finding
+              exactly when it happened.</li>
+            <li class="fragment"><strong>Project 1.</strong> Raytracing a
+              black hole.</li>
+            <li class="fragment"><strong>OpenMP.</strong> Using every core of
+              your machine with one line of code.</li>
+          </ul>
+          <aside class="notes">
+            Follows the 2025 Lecture 9, minus the 8th-order Dormand-Prince
+            slide, vectorization, std::thread, and git. Running example for
+            Parts I and II: the pendulum at theta_0 = 170 degrees, which the
+            students know from Homeworks 3 and 4, and which has an exact
+            solution to measure against (Jacobi elliptic functions).
+          </aside>
+        </section>
+
+        <!-- ============ Part I: dense output ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Dense output</h2>
+          <p>The solution between the steps</p>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <p style="font-size: 0.85em;">Adaptive Dormand-Prince 5(4), one
+            step:</p>
+          <ol style="font-size: 0.8em;">
+            <li>From $(t_n, y_n)$, compute the stages $k_1, \dots, k_7$;
+              form the 5th-order $y_{n+1}$ and the 4th-order
+              $y^*_{n+1}$.</li>
+            <li>Compare them against the target
+              $\epsilon_\mathrm{abs} + \epsilon_\mathrm{rel}\,|y|$ to get
+              the scalar $\mathrm{err}$.</li>
+            <li>Accept if $\mathrm{err} < 1$; either way, set
+              $h' = S\, h\, \mathrm{err}^{-1/5}$.</li>
+          </ol>
+          <p class="fragment why">The controller decides where the steps
+            land. Today: what to do when you need the solution somewhere
+            else.</p>
+        </section>
+
+        <section>
+          <h2>The steps land where the controller wants</h2>
+          <img src="figures/steps.png" style="width: 72%; margin: 0 auto; display: block;"
+            alt="One period of the 170-degree pendulum: 51 irregularly spaced accepted steps, and a regular grid of desired output times">
+          <ul style="font-size: 0.78em;">
+            <li class="fragment">Pendulum released at $\theta_0 = 170°$,
+              tolerance $10^{-6}$: 51 steps over one period, with $h$
+              between $0.095$ and $0.37$.</li>
+            <li class="fragment">You want $\theta$ every $0.5$ time units
+              for a plot, or an animation, or a comparison with data. None
+              of the steps land there.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Two ways to get output where you want it</h2>
+          <ul style="font-size: 0.85em;">
+            <li class="fragment"><strong>Shorten the steps</strong> so that
+              one ends exactly on every output time. It works, but every
+              output time now costs a step, and the controller no longer
+              chooses $h$.</li>
+            <li class="fragment"><strong>Interpolate</strong> inside each
+              accepted step. The step already knows $y_n$, $y_{n+1}$, and
+              seven slopes in between: fitting a polynomial through them
+              costs no new evaluations of $f$.</li>
+          </ul>
+          <p class="fragment why">The second option is called <em>dense
+            output</em>: a continuous approximation $y(t_n + s h)$ for every
+            $0 \le s \le 1$, produced alongside each step.</p>
+        </section>
+
+        <section>
+          <h2>Linear interpolation</h2>
+          <p style="font-size: 0.85em;">With $s = (t - t_n)/h$, the simplest
+            choice is a straight line between the step ends:</p>
+          $$y(t_n + s h) \approx (1 - s)\, y_n + s\, y_{n+1}$$
+          <ul style="font-size: 0.85em;">
+            <li class="fragment">Its error is $O(h^2)$ (Lecture 4): far worse
+              than the $O(h^5)$ error of the step itself.</li>
+            <li class="fragment">It ignores the slopes: the step computed
+              $f(t_n, y_n)$ and $f(t_{n+1}, y_{n+1})$ and the line throws them
+              away.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the O(h^2): the linear interpolation error is
+            (y''(xi)/2)(t - t_n)(t - t_{n+1}) (the Lecture 4 remainder with
+            two nodes), whose maximum over the step is h^2 max|y''| / 8.
+            Measured on the pendulum at h = 0.1: 4e-4.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Using the slopes: cubic Hermite</h2>
+          <p style="font-size: 0.85em;">A cubic through both endpoints that
+            also matches both slopes $f_n = f(t_n, y_n)$ and
+            $f_{n+1} = f(t_{n+1}, y_{n+1})$:</p>
+          $$\begin{split}
+            y(t_n + s h) &= (1-s)\, y_n + s\, y_{n+1} \\
+            &\quad + s(s - 1)\left[(1 - 2s)(y_{n+1} - y_n)
+              + (s - 1)\, h f_n + s\, h f_{n+1}\right]
+          \end{split}$$
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">For Dormand-Prince both slopes are free:
+              $f_n = k_1$, and $f_{n+1} = k_7$ (first same as last).</li>
+            <li class="fragment">Error $O(h^4)$: two orders better than
+              the line, at no extra cost.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION (checking, not constructing): at s = 0 and s = 1 the
+            bracket is multiplied by zero, so the cubic passes through y_n
+            and y_{n+1}. Differentiate in s at s = 0: the line contributes
+            y_{n+1} - y_n, and s(s-1)[...] contributes (-1) times the
+            bracket at s = 0, which is (y_{n+1} - y_n) - h f_n. The sum is
+            h f_n, so dy/dt = f_n. Same check at s = 1 gives f_{n+1}. Four
+            conditions, four coefficients: this is the unique cubic. Its
+            O(h^4) error follows from the Hermite remainder with two double
+            nodes, (y''''/4!) s^2 (s-1)^2 h^4.
+          </aside>
+        </section>
+
+        <section>
+          <h2>What Dormand-Prince ships with</h2>
+          <p style="font-size: 0.85em;">The method comes with its own
+            interpolant, built from all seven stages:</p>
+          $$y(t_n + s h) = r_1 + s\Big(r_2 + (1 - s)\big(r_3 + s\,(r_4
+            + (1 - s)\, r_5)\big)\Big)$$
+          <div style="font-size: 0.8em;">
+          $$\begin{split}
+            r_1 &= y_n, \quad r_2 = y_{n+1} - y_n, \quad
+            r_3 = h k_1 - r_2, \quad r_4 = r_2 - h k_7 - r_3, \\
+            r_5 &= h\,(d_1 k_1 + d_3 k_3 + d_4 k_4 + d_5 k_5 + d_6 k_6 + d_7 k_7)
+          \end{split}$$
+          </div>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Fourth order, like the embedded estimate:
+              the interpolated values are as good as the steps
+              themselves.</li>
+            <li class="fragment">The $r_i$ are computed once per accepted
+              step; each output point then costs a few multiplications.</li>
+          </ul>
+          <aside class="notes">
+            The d_i are quoted, not derived: they come from order conditions
+            on the interpolant, the same kind of bookkeeping as the Butcher
+            tableau itself (Hairer, Norsett &amp; Wanner II.6). Useful check if
+            asked: with r_5 = 0 the formula reduces exactly to the cubic
+            Hermite of the previous slide, so r_5 is the quartic correction.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The $d_i$ for Dormand-Prince</h2>
+          $$\begin{split}
+            d_1 &= -12715105075 / 11282082432 \\
+            d_3 &= 87487479700 / 32700410799 \\
+            d_4 &= -10690763975 / 1880347072 \\
+            d_5 &= 701980252875 / 199316789632 \\
+            d_6 &= -1453857185 / 822651844 \\
+            d_7 &= 69997945 / 29380423
+          \end{split}$$
+          <p class="fragment why">$d_2 = 0$, like $b_2$. Nobody derives
+            these by hand; you copy them once, carefully, and test.</p>
+        </section>
+
+        <section>
+          <h2>The three interpolants, measured</h2>
+          <img src="figures/interp.png" style="width: 80%; margin: 0 auto; display: block;"
+            alt="Left: linear and Hermite interpolation on one large pendulum step. Right: interpolation error versus step size, slopes 2, 4, and 5">
+          <ul style="font-size: 0.75em;">
+            <li class="fragment">Left: one deliberately huge step,
+              $h = 1.6$. The line misses badly; the cubic sits on the exact
+              curve.</li>
+            <li class="fragment">Right: measured slopes 2.0, 4.0, and 5.0.
+              At $h = 0.1$ the errors are $4\times10^{-4}$,
+              $8\times10^{-8}$, and $7\times10^{-10}$.</li>
+          </ul>
+          <aside class="notes">
+            The right panel is the maximum error over one step, measured
+            from an exact starting point, so the slope is the local order:
+            h^2, h^4, h^5. The Dormand-Prince interpolant is "fourth order"
+            in the global sense, like the method's embedded solution, which
+            is why its local error goes as h^5. Its slope only reaches 5 at
+            small h (the per-halving ratio climbs 17, 25, 29, 31, 32).
+          </aside>
+        </section>
+
+        <section>
+          <h2>Wiring it into the integrator</h2>
+          <p style="font-size: 0.85em;">Give the integrator a list of output
+            times $\{t^\mathrm{out}_j\}$ along with everything else. After
+            every <em>accepted</em> step:</p>
+          <ol style="font-size: 0.8em;">
+            <li class="fragment">Compute $r_1, \dots, r_5$ for this
+              step.</li>
+            <li class="fragment">For every $t^\mathrm{out}_j$ with
+              $t_n < t^\mathrm{out}_j \le t_{n+1}$, evaluate the interpolant
+              at $s = (t^\mathrm{out}_j - t_n)/h$ and store the result.</li>
+            <li class="fragment">Continue stepping as before.</li>
+          </ol>
+          <p class="fragment why">The controller keeps choosing $h$ for
+            accuracy alone; the output grid no longer has any influence on
+            the steps.</p>
+        </section>
+
+        <!-- ============ Part II: stop conditions and events ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Stop conditions and events</h2>
+          <p>Ending the integration when something happens</p>
+        </section>
+
+        <section>
+          <h2>When is the integration over?</h2>
+          <p style="font-size: 0.85em;">So far: integrate from $t_0$ to a
+            known $t_\mathrm{end}$. Often the end is defined by what the
+            solution does, at a time you do not know in advance:</p>
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment">A projectile hits the ground.</li>
+            <li class="fragment">The pendulum passes the bottom: a quarter
+              of the period.</li>
+            <li class="fragment">A light ray falls into a black hole, or hits
+              a disk.</li>
+          </ul>
+          <div class="fragment">
+          <p style="font-size: 0.8em;">Pass the integrator a stop condition
+            and check it after every accepted step:</p>
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
+// stop once the pendulum has passed the bottom
+auto passed_bottom = [](double t, const std::vector&lt;double&gt;&amp; y) {
+  return y[0] &lt;= 0.0;   // y[0] is theta
+};
+          </code></pre>
+          </div>
+        </section>
+
+        <section>
+          <h2>The last step overshoots</h2>
+          <img src="figures/event.png" style="width: 50%; margin: 0 auto; display: block;"
+            alt="The last two accepted steps straddle theta = 0; stopping at the second overshoots the true crossing">
+          <ul style="font-size: 0.75em;">
+            <li class="fragment">The condition first becomes true at the end
+              of a step, some distance past the actual crossing.</li>
+            <li class="fragment">Stopping there gives the quarter period
+              with error $0.13$. Tightening the tolerance from $10^{-6}$ to
+              $10^{-9}$ only brings it to $0.04$.</li>
+          </ul>
+          <p class="fragment why">The error is set by the step size, not by
+            the tolerance. A better integrator does not fix it.</p>
+          <aside class="notes">
+            Numbers from make_figures.py: at tol 1e-6 the last step is
+            h = 0.22 and the naive stop lands 0.13 past K = 3.8317; at tol
+            1e-9, h = 0.05 and the overshoot is 0.038. The overshoot is some
+            fraction of one step, whatever the tolerance.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Locating the event</h2>
+          <p style="font-size: 0.85em;">Write the condition as the zero of an
+            <em>event function</em> $g(t, y)$; here $g = \theta$.</p>
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment">If $g$ changes sign between $t_n$ and
+              $t_{n+1}$, the event lies inside this step.</li>
+            <li class="fragment">Inside the step, dense output gives
+              $y(t_n + s h)$ for any $s$. Solve
+              $$G(s) = g\big(t_n + s h,\; y(t_n + s h)\big) = 0$$
+              for $s \in [0, 1]$: a root-finding problem, bracketed by
+              construction.</li>
+            <li class="fragment">Bisection from Lecture 3 works. Every
+              iteration evaluates the interpolant, never $f$.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>The event, measured</h2>
+          <p style="font-size: 0.85em;">Error in the quarter period of the
+            $170°$ pendulum:</p>
+          <table style="font-size: 0.72em; margin: 0.4em auto;">
+            <thead>
+              <tr><th>tolerance</th><th>stop at step end</th>
+                <th>line between step ends</th><th>bisection on dense output</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>$10^{-6}$</td><td>$1.3\times10^{-1}$</td>
+                <td>$8.5\times10^{-5}$</td><td>$3.0\times10^{-6}$</td></tr>
+              <tr><td>$10^{-9}$</td><td>$3.8\times10^{-2}$</td>
+                <td>$2.1\times10^{-6}$</td><td>$3.0\times10^{-9}$</td></tr>
+            </tbody>
+          </table>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">With dense output the event error follows
+              the tolerance: what remains is the error of the integration
+              itself.</li>
+            <li class="fragment">The middle column is the secant method
+              applied once to the two step ends: good, but limited by the
+              line's $O(h^2)$ error.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Details that matter</h2>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment"><strong>Terminal or not.</strong> Some
+              events end the integration; others are recorded and the
+              integration continues (every zero crossing of $\theta$, for
+              instance, to measure many periods).</li>
+            <li class="fragment"><strong>Direction.</strong> Often only one
+              direction of crossing counts, e.g. $g$ going from positive to
+              negative.</li>
+            <li class="fragment"><strong>The blind spot.</strong> If $g$
+              changes sign <em>twice</em> within one step, the step ends agree
+              and the event is invisible. The fix is to cap $h$ below the
+              timescale on which $g$ can turn around.</li>
+          </ul>
+          <p class="fragment why">A sign check at the step ends can only see
+            an odd number of crossings.</p>
+          <aside class="notes">
+            scipy's solve_ivp exposes exactly these knobs: event.terminal
+            and event.direction, and max_step for the blind spot. Mention if
+            students plot with Python.
+          </aside>
+        </section>
+
+        <!-- ============ Part III: Project 1 ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; Project 1</h2>
+          <p>Raytracing a black hole</p>
+        </section>
+
+        <section>
+          <h2>Project 1: raytracing a black hole</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.1;">
+              <img src="figures/bh_image.png" style="width: 100%; display: block;"
+                alt="A raytraced image of a spinning black hole with its accretion disk">
+            </div>
+            <div class="col" style="font-size: 0.66em;">
+              <ul>
+                <li>Groups of 3 (graduate students with graduate students).
+                  Due <strong>Wednesday 10/14</strong>, 11:59pm.</li>
+                <li>Integrate photon trajectories around a rotating black
+                  hole. No GR background needed: the handout has
+                  everything.</li>
+                <li>Validate against exact results first, then raytrace an
+                  image of the accretion disk.</li>
+                <li>Adaptive Dormand-Prince with dense output and stop
+                  conditions: this week's material.</li>
+                <li>The report answers the physics questions in the
+                  handout. Selected groups present on Friday.</li>
+                <li>OpenMP parallelization: bonus for 4027, required for
+                  5027.</li>
+              </ul>
+            </div>
+          </div>
+          <aside class="notes">
+            PAUSE HERE and talk through the handout. The image is the
+            a = 0.99, theta_0 = 85 degree render from the handout's figure.
+            Deliberately not on the slide: which of today's tools solves
+            which validation task (e.g. how to find the radius at
+            Delta phi = 2 pi for the Einstein ring). The handout leaves that
+            for the groups to work out.
+          </aside>
+        </section>
+
+        <!-- ============ Part IV: OpenMP ============ -->
+
+        <section class="divider">
+          <h2>Part IV &middot; OpenMP</h2>
+          <p>Using every core</p>
+        </section>
+
+        <section>
+          <h2>One core is a fraction of your machine</h2>
+          <ul style="font-size: 0.85em;">
+            <li>A current laptop has 8 to 16 cores. Every program in this
+              course so far has used one of them.</li>
+            <li class="fragment">A raytraced image is a loop over pixels, and
+              every pixel's ray is computed without reference to any other.
+              Such a loop can be split among cores with no change to the
+              physics.</li>
+            <li class="fragment"><strong>OpenMP</strong> is a set of compiler
+              directives for exactly this: you mark a loop, and the compiler
+              divides its iterations among <em>threads</em>, one per
+              core.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>OpenMP in one line</h2>
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
+#include &lt;omp.h&gt;
+// ...
+const int n_items = 12;
+std::vector&lt;int&gt; who(n_items);
+
+#pragma omp parallel for
+for (int i = 0; i &lt; n_items; i++) {
+  who[i] = omp_get_thread_num();   // which thread ran iteration i
+}
+// ... then print who[i] for every i
+          </code></pre>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">The <code>#pragma</code> line is the only
+              change to an ordinary serial loop.</li>
+            <li class="fragment">Compile with <code>g++ -std=c++20 -O3
+              -fopenmp</code>. Without <code>-fopenmp</code> the pragma is
+              ignored and the loop runs serially.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>What it does</h2>
+          <div class="cols">
+            <div class="col">
+              <pre style="font-size: 0.5em;"><code class="language-plaintext" data-trim data-noescape>
+$ OMP_NUM_THREADS=4 ./a.out
+item 0 done by thread 0
+item 1 done by thread 0
+item 2 done by thread 0
+item 3 done by thread 1
+item 4 done by thread 1
+item 5 done by thread 1
+item 6 done by thread 2
+item 7 done by thread 2
+item 8 done by thread 2
+item 9 done by thread 3
+item 10 done by thread 3
+item 11 done by thread 3
+              </code></pre>
+            </div>
+            <div class="col" style="font-size: 0.72em;">
+              <ul>
+                <li class="fragment">The 12 iterations are split into 4
+                  contiguous chunks, one per thread, and the chunks run at
+                  the same time.</li>
+                <li class="fragment">The number of threads is set by the
+                  environment variable <code>OMP_NUM_THREADS</code>; by
+                  default OpenMP uses every core.</li>
+                <li class="fragment"><code>OMP_NUM_THREADS=1</code> runs
+                  the loop serially: the first thing to try when a parallel
+                  program misbehaves.</li>
+              </ul>
+            </div>
+          </div>
+          <aside class="notes">
+            Real output (32-core machine, forced to 4 threads). Printing
+            from inside the loop would come out in scrambled order; storing
+            and printing afterwards keeps the demo readable. Do not explain
+            here why many threads writing into the one shared vector `who`
+            is safe: the Project 1 parallelization questions ask the groups
+            exactly that.
+          </aside>
+        </section>
+
+        <section>
+          <h2>A race condition</h2>
+          <div class="cols">
+            <div class="col">
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
+const int n_terms = 10000000;
+long long total = 0;
+
+#pragma omp parallel for
+for (int i = 1; i &lt;= n_terms; i++) {
+  total += i;
+}
+          </code></pre>
+            </div>
+            <div class="col fragment">
+          <pre style="font-size: 0.5em;"><code class="language-plaintext" data-trim data-noescape>
+$ ./a.out        # 32 threads
+total = 6982422656250
+$ ./a.out
+total = 2783203593750
+$ ./a.out
+total = 585937812500
+$ OMP_NUM_THREADS=1 ./a.out
+total = 50000005000000
+          </code></pre>
+            </div>
+          </div>
+          <p class="fragment" style="font-size: 0.85em;">Wrong, and wrong
+            differently on each run. The correct answer is
+            $n(n+1)/2 = 50000005000000$. What went wrong?</p>
+        </section>
+
+        <section>
+          <h2>Why the sum is lost</h2>
+          <p style="font-size: 0.85em;"><code>total += i</code> is three
+            operations: read <code>total</code>, add <code>i</code>, write
+            <code>total</code> back.</p>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Two threads read the same old value, each
+              adds its own <code>i</code>, each writes back. One of the two
+              additions is gone.</li>
+            <li class="fragment">Which one, and how often, depends on the
+              timing of the threads: a <em>race condition</em>. The result
+              changes from run to run.</li>
+            <li class="fragment">The danger is any variable that several
+              threads write to, or that one thread writes while others
+              read.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Fix 1: one thread at a time</h2>
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
+#pragma omp parallel for
+for (int i = 1; i &lt;= n_terms; i++) {
+#pragma omp critical
+  total += i;
+}
+          </code></pre>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">A <code>critical</code> block is executed
+              by only one thread at a time; the others wait.</li>
+            <li class="fragment">The answer is now correct. The run takes
+              4.8 s on 32 threads, against 0.12 s on a single thread: every
+              iteration waits in line, and the waiting costs more than the
+              addition.</li>
+          </ul>
+          <aside class="notes">
+            Measured on the 32-thread machine with the 10^7-term loop:
+            critical 4.8 s, one thread 0.12 s, reduction 0.14 s.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Fix 2: a reduction</h2>
+          <pre style="font-size: 0.5em;"><code class="language-c++" data-trim data-noescape>
+#pragma omp parallel for reduction(+ : total)
+for (int i = 1; i &lt;= n_terms; i++) {
+  total += i;
+}
+          </code></pre>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment">Each thread adds into its own private copy
+              of <code>total</code>; the copies are added together once, when
+              the loop ends. Correct, and no waiting.</li>
+            <li class="fragment">Also available for <code>*</code>,
+              <code>min</code>, and <code>max</code>.</li>
+          </ul>
+          <p class="fragment why">The general rule: give each thread its own
+            copy of whatever it modifies. Variables declared inside the loop
+            body are already private to each thread.</p>
+          <aside class="notes">
+            The reduction version runs in 0.14 s, no faster than one thread:
+            the loop body is too cheap for threads to pay off, and the point
+            here is correctness. Load balancing (schedule(dynamic)) is deliberately
+            left out: why raytracing speedup falls short of the thread count
+            is one of the Project 1 questions.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Where this goes next</h2>
+          <ul>
+            <li class="fragment"><strong>Project 1</strong> uses everything
+              from Lectures 6 to 9.</li>
+            <li class="fragment"><strong>Next lecture:</strong> boundary
+              value problems and the shooting method.</li>
+            <li class="fragment">References:
+              <ul style="font-size: 0.9em;">
+                <li>Numerical Recipes, 3rd ed., Section 17.2.</li>
+                <li>Hairer, N&oslash;rsett &amp; Wanner, <em>Solving
+                  Ordinary Differential Equations I</em>, Section II.6.</li>
+                <li>The OpenMP specification and tutorials at
+                  <a href="https://www.openmp.org/">openmp.org</a>.</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 9</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

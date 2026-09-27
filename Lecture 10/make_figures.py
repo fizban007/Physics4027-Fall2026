@@ -233,31 +233,58 @@ def blob(n=400):
 def area(x, v):
     return 0.5 * abs(np.dot(x, np.roll(v, -1)) - np.dot(v, np.roll(x, -1)))
 
-HB, NB = 0.1, 60                # 6 time units, a bit under one period
-fig, axes = plt.subplots(1, 3, figsize=(10.0, 3.6), sharex=True, sharey=True)
+HB = 0.2                        # large step, so Euler's area change is visible
+SNAP_TIMES = [0, 1, 2, 3]       # snapshots of the patch
 x0, v0 = blob()
 A0 = area(x0, v0)
-print(f"phase-space blob, {NB} steps of h = {HB}: area / initial area")
-for ax, (name, step, h, n) in zip(axes, [("exact (RK4, tiny steps)", rk4, HB / 20, NB * 20),
-                                         ("Euler", euler, HB, NB),
-                                         ("leapfrog", leapfrog, HB, NB)]):
-    x, v = x0.copy(), v0.copy()
-    for _ in range(n):
-        x, v = step(x, v, h)
-    ratio = area(x, v) / A0
-    print(f"  {name:24s} {ratio:.4f}")
-    ax.add_patch(Polygon(np.c_[x0, v0], closed=True, fc=V[3], ec=MUTED, alpha=0.5, lw=0.8))
-    ax.add_patch(Polygon(np.c_[x, v], closed=True, fc=V[1], ec=V[0], alpha=0.55, lw=1.0))
-    ax.set_title(f"{name}: area $\\times$ {ratio:.2f}", fontsize=14)
+
+def snapshots(step, h):
+    x, v = x0.copy(), v0.copy(); out = [(x.copy(), v.copy())]
+    per = int(round(1 / h))
+    for _ in range(SNAP_TIMES[-1]):
+        for _ in range(per):
+            x, v = step(x, v, h)
+        out.append((x.copy(), v.copy()))
+    return out
+
+exact = snapshots(rk4, HB / 20)
+print(f"phase-space patch, h = {HB}, area / initial area at t = 1, 2, 3:")
+print("  exact (RK4, h/20)  " + "  ".join(f"{area(*sn) / A0:.3f}" for sn in exact[1:]))
+fig, axes = plt.subplots(1, 2, figsize=(9.0, 4.0), sharex=True, sharey=True)
+th = np.linspace(-np.pi, np.pi, 4001)
+shades = [V[3], V[2], V[1], V[0]]
+for ax, (name, step) in zip(axes, [("Euler", euler), ("leapfrog", leapfrog)]):
+    for e in (-0.8, -0.5, -0.2):
+        # energy contour e = v^2/2 - cos(theta), drawn only where it exists
+        arg = 2 * (e + np.cos(th))
+        vv = np.where(arg >= 0, np.sqrt(np.abs(arg)), np.nan)
+        ax.plot(th, vv, color=MUTED, lw=0.4); ax.plot(th, -vv, color=MUTED, lw=0.4)
+    snaps = snapshots(step, HB)
+    for (x, v), t, col in zip(snaps, SNAP_TIMES, shades):
+        ax.add_patch(Polygon(np.c_[x, v], closed=True, fc=col, ec=col, alpha=0.55, lw=0.8))
+        cx, cv = x.mean(), v.mean()
+        ax.text(cx, cv, f"${t}$", ha="center", va="center", fontsize=13,
+                color="white" if t > 1 else INK)
+    xe, ve = exact[-1]
+    ax.add_patch(Polygon(np.c_[xe, ve], closed=True, fill=False, ec=INK, ls="--", lw=1.0))
+    print(f"  {name:18s} " + "  ".join(f"{area(*sn) / A0:.3f}" for sn in snaps[1:]))
+    ax.set_title(f"{name}: area at $t = 3$ is $\\times$ {area(*snaps[-1]) / A0:.2f}", fontsize=15)
     ax.set_xlabel(r"$\theta$")
-th = np.linspace(-np.pi, np.pi, 300)
-for ax in axes:
-    for e in (-0.5, 0.0, 0.5):
-        vv = np.sqrt(np.clip(2 * (e + np.cos(th)), 0, None))
-        ax.plot(th, vv, color=MUTED, lw=0.5); ax.plot(th, -vv, color=MUTED, lw=0.5)
-    ax.set_xlim(-2.3, 2.3); ax.set_ylim(-2.0, 2.0); ax.set_aspect("equal")
+    ax.set_aspect("equal")
+axes[0].set_xlim(-1.9, 1.8); axes[0].set_ylim(-1.8, 0.7)
 axes[0].set_ylabel(r"$\dot\theta$")
 save(fig, "phase_area")
+
+# ------------------------------------------- 7b. the modified energy of leapfrog
+print("leapfrog on the 90-degree pendulum, 200 time units: variation of H and of")
+print("  H~ = H + h^2 p^2 V''/12 - h^2 V'^2/24  (V = -cos q)")
+for h in (0.2, 0.1):
+    q, p = TH90, 0.0; h_vals, ht_vals = [], []
+    for _ in range(int(200 / h)):
+        q, p = leapfrog(q, p, h)
+        h_vals.append(energy(q, p))
+        ht_vals.append(energy(q, p) + h * h * (p * p * np.cos(q) / 12 - np.sin(q) ** 2 / 24))
+    print(f"  h = {h}: H varies by {np.ptp(h_vals):.1e}, H~ by {np.ptp(ht_vals):.1e}")
 
 # ------------------------------------------- 8. the leapfrog staggering
 fig, ax = plt.subplots(figsize=(7.0, 1.9))

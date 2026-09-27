@@ -46,6 +46,55 @@
           </aside>
         </section>
 
+        <section>
+          <h2>The last two weeks</h2>
+          <table style="font-size: 0.72em; margin: 0.3em auto;">
+            <thead>
+              <tr><th></th><th>the question</th><th>the answer</th></tr>
+            </thead>
+            <tbody>
+              <tr class="fragment"><td style="white-space: nowrap;">Lecture 7</td><td>How is a Runge-Kutta
+                method built?</td><td>A Butcher tableau, with coefficients
+                fixed by matching the Taylor expansion</td></tr>
+              <tr class="fragment"><td style="white-space: nowrap;">Lecture 7</td><td>Why does RK4 blow up
+                on a slow solution?</td><td>Stiffness: the fast timescale
+                limits $h$ through stability; implicit methods remove the
+                limit</td></tr>
+              <tr class="fragment"><td style="white-space: nowrap;">Lecture 8</td><td>How large should
+                each step be?</td><td>Estimate the error of every step and
+                choose $h$ to meet a tolerance; Dormand-Prince gets the
+                estimate almost for free</td></tr>
+              <tr class="fragment"><td style="white-space: nowrap;">Lecture 9</td><td>What about output
+                between steps, or ending on an event?</td><td>Dense output,
+                and root finding on the interpolant</td></tr>
+            </tbody>
+          </table>
+          <aside class="notes">
+            Review of Lectures 7 to 9. Homework 5 is due Wednesday, so the
+            next slide draws only on Homework 4; nothing here previews the
+            Homework 5 answers.
+          </aside>
+        </section>
+
+        <section>
+          <h2>What Homework 4 showed</h2>
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment"><strong>Order is a slope.</strong> Euler,
+              midpoint, and RK4 came out at 1, 2, and 4 on the log-log
+              plot, and your third-order method at 3.</li>
+            <li class="fragment"><strong>Stability is not accuracy.</strong>
+              RK4 needed $h &lt; 0.028$ to follow a slow cosine on the stiff
+              pendulum. Implicit Euler was stable at any $h$, and still only
+              first order.</li>
+            <li class="fragment"><strong>Energy is not conserved.</strong>
+              Euler's pendulum gained energy and went over the top; RK4's
+              lost a tiny amount.</li>
+          </ul>
+          <p class="fragment why">Every method so far is one-step, and none
+            conserves energy. Today: methods that remember earlier steps,
+            and a method that keeps the energy error bounded.</p>
+        </section>
+
         <!-- ============ Part I: multistep methods ============ -->
 
         <section class="divider">

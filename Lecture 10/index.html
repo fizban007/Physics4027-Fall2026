@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 10</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 10</p>
+          <h1>Multistep Methods and Energy Conservation</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+        </section>
+
+        <section>
+          <h2>Today</h2>
+          <ul>
+            <li><strong>Multistep methods.</strong> Reusing the slopes of
+              earlier steps, so that each new step costs a single evaluation
+              of $f$.</li>
+            <li class="fragment"><strong>Energy conservation.</strong> What
+              happens to the energy over thousands of periods, and a method
+              that keeps it bounded forever.</li>
+          </ul>
+          <aside class="notes">
+            Follows the 2025 Lecture 10: Adams methods, predictor-corrector,
+            BDF, then leapfrog/Verlet and symplectic integration. Every
+            number on the slides is printed by make_figures.py in this
+            directory. Running examples: the 170-degree pendulum of Lecture 9
+            for Part I, the 90-degree pendulum for the long runs of Part II.
+          </aside>
+        </section>
+
+        <!-- ============ Part I: multistep methods ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Multistep methods</h2>
+          <p>Reusing the past</p>
+        </section>
+
+        <section>
+          <h2>A Runge-Kutta step forgets</h2>
+          <ul style="font-size: 0.85em;">
+            <li>RK4 evaluates $f$ four times per step, combines the slopes,
+              and throws them away. The next step starts from $y_{n+1}$
+              alone.</li>
+            <li class="fragment">But the slopes of earlier steps,
+              $f_{n-1} = f(t_{n-1}, y_{n-1})$, $f_{n-2}$, and so on, are good
+              information about how $f$ is changing.</li>
+            <li class="fragment">A <strong>multistep method</strong> keeps
+              the last few slopes and builds $y_{n+1}$ from them. Each step
+              then needs only one new evaluation, $f_n$.</li>
+          </ul>
+          <p class="fragment why">Runge-Kutta methods are called one-step
+            methods: $y_{n+1}$ depends on $y_n$ only.</p>
+        </section>
+
+        <section>
+          <h2>Where the coefficients come from</h2>
+          <p style="font-size: 0.8em;">Integrate the ODE over one step, then
+            replace $f$ by the polynomial through the stored slopes
+            (Lectures 4 and 5):</p>
+          $$y_{n+1} = y_n + \int_{t_n}^{t_{n+1}} f\big(t, y(t)\big)\,dt$$
+          <img src="figures/adams.png" style="width: 44%; margin: 0 auto; display: block;"
+            alt="Stored slopes at four past times, a cubic through them, and the area under the cubic over the next step shaded">
+          <aside class="notes">
+            DERIVATION (two points, AB2): the line through (t_{n-1}, f_{n-1})
+            and (t_n, f_n) is p(t) = f_n + (f_n - f_{n-1})(t - t_n)/h.
+            Integrating from t_n to t_n + h gives h f_n + (f_n - f_{n-1}) h/2
+            = h (3/2 f_n - 1/2 f_{n-1}). The same recipe with 3 and 4 points
+            gives AB3 and AB4. The polynomial is extrapolated over the new
+            step, which is why the weights grow and alternate in sign.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The Adams-Bashforth methods</h2>
+          $$\begin{split}
+            \text{AB2:}\quad y_{n+1} &= y_n + \frac{h}{2}\left(3 f_n - f_{n-1}\right) \\
+            \text{AB3:}\quad y_{n+1} &= y_n + \frac{h}{12}\left(23 f_n - 16 f_{n-1} + 5 f_{n-2}\right) \\
+            \text{AB4:}\quad y_{n+1} &= y_n + \frac{h}{24}\left(55 f_n - 59 f_{n-1} + 37 f_{n-2} - 9 f_{n-3}\right)
+          \end{split}$$
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment">$k$ stored slopes give order $k$. AB1 is
+              Euler's method.</li>
+            <li class="fragment">Explicit, and one new evaluation of $f$
+              per step, whatever the order.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Adams-Moulton: include the new point</h2>
+          <p style="font-size: 0.8em;">Let the interpolating polynomial pass
+            through $f_{n+1}$ as well, which interpolates instead of
+            extrapolating:</p>
+          $$\text{AM4:}\quad y_{n+1} = y_n + \frac{h}{24}\left(9 f_{n+1} + 19 f_n - 5 f_{n-1} + f_{n-2}\right)$$
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment">More accurate at the same order: the local
+              error is $\tfrac{19}{720} h^5 y^{(5)}$, against
+              $\tfrac{251}{720} h^5 y^{(5)}$ for AB4.</li>
+            <li class="fragment">But $f_{n+1} = f(t_{n+1}, y_{n+1})$ contains
+              the unknown: AM4 is implicit, like implicit Euler in Lecture
+              7.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: same recipe as Adams-Bashforth, with the cubic through
+            f_{n-2}, f_{n-1}, f_n, f_{n+1}. The error constants 251/720 and
+            19/720 are the standard ones (Hairer, Norsett &amp; Wanner I,
+            Section III.1); they come from integrating the interpolation
+            remainder over the step.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Predictor-corrector</h2>
+          <p style="font-size: 0.8em;">Avoid solving for $y_{n+1}$: guess it
+            explicitly, then use the guess in the implicit formula.</p>
+          <ol style="font-size: 0.8em; display: block;">
+            <li class="fragment"><strong>P</strong>redict $\tilde y_{n+1}$
+              with AB4.</li>
+            <li class="fragment"><strong>E</strong>valuate
+              $\tilde f_{n+1} = f(t_{n+1}, \tilde y_{n+1})$.</li>
+            <li class="fragment"><strong>C</strong>orrect: AM4 with
+              $\tilde f_{n+1}$ in place of $f_{n+1}$.</li>
+            <li class="fragment"><strong>E</strong>valuate $f_{n+1}$ at the
+              corrected $y_{n+1}$, for use in later steps.</li>
+          </ol>
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment">"PECE": two evaluations per step.</li>
+            <li class="fragment">$|y_{n+1} - \tilde y_{n+1}|$ estimates the
+              local error for free, like the embedded pair in Dormand-Prince
+              (Lecture 8).</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Cost, measured</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.15;">
+              <img src="figures/multistep_cost.png" style="width: 100%; display: block;"
+                alt="Error after one period against evaluations of f for RK4, Adams-Bashforth 4, and the predictor-corrector">
+            </div>
+            <div class="col" style="font-size: 0.64em;">
+              <p>The $170°$ pendulum over one period, fixed $h$. At about
+                400 evaluations of $f$:</p>
+              <table style="margin: 0.3em 0;">
+                <tbody>
+                  <tr><td>RK4</td><td>$1.2 \times 10^{-4}$</td></tr>
+                  <tr><td>AB4</td><td>$2.6 \times 10^{-5}$</td></tr>
+                  <tr><td>AB4 + AM4</td><td>$2.4 \times 10^{-4}$</td></tr>
+                </tbody>
+              </table>
+              <p class="fragment">All three are fourth order. Per
+                evaluation, AB4 wins by a factor of about 4 here.</p>
+              <p class="fragment">The corrector costs a second evaluation
+                per step; what it buys is the error estimate and better
+                stability, not accuracy per evaluation.</p>
+            </div>
+          </div>
+          <aside class="notes">
+            The multistep runs start with three RK4 steps (the start-up
+            problem on the next slide); their cost is included. At about
+            1600 evaluations: RK4 1.0e-7, AB4 2.5e-8, predictor-corrector
+            2.5e-7. Measured slopes are a bit steeper than 4 (5.0 to 5.3):
+            at 170 degrees the runs are not fully in the asymptotic regime.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The catch</h2>
+          <ul style="font-size: 0.78em;">
+            <li class="fragment"><strong>Start-up.</strong> AB4 needs three
+              earlier slopes that do not exist at $t_0$. The first steps are
+              taken with a one-step method, such as RK4.</li>
+            <li class="fragment"><strong>Fixed step.</strong> The weights
+              assume equally spaced slopes. Changing $h$ means
+              re-interpolating the history, so step control is harder than
+              in Dormand-Prince.</li>
+            <li class="fragment"><strong>Stability shrinks with
+              order.</strong> Largest stable $|h\lambda|$ on the negative
+              real axis:
+              <table style="font-size: 0.9em; margin: 0.3em auto;">
+                <tbody>
+                  <tr><td>AB1</td><td>AB2</td><td>AB3</td><td>AB4</td><td>RK4</td></tr>
+                  <tr><td>$2$</td><td>$1$</td><td>$0.55$</td><td>$0.30$</td><td>$2.79$</td></tr>
+                </tbody>
+              </table>
+              Even per evaluation, RK4 ($2.79/4 = 0.70$) is more stable than
+              AB4.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the stability intervals: apply AB-k to y' = lambda y
+            with z = h lambda. The recurrence y_{n+1} = y_n + z sum_j c_j
+            y_{n-j} has characteristic polynomial xi^k - (1 + z c_0) xi^{k-1}
+            - z c_1 xi^{k-2} - ... ; the method is stable when every root has
+            |xi| &lt;= 1. make_figures.py scans z along the negative real axis
+            and prints -2, -1, -0.545, -0.300. The same analysis as the
+            amplification factor R(z) in Lecture 7, except that a k-step
+            method has k roots instead of one.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Backward differentiation formulas</h2>
+          <p style="font-size: 0.8em;">For stiff problems, turn the idea
+            around: interpolate the stored <em>values</em> $y_{n+1}, y_n,
+            y_{n-1}, \dots$, and require the polynomial's slope at $t_{n+1}$
+            to equal $f_{n+1}$.</p>
+          $$\begin{split}
+            \text{BDF1:}\quad & y_{n+1} - y_n = h f_{n+1} \\
+            \text{BDF2:}\quad & y_{n+1} - \tfrac{4}{3} y_n + \tfrac{1}{3} y_{n-1} = \tfrac{2}{3} h f_{n+1}
+          \end{split}$$
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment">BDF1 is implicit Euler, from Homework 4.</li>
+            <li class="fragment">Implicit and stable far into the left half
+              plane: the standard stiff solvers (scipy's
+              <code>solve_ivp(method="BDF")</code>, CVODE) use BDF of
+              orders 1 to 5, changing order and step as they go.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of BDF2: the quadratic through (t_{n-1}, y_{n-1}),
+            (t_n, y_n), (t_{n+1}, y_{n+1}) has derivative at t_{n+1} equal
+            to (3 y_{n+1} - 4 y_n + y_{n-1}) / (2h). Setting that equal to
+            f_{n+1} and multiplying by 2h/3 gives the formula. BDF is
+            zero-stable only up to order 6, which is why production codes
+            stop at 5 or 6.
+          </aside>
+        </section>
+
+        <!-- ============ Part II: energy conservation ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Energy conservation</h2>
+          <p>Long runs</p>
+        </section>
+
+        <section>
+          <h2>Small errors, many periods</h2>
+          <ul style="font-size: 0.85em;">
+            <li>Homework 4: Euler pushed the pendulum over the top within one
+              swing, while RK4 lost only $2.5 \times 10^{-11}$ of energy in two
+              periods.</li>
+            <li class="fragment">Many simulations run for far longer than
+              two periods: planetary orbits over billions of revolutions,
+              molecular dynamics over millions of steps.</li>
+            <li class="fragment">A tiny energy error per period, repeated a
+              million times, is no longer tiny.</li>
+          </ul>
+          <p class="fragment why">The question is not only how large the
+            error is after one period, but whether it keeps growing.</p>
+        </section>
+
+        <section>
+          <h2>1000 periods of a pendulum</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.35;">
+              <img src="figures/energy_long.png" style="width: 100%; display: block;"
+                alt="Largest energy error in each period over 1000 periods: RK2 grows, RK4 grows linearly, leapfrog stays flat">
+            </div>
+            <div class="col" style="font-size: 0.62em;">
+              <p>$\theta_0 = 90°$, $h = T/50$.</p>
+              <ul>
+                <li class="fragment"><strong>RK2</strong> gains energy until
+                  the pendulum spins over the top.</li>
+                <li class="fragment"><strong>RK4</strong> loses about
+                  $4 \times 10^{-6}$ per period, steadily: $4 \times 10^{-3}$
+                  after 1000.</li>
+                <li class="fragment"><strong>Leapfrog</strong> (next
+                  slides) has a larger error at first, which never
+                  grows.</li>
+                <li class="fragment">At the same cost as RK4, leapfrog is
+                  better after about 70 periods, and the gap widens
+                  forever.</li>
+              </ul>
+            </div>
+          </div>
+          <aside class="notes">
+            The curves show the largest |E - E0| within each period, so the
+            oscillation of the error inside a period does not clutter the
+            log scale. Leapfrog at h: 4.6e-3 in every period. Leapfrog at
+            h/4, one evaluation per step, same evaluations as RK4 at h:
+            2.9e-4 in every period. RK4: 5.8e-6, 4.4e-5, 4.2e-4, 4.2e-3 in
+            periods 1, 10, 100, 1000. RK2 reaches 12 by period 1000.
+          </aside>
+        </section>
+
+        <section>
+          <h2>From midpoint to leapfrog</h2>
+          <p style="font-size: 0.8em;">The midpoint method (Lecture 6) computes
+            a value at the half step, uses it once, and throws it away. Keep
+            it instead, and let positions and velocities alternate:</p>
+          <img src="figures/leapfrog_grid.png" style="width: 58%; margin: 0.3em auto; display: block;"
+            alt="Positions at whole steps and velocities at half steps, each updated from the other">
+          $$v_{n+1/2} = v_{n-1/2} + h\, a(x_n), \qquad x_{n+1} = x_n + h\, v_{n+1/2}$$
+          <p class="fragment" style="font-size: 0.8em;">Each update uses the
+            other variable at the midpoint of its own step: second order, and
+            one evaluation of the force $a(x)$ per step.</p>
+          <aside class="notes">
+            DERIVATION of second order: each update is the midpoint rule for
+            its own variable, dx/dt = v evaluated at the midpoint of
+            [t_n, t_{n+1}], and dv/dt = a evaluated at the midpoint of
+            [t_{n-1/2}, t_{n+1/2}]; the midpoint rule's error per step is
+            O(h^3). The method is also symmetric in time (two slides on),
+            and symmetric methods have even order.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Velocity Verlet</h2>
+          <p style="font-size: 0.8em;">For $\ddot x = a(x)$, the same method
+            with positions and velocities reported at the same times: half a
+            kick, a drift, half a kick.</p>
+          $$\begin{split}
+            v_{n+1/2} &= v_n + \tfrac{h}{2}\, a(x_n) \\
+            x_{n+1} &= x_n + h\, v_{n+1/2} \\
+            v_{n+1} &= v_{n+1/2} + \tfrac{h}{2}\, a(x_{n+1})
+          \end{split}$$
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment">$a(x_{n+1})$ is reused in the first half kick
+              of the next step: still one evaluation per step.</li>
+            <li class="fragment">This is the workhorse of molecular
+              dynamics, where it is called velocity Verlet.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Leapfrog runs backwards exactly</h2>
+          <ul style="font-size: 0.8em; display: block;">
+            <li>Every substep is undone by the same substep with $-h$:
+              $x_{n+1} = x_n + h\,v$ is reversed by $x_n = x_{n+1} - h\,v$,
+              with the same $v$.</li>
+            <li class="fragment">So reversing the velocity and running the
+              same number of steps retraces the trajectory, as the exact
+              dynamics does.</li>
+            <li class="fragment">Measured at $\theta_0 = 90°$, $h = 0.1$: run
+              1000 steps, flip $v$, run 1000 more.
+              <table style="font-size: 0.9em; margin: 0.3em auto;">
+                <tbody>
+                  <tr><td>distance from the start</td><td>RK4</td>
+                    <td>$2.1 \times 10^{-4}$</td></tr>
+                  <tr><td></td><td>leapfrog</td><td>$6.3 \times 10^{-14}$</td></tr>
+                </tbody>
+              </table>
+            </li>
+          </ul>
+          <p class="fragment why">Leapfrog's only error on the way back is
+            rounding.</p>
+          <aside class="notes">
+            RK4's stages are all evaluated from the start of the step, so the
+            backward step is a different method from the forward one and does
+            not undo it. Time reversibility alone does not guarantee bounded
+            energy, but it is one of the two properties (with the area
+            preservation on the next slides) that leapfrog has and RK methods
+            lack.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Phase-space area</h2>
+          <img src="figures/phase_area.png" style="width: 92%; margin: 0 auto; display: block;"
+            alt="A disk of initial conditions evolved for six time units: the exact flow and leapfrog keep its area, Euler grows it by 43 percent">
+          <ul style="font-size: 0.78em;">
+            <li class="fragment">Hamiltonian dynamics preserves the area of
+              any patch of initial conditions (Liouville's theorem), however
+              much it stretches the patch.</li>
+            <li class="fragment">Leapfrog preserves it exactly; Euler does
+              not. Methods that preserve it are called
+              <strong>symplectic</strong>.</li>
+          </ul>
+          <aside class="notes">
+            The blob is a disk of radius 0.35 centered at theta = 1.2, v = 0,
+            evolved 60 steps of h = 0.1. Areas by the shoelace formula on 400
+            boundary points: exact 1.0000, Euler 1.4299, leapfrog 1.0000. The
+            thin curves are energy contours of the pendulum.
+          </aside>
+        </section>
+
+        <section>
+          <h2>One step as a matrix</h2>
+          <p style="font-size: 0.8em;">On the harmonic oscillator
+            $\ddot x = -x$, every method here multiplies $(x, v)$ by a
+            matrix. Its determinant is the area factor per step:</p>
+          <table style="font-size: 0.72em; margin: 0.4em auto;">
+            <thead>
+              <tr><th></th><th>Euler</th><th>RK2</th><th>RK4</th><th>leapfrog</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>area factor</td><td>$1 + h^2$</td><td>$1 + h^4/4$</td>
+                <td>$1 - h^6/72 + \dots$</td><td>$1$</td></tr>
+              <tr><td>energy</td><td>grows</td><td>grows</td>
+                <td>decays</td><td>bounded</td></tr>
+            </tbody>
+          </table>
+          <ul style="font-size: 0.78em;">
+            <li class="fragment">A kick changes only $v$, by an amount that
+              depends only on $x$; a drift changes only $x$. Both are shears,
+              with determinant exactly 1.</li>
+            <li class="fragment">The Runge-Kutta factors are
+              $|R(ih)|^2$, with $R$ the amplification factor of Lecture 7:
+              close to 1, never equal to it.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: on x'' = -x the system is y' = A y with eigenvalues
+            +i and -i, and a Runge-Kutta step is y -> R(hA) y, so the
+            determinant is R(ih) R(-ih) = |R(ih)|^2. RK2: R = 1 + z + z^2/2,
+            |R(ih)|^2 = (1 - h^2/2)^2 + h^2 = 1 + h^4/4. RK4:
+            |R(ih)|^2 = 1 - h^6/72 + h^8/576. Euler: 1 + h^2. Measured
+            determinants at h = 0.1: 1.0100000000, 1.0000250000,
+            0.9999999861, 1.0000000000. Leapfrog is the product of two
+            half kicks [[1, 0], [-h/2, 1]] and a drift [[1, h], [0, 1]].
+          </aside>
+        </section>
+
+        <section>
+          <h2>Why the error stays bounded</h2>
+          <p style="font-size: 0.8em;">On $\ddot x = -x$, leapfrog conserves
+            a slightly different energy <em>exactly</em>:</p>
+          $$\tilde E = \tfrac12 v^2 + \tfrac12\left(1 - \tfrac{h^2}{4}\right) x^2$$
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment">Measured at $h = 0.5$, 1000 steps: $E$
+              varies by $3 \times 10^{-2}$, $\tilde E$ by
+              $3 \times 10^{-15}$.</li>
+            <li class="fragment">The numerical trajectory lies exactly on a
+              level curve of $\tilde E$, which stays within $O(h^2)$ of the
+              true one: the error in $E$ oscillates but cannot grow.</li>
+            <li class="fragment">For a general Hamiltonian, a symplectic
+              method conserves a nearby "shadow" Hamiltonian
+              $\tilde H = H + O(h^p)$ for exponentially long times.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: the leapfrog step on x'' = -x is
+            M = [[1 - h^2/2, h], [-h(1 - h^2/4), 1 - h^2/2]]. With
+            Q = diag(1 - h^2/4, 1), direct multiplication gives
+            M^T Q M = Q, so (x, v) Q (x, v)^T = (1 - h^2/4) x^2 + v^2 is
+            invariant. The general statement is backward error analysis
+            (Hairer, Lubich &amp; Wanner, Chapter IX); the existence of the
+            shadow Hamiltonian is a theorem, but its size is only
+            asymptotic in h.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The fine print</h2>
+          <ul style="font-size: 0.78em;">
+            <li class="fragment"><strong>Fixed step.</strong> Changing $h$
+              from step to step (adaptive control) changes the shadow
+              Hamiltonian as you go, and the bounded error is lost.</li>
+            <li class="fragment"><strong>Hamiltonian systems only.</strong>
+              With friction or a driving force there is no energy to
+              conserve, and the advantage is gone.</li>
+            <li class="fragment"><strong>Second order.</strong> Higher orders
+              come from composing leapfrog steps: three substeps of sizes
+              $w_1 h$, $w_0 h$, $w_1 h$ with
+              $w_1 = 1/(2 - 2^{1/3}) \approx 1.35$ and
+              $w_0 = 1 - 2 w_1 \approx -1.70$ give a fourth-order symplectic
+              method (Yoshida 1990).</li>
+            <li class="fragment"><strong>Not more accurate.</strong> Over a
+              few periods RK4 wins, as the figure showed. Symplectic methods
+              win over long runs.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Which method, when</h2>
+          <table style="font-size: 0.66em; margin: 0.4em auto;">
+            <thead>
+              <tr><th>the problem</th><th>a good default</th></tr>
+            </thead>
+            <tbody>
+              <tr class="fragment"><td>general, non-stiff, accuracy
+                requested</td><td>adaptive Dormand-Prince</td></tr>
+              <tr class="fragment"><td>non-stiff, smooth, $f$ very
+                expensive</td><td>Adams (predictor-corrector)</td></tr>
+              <tr class="fragment"><td>stiff</td><td>implicit: BDF</td></tr>
+              <tr class="fragment"><td>Hamiltonian, very long run</td>
+                <td>symplectic, fixed step: leapfrog and its compositions</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment" style="font-size: 0.75em;">Symplectic
+            integrators run molecular dynamics codes, long-term planetary
+            simulations, and particle pushers in plasma codes.</p>
+        </section>
+
+        <section>
+          <h2>Where this goes next</h2>
+          <ul>
+            <li class="fragment"><strong>Homework 5</strong> (adaptive
+              Dormand-Prince) is due Wednesday.</li>
+            <li class="fragment">References:
+              <ul style="font-size: 0.9em;">
+                <li>Numerical Recipes, 3rd ed., Section 17.6 (multistep
+                  methods).</li>
+                <li>Hairer, N&oslash;rsett &amp; Wanner, <em>Solving Ordinary
+                  Differential Equations I</em>, Chapter III.</li>
+                <li>Hairer, Lubich &amp; Wanner, "Geometric numerical
+                  integration illustrated by the St&ouml;rmer-Verlet
+                  method", <em>Acta Numerica</em> 12 (2003).</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 10</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

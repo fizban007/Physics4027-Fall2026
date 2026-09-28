@@ -27,25 +27,25 @@
           <p class="affil">Washington University in St. Louis</p>
         </section>
 
-        <section>
-          <h2>Today</h2>
-          <ul>
-            <li><strong>Multistep methods.</strong> Reusing the slopes of
-              earlier steps, so that each new step costs a single evaluation
-              of $f$.</li>
-            <li class="fragment"><strong>Energy conservation.</strong> What
-              happens to the energy over thousands of periods, and a method
-              that keeps it bounded forever.</li>
-          </ul>
-          <aside class="notes">
-            Follows the 2025 Lecture 10: Adams methods, predictor-corrector,
-            BDF, then leapfrog/Verlet and symplectic integration. Every
-            number on the slides is printed by make_figures.py in this
-            directory. Running examples: the 170-degree pendulum of Lecture 9
-            for Part I, the 90-degree pendulum for the long runs of Part II.
-          </aside>
-        </section>
-
+        <!-- <section>
+             <h2>Today</h2>
+             <ul>
+             <li><strong>Multistep methods.</strong> Reusing the slopes of
+             earlier steps, so that each new step costs a single evaluation
+             of $f$.</li>
+             <li class="fragment"><strong>Energy conservation.</strong> What
+             happens to the energy over thousands of periods, and a method
+             that keeps it bounded forever.</li>
+             </ul>
+             <aside class="notes">
+             Follows the 2025 Lecture 10: Adams methods, predictor-corrector,
+             BDF, then leapfrog/Verlet and symplectic integration. Every
+             number on the slides is printed by make_figures.py in this
+             directory. Running examples: the 170-degree pendulum of Lecture 9
+             for Part I, the 90-degree pendulum for the long runs of Part II.
+             </aside>
+             </section>
+        -->
         <section>
           <h2>The last two weeks</h2>
           <table style="font-size: 0.72em; margin: 0.3em auto;">
@@ -76,25 +76,25 @@
           </aside>
         </section>
 
-        <section>
-          <h2>What Homework 4 showed</h2>
-          <ul style="font-size: 0.8em; display: block;">
-            <li class="fragment"><strong>Order is a slope.</strong> Euler,
-              midpoint, and RK4 came out at 1, 2, and 4 on the log-log
-              plot, and your third-order method at 3.</li>
-            <li class="fragment"><strong>Stability is not accuracy.</strong>
-              RK4 needed $h &lt; 0.028$ to follow a slow cosine on the stiff
-              pendulum. Implicit Euler was stable at any $h$, and still only
-              first order.</li>
-            <li class="fragment"><strong>Energy is not conserved.</strong>
-              Euler's pendulum gained energy and went over the top; RK4's
-              lost a tiny amount.</li>
-          </ul>
-          <p class="fragment why">Every method so far is one-step, and none
-            conserves energy. Today: methods that remember earlier steps,
-            and a method that keeps the energy error bounded.</p>
-        </section>
-
+        <!-- <section>
+             <h2>What Homework 4 showed</h2>
+             <ul style="font-size: 0.8em; display: block;">
+             <li class="fragment"><strong>Order is a slope.</strong> Euler,
+             midpoint, and RK4 came out at 1, 2, and 4 on the log-log
+             plot, and your third-order method at 3.</li>
+             <li class="fragment"><strong>Stability is not accuracy.</strong>
+             RK4 needed $h &lt; 0.028$ to follow a slow cosine on the stiff
+             pendulum. Implicit Euler was stable at any $h$, and still only
+             first order.</li>
+             <li class="fragment"><strong>Energy is not conserved.</strong>
+             Euler's pendulum gained energy and went over the top; RK4's
+             lost a tiny amount.</li>
+             </ul>
+             <p class="fragment why">Every method so far is one-step, and none
+             conserves energy. Today: methods that remember earlier steps,
+             and a method that keeps the energy error bounded.</p>
+             </section>
+        -->
         <!-- ============ Part I: multistep methods ============ -->
 
         <section class="divider">
@@ -122,8 +122,7 @@
         <section>
           <h2>Where the coefficients come from</h2>
           <p style="font-size: 0.8em;">Integrate the ODE over one step, then
-            replace $f$ by the polynomial through the stored slopes
-            (Lectures 4 and 5):</p>
+            replace $f$ by the polynomial through the stored slopes:</p>
           $$y_{n+1} = y_n + \int_{t_n}^{t_{n+1}} f\big(t, y(t)\big)\,dt$$
           <img src="figures/adams.png" style="width: 44%; margin: 0 auto; display: block;"
             alt="Stored slopes at four past times, a cubic through them, and the area under the cubic over the next step shaded">
@@ -165,6 +164,10 @@
             <li class="fragment">But $f_{n+1} = f(t_{n+1}, y_{n+1})$ contains
               the unknown: AM4 is implicit, like implicit Euler in Lecture
               7.</li>
+            <li class="fragment">Implicit does not mean unconditionally
+              stable: AM4 is stable only for $h\lambda \ge -3$ on the real
+              axis. No multistep method of order above 2 is stable for every
+              $h\lambda$ in the left half plane (Dahlquist).</li>
           </ul>
           <aside class="notes">
             DERIVATION: same recipe as Adams-Bashforth, with the cubic through
@@ -172,6 +175,14 @@
             19/720 are the standard ones (Hairer, Norsett &amp; Wanner I,
             Section III.1); they come from integrating the interpolation
             remainder over the step.
+            STABILITY: largest root of AM4's characteristic polynomial on the
+            real axis: 0.41 at h lambda = -1, 1.00 at -3, 1.74 at -10, and it
+            tends to 2.37 as h lambda -> -infinity. Dahlquist's second
+            barrier: an A-stable linear multistep method has order at most 2,
+            and the trapezoidal rule (Adams-Moulton of order 2) is the best
+            one. BDF3 and up are stable on the whole negative real axis but
+            not near the imaginary axis (BDF3 reaches 1.05 there), which is
+            why they are still fine for stiff problems.
           </aside>
         </section>
 
@@ -198,7 +209,7 @@
         </section>
 
         <section>
-          <h2>Cost, measured</h2>
+          <h2>Cost vs accuracy</h2>
           <div class="cols" style="align-items: center;">
             <div class="col" style="flex: 1.15;">
               <img src="figures/multistep_cost.png" style="width: 100%; display: block;"
@@ -420,98 +431,187 @@
         </section>
 
         <section>
-          <h2>Phase-space area</h2>
-          <img src="figures/phase_area.png" style="width: 92%; margin: 0 auto; display: block;"
-            alt="A disk of initial conditions evolved for six time units: the exact flow and leapfrog keep its area, Euler grows it by 43 percent">
-          <ul style="font-size: 0.78em;">
-            <li class="fragment">Hamiltonian dynamics preserves the area of
-              any patch of initial conditions (Liouville's theorem), however
-              much it stretches the patch.</li>
-            <li class="fragment">Leapfrog preserves it exactly; Euler does
-              not. Methods that preserve it are called
-              <strong>symplectic</strong>.</li>
+          <h2>Hamiltonian structure</h2>
+          <p style="font-size: 0.8em;">The pendulum, like every conservative
+            mechanical system, is a Hamiltonian system:</p>
+          $$H(q, p) = \frac{p^2}{2} + V(q), \qquad
+            \dot q = \frac{\partial H}{\partial p} = p, \qquad
+            \dot p = -\frac{\partial H}{\partial q} = -V'(q)$$
+          <p style="font-size: 0.8em;">with $V(q) = -\cos q$ for the pendulum.
+            Two consequences:</p>
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment"><strong>Energy is conserved:</strong>
+              $\dot H = \frac{\partial H}{\partial q}\dot q + \frac{\partial H}{\partial p}\dot p
+              = \frac{\partial H}{\partial q}\frac{\partial H}{\partial p}
+              - \frac{\partial H}{\partial p}\frac{\partial H}{\partial q} = 0$.</li>
+            <li class="fragment"><strong>Phase-space area is
+              conserved</strong> (Liouville's theorem): the velocity field
+              $(\dot q, \dot p)$ has zero divergence,
+              $\frac{\partial \dot q}{\partial q} + \frac{\partial \dot p}{\partial p}
+              = \frac{\partial^2 H}{\partial q\,\partial p}
+              - \frac{\partial^2 H}{\partial p\,\partial q} = 0$.</li>
           </ul>
+          <p class="fragment why">A numerical method can try to keep either
+            property. Leapfrog keeps the second one exactly.</p>
           <aside class="notes">
-            The blob is a disk of radius 0.35 centered at theta = 1.2, v = 0,
-            evolved 60 steps of h = 0.1. Areas by the shoelace formula on 400
-            boundary points: exact 1.0000, Euler 1.4299, leapfrog 1.0000. The
-            thin curves are energy contours of the pendulum.
+            Zero divergence means the flow neither compresses nor expands a
+            patch of initial conditions, like an incompressible fluid in the
+            (q, p) plane. In 2D, "area"; in general, phase-space volume. For
+            the pendulum, q = theta and p = theta-dot (unit mass and length).
           </aside>
         </section>
 
         <section>
-          <h2>One step as a matrix</h2>
-          <p style="font-size: 0.8em;">On the harmonic oscillator
-            $\ddot x = -x$, every method here multiplies $(x, v)$ by a
-            matrix. Its determinant is the area factor per step:</p>
+          <h2>Leapfrog is built from exact solutions</h2>
+          <p style="font-size: 0.8em;">Split $H = T(p) + V(q)$, with
+            $T = p^2/2$, and solve each half on its own:</p>
+          <table style="font-size: 0.74em; margin: 0.4em auto;">
+            <thead>
+              <tr><th>Hamiltonian</th><th>equations</th><th>exact solution for a time $\tau$</th></tr>
+            </thead>
+            <tbody>
+              <tr class="fragment"><td>$V(q)$ alone</td>
+                <td>$\dot q = 0,\; \dot p = -V'(q)$</td>
+                <td>$p \to p - \tau V'(q)$: a <strong>kick</strong></td></tr>
+              <tr class="fragment"><td>$T(p)$ alone</td>
+                <td>$\dot q = p,\; \dot p = 0$</td>
+                <td>$q \to q + \tau p$: a <strong>drift</strong></td></tr>
+            </tbody>
+          </table>
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment">A Verlet step is the exact flow of $V$ for
+              $h/2$, then of $T$ for $h$, then of $V$ for $h/2$.</li>
+            <li class="fragment">Each piece is an exact Hamiltonian flow, so
+              each preserves phase-space area, and so does the whole step.</li>
+            <li class="fragment">Euler moves $q$ and $p$ at once, both from
+              the old state: it is not the exact flow of anything.</li>
+          </ul>
+          <aside class="notes">
+            This is the idea of splitting methods: when H is a sum of pieces
+            that can each be solved exactly, alternate between them. The
+            error of leapfrog comes entirely from the fact that the flows of
+            T and V do not commute (kick then drift is not drift then kick).
+          </aside>
+        </section>
+
+        <section>
+          <h2>Phase-space area</h2>
+          <img src="figures/phase_area.png" style="width: 70%; margin: 0 auto; display: block;"
+            alt="A disk of initial conditions shown at times 0, 1, 2, 3: under Euler it grows by 46 percent, under leapfrog it keeps its area and matches the exact patch">
+          <ul style="font-size: 0.76em; display: block;">
+            <li>A disk of initial conditions for the pendulum at
+              $t = 0, 1, 2, 3$, with $h = 0.2$. Dashed: the exact patch at
+              $t = 3$.</li>
+            <li class="fragment">Leapfrog keeps the area exactly while the
+              patch stretches. Euler's patch grows: $\times 1.09$, $1.28$,
+              $1.46$.</li>
+            <li class="fragment">Methods that preserve this structure are
+              called <strong>symplectic</strong>.</li>
+          </ul>
+          <aside class="notes">
+            The disk has radius 0.35 and is centered at theta = 1.2,
+            theta-dot = 0; the numbers on the patches are the times. Areas
+            by the shoelace formula on 400 boundary points; the exact
+            reference is RK4 with h/20 (area 1.000 at every time). The thin
+            curves are energy contours. Growing area goes with growing
+            energy: Euler's patch drifts outward across the contours.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Area and energy on the harmonic oscillator</h2>
+          <p style="font-size: 0.8em;">On $\ddot x = -x$ every method here
+            multiplies $(x, v)$ by a matrix $M$, and the energy curves
+            $x^2 + v^2 = 2E$ are circles. A Runge-Kutta step rotates and
+            rescales, so it multiplies the area <em>and</em> the energy by
+            $\det M$, every step:</p>
           <table style="font-size: 0.72em; margin: 0.4em auto;">
             <thead>
               <tr><th></th><th>Euler</th><th>RK2</th><th>RK4</th><th>leapfrog</th></tr>
             </thead>
             <tbody>
-              <tr><td>area factor</td><td>$1 + h^2$</td><td>$1 + h^4/4$</td>
+              <tr><td>$\det M$ per step</td><td>$1 + h^2$</td><td>$1 + h^4/4$</td>
                 <td>$1 - h^6/72 + \dots$</td><td>$1$</td></tr>
               <tr><td>energy</td><td>grows</td><td>grows</td>
                 <td>decays</td><td>bounded</td></tr>
             </tbody>
           </table>
-          <ul style="font-size: 0.78em;">
-            <li class="fragment">A kick changes only $v$, by an amount that
-              depends only on $x$; a drift changes only $x$. Both are shears,
-              with determinant exactly 1.</li>
-            <li class="fragment">The Runge-Kutta factors are
-              $|R(ih)|^2$, with $R$ the amplification factor of Lecture 7:
-              close to 1, never equal to it.</li>
+          <ul style="font-size: 0.78em; display: block;">
+            <li class="fragment">For Runge-Kutta, the energy error <em>is</em>
+              the area error: $\det M = |R(ih)|^2$, with $R$ the
+              amplification factor of Lecture 7, close to 1 but never equal
+              to it.</li>
+            <li class="fragment">Leapfrog's $M$ has determinant exactly 1 but
+              is not a rotation: it carries circles to ellipses of the same
+              area. $E$ wobbles; the shadow energy
+              $\tfrac12 v^2 + \tfrac12\left(1 - \tfrac{h^2}{4}\right)x^2$ is
+              conserved exactly.</li>
           </ul>
           <aside class="notes">
-            DERIVATION: on x'' = -x the system is y' = A y with eigenvalues
-            +i and -i, and a Runge-Kutta step is y -> R(hA) y, so the
-            determinant is R(ih) R(-ih) = |R(ih)|^2. RK2: R = 1 + z + z^2/2,
-            |R(ih)|^2 = (1 - h^2/2)^2 + h^2 = 1 + h^4/4. RK4:
-            |R(ih)|^2 = 1 - h^6/72 + h^8/576. Euler: 1 + h^2. Measured
-            determinants at h = 0.1: 1.0100000000, 1.0000250000,
-            0.9999999861, 1.0000000000. Leapfrog is the product of two
-            half kicks [[1, 0], [-h/2, 1]] and a drift [[1, h], [0, 1]].
+            DERIVATION: on x'' = -x the system is y' = A y with
+            A = [[0, 1], [-1, 0]], and a Runge-Kutta step is y -> R(hA) y.
+            Since A^2 = -1, R(hA) = Re R(ih) I + Im R(ih) A: a rotation times
+            |R(ih)|. So |y|^2, and with it E, is multiplied by |R(ih)|^2 =
+            det M each step. RK2: R = 1 + z + z^2/2, |R(ih)|^2 =
+            (1 - h^2/2)^2 + h^2 = 1 + h^4/4. RK4: |R(ih)|^2 = 1 - h^6/72 +
+            h^8/576. Euler: 1 + h^2. Measured determinants at h = 0.1:
+            1.0100000000, 1.0000250000, 0.9999999861, 1.0000000000. Leapfrog:
+            M = [[1 - h^2/2, h], [-h(1 - h^2/4), 1 - h^2/2]], and
+            M^T Q M = Q with Q = diag(1 - h^2/4, 1); measured at h = 0.5 over
+            1000 steps, E varies by 3e-2 and the shadow energy by 3e-15. This
+            is the V = q^2/2 case of the H-tilde on the next slide.
           </aside>
         </section>
 
         <section>
-          <h2>Why the error stays bounded</h2>
-          <p style="font-size: 0.8em;">On $\ddot x = -x$, leapfrog conserves
-            a slightly different energy <em>exactly</em>:</p>
-          $$\tilde E = \tfrac12 v^2 + \tfrac12\left(1 - \tfrac{h^2}{4}\right) x^2$$
-          <ul style="font-size: 0.8em; display: block;">
-            <li class="fragment">Measured at $h = 0.5$, 1000 steps: $E$
-              varies by $3 \times 10^{-2}$, $\tilde E$ by
-              $3 \times 10^{-15}$.</li>
-            <li class="fragment">The numerical trajectory lies exactly on a
-              level curve of $\tilde E$, which stays within $O(h^2)$ of the
-              true one: the error in $E$ oscillates but cannot grow.</li>
-            <li class="fragment">For a general Hamiltonian, a symplectic
-              method conserves a nearby "shadow" Hamiltonian
-              $\tilde H = H + O(h^p)$ for exponentially long times.</li>
+          <h2>Why the energy error stays bounded</h2>
+          <ul style="font-size: 0.72em; display: block;">
+            <li>Kicks and drifts do not commute, so a Verlet step is not the
+              exact flow of $H$. But it is the exact flow of a nearby
+              ("shadow") Hamiltonian:
+              $$\tilde H = H + \frac{h^2}{12}\, p^2\, V''(q) - \frac{h^2}{24}\, V'(q)^2 + O(h^4)$$</li>
+            <li class="fragment">An exact Hamiltonian flow conserves its own
+              Hamiltonian. So leapfrog conserves $\tilde H$, and
+              $H = \tilde H + O(h^2)$ can oscillate but never drift.</li>
+            <li class="fragment">Measured on the $90°$ pendulum over 200 time
+              units: at $h = 0.2$, $H$ varies by $8.3 \times 10^{-3}$ and
+              $\tilde H$ by $7.0 \times 10^{-5}$; at $h = 0.1$, by
+              $2.1 \times 10^{-3}$ and $4.4 \times 10^{-6}$.</li>
+            <li class="fragment">RK4 is not the exact flow of any
+              Hamiltonian: no $\tilde H$ exists, and its error accumulates as
+              the steady drift seen earlier.</li>
           </ul>
           <aside class="notes">
-            DERIVATION: the leapfrog step on x'' = -x is
-            M = [[1 - h^2/2, h], [-h(1 - h^2/4), 1 - h^2/2]]. With
-            Q = diag(1 - h^2/4, 1), direct multiplication gives
-            M^T Q M = Q, so (x, v) Q (x, v)^T = (1 - h^2/4) x^2 + v^2 is
-            invariant. The general statement is backward error analysis
-            (Hairer, Lubich &amp; Wanner, Chapter IX); the existence of the
-            shadow Hamiltonian is a theorem, but its size is only
-            asymptotic in h.
+            DERIVATION sketch. Each substep is exp(tau X) for the Hamiltonian
+            vector field X of T or V. The Baker-Campbell-Hausdorff formula
+            writes exp(h/2 A) exp(h B) exp(h/2 A) = exp(h (A + B) + h^3 C +
+            ...), where C is built from commutators of A and B; commutators of
+            Hamiltonian vector fields are again Hamiltonian, so the whole
+            series is the vector field of a single H-tilde. Its h^2 term for
+            velocity Verlet is the one on the slide; I checked the
+            coefficients numerically (make_figures.py): the variation of
+            H-tilde falls by 16 when h halves, as the O(h^4) remainder
+            requires. The series does not converge in general, but truncating
+            it optimally gives conservation for exponentially long times
+            (Hairer, Lubich &amp; Wanner, Chapter IX). Harmonic oscillator
+            check: V = q^2/2 gives H-tilde proportional to
+            p^2/2 + (1 - h^2/4) q^2/2, which leapfrog conserves exactly (M^T Q M
+            = Q with Q = diag(1 - h^2/4, 1)).
           </aside>
         </section>
 
         <section>
           <h2>The fine print</h2>
-          <ul style="font-size: 0.78em;">
+          <ul style="font-size: 0.78em; display: block;">
             <li class="fragment"><strong>Fixed step.</strong> Changing $h$
               from step to step (adaptive control) changes the shadow
               Hamiltonian as you go, and the bounded error is lost.</li>
-            <li class="fragment"><strong>Hamiltonian systems only.</strong>
-              With friction or a driving force there is no energy to
-              conserve, and the advantage is gone.</li>
+            <li class="fragment"><strong>Hamiltonian systems that
+              split.</strong> Leapfrog needs $H = T(p) + V(q)$, two pieces
+              each solved exactly. With friction or a driving force there is
+              no energy to conserve; when $H$ mixes $q$ and $p$ (a charged
+              particle in a magnetic field), a different splitting is
+              needed.</li>
             <li class="fragment"><strong>Second order.</strong> Higher orders
               come from composing leapfrog steps: three substeps of sizes
               $w_1 h$, $w_0 h$, $w_1 h$ with
@@ -545,25 +645,25 @@
             simulations, and particle pushers in plasma codes.</p>
         </section>
 
-        <section>
-          <h2>Where this goes next</h2>
-          <ul>
-            <li class="fragment"><strong>Homework 5</strong> (adaptive
-              Dormand-Prince) is due Wednesday.</li>
-            <li class="fragment">References:
-              <ul style="font-size: 0.9em;">
-                <li>Numerical Recipes, 3rd ed., Section 17.6 (multistep
-                  methods).</li>
-                <li>Hairer, N&oslash;rsett &amp; Wanner, <em>Solving Ordinary
-                  Differential Equations I</em>, Chapter III.</li>
-                <li>Hairer, Lubich &amp; Wanner, "Geometric numerical
-                  integration illustrated by the St&ouml;rmer-Verlet
-                  method", <em>Acta Numerica</em> 12 (2003).</li>
-              </ul>
-            </li>
-          </ul>
-        </section>
-
+        <!-- <section>
+             <h2>Where this goes next</h2>
+             <ul>
+             <li class="fragment"><strong>Homework 5</strong> (adaptive
+             Dormand-Prince) is due Wednesday.</li>
+             <li class="fragment">References:
+             <ul style="font-size: 0.9em;">
+             <li>Numerical Recipes, 3rd ed., Section 17.6 (multistep
+             methods).</li>
+             <li>Hairer, N&oslash;rsett &amp; Wanner, <em>Solving Ordinary
+             Differential Equations I</em>, Chapter III.</li>
+             <li>Hairer, Lubich &amp; Wanner, "Geometric numerical
+             integration illustrated by the St&ouml;rmer-Verlet
+             method", <em>Acta Numerica</em> 12 (2003).</li>
+             </ul>
+             </li>
+             </ul>
+             </section>
+        -->
       </div>
       <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 10</div>
     </div>

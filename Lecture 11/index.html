@@ -52,7 +52,7 @@
             <li class="fragment"><strong>Orbits.</strong> How NASA chose an
               integrator for spacecraft, and why it still uses it.</li>
             <li class="fragment"><strong>Molecular dynamics.</strong> Velocity
-              Verlet on a gas of atoms, and three things it shows.</li>
+              Verlet on a box of atoms, watched as it freezes.</li>
             <li class="fragment"><strong>Cosmology.</strong> Why the
               microwave background is an ODE problem.</li>
           </ul>
@@ -356,77 +356,35 @@
               binding.</li>
           </ul>
           <aside class="notes">
-            The demos use reduced units (sigma = epsilon = m = 1) in 2D with
+            The demo uses reduced units (sigma = epsilon = m = 1) in 2D with
             periodic boundaries and a cutoff at 2.5 sigma, all-pairs forces in
             numpy. Setup and every number are in make_figures.py, Part III.
           </aside>
         </section>
 
         <section>
-          <h2>Collisions make Maxwell-Boltzmann</h2>
-          <img src="figures/md_maxwell.png" style="width: 52%; margin: 0 auto; display: block;"
-            alt="Histograms of atomic speeds: all equal at the start, spread by t = 0.2, and matching the Maxwell-Boltzmann distribution by t = 15 to 20">
-          <ul style="font-size: 0.76em; display: block;">
-            <li>400 atoms, every one starting at the same speed, in random
-              directions.</li>
-            <li class="fragment">Nothing statistical is put in: Newton's
-              equations and collisions produce the Maxwell-Boltzmann
-              distribution, at the temperature set by the energy.</li>
-          </ul>
-          <aside class="notes">
-            Density 0.3, dt = 0.005, 4000 steps (34 s in numpy). Final
-            temperature from 2D equipartition, kT = mean(v^2)/2 = 1.61; the
-            curve is the 2D Maxwell-Boltzmann distribution at that kT, not a
-            fit. Total energy constant to 5e-4 relative. The histogram pools
-            snapshots from t = 15 to 20.
-          </aside>
-        </section>
-
-        <section>
-          <h2>Running the gas backwards</h2>
-          <div class="cols" style="align-items: center;">
-            <div class="col" style="flex: 1.1;">
-              <img src="figures/md_loschmidt.png" style="width: 100%; display: block;"
-                alt="Distance from the starting configuration after reversing the velocities at time T: it grows exponentially from 1e-14 at T = 1 to the size of an atom by T = 12">
-            </div>
-            <div class="col" style="font-size: 0.64em;">
-              <p>Run 100 atoms for a time $T$, reverse every velocity, run $T$
-                again. Leapfrog is exactly reversible (Lecture 10), so the gas
-                should return to where it started.</p>
-              <p class="fragment">At $T = 1$ it does, to $10^{-14}$. But every
-                0.35 time units the miss grows by a factor $e$: rounding errors
-                are amplified by the chaos of the collisions.</p>
-              <p class="fragment">By $T \approx 12$ the gas misses by half an
-                atom, and after that it keeps no memory of its start.</p>
-            </div>
-          </div>
-          <aside class="notes">
-            Measured miss (rms distance from the starting positions):
-            T=1: 9e-15, 2: 2e-13, 4: 4e-11, 6: 5e-9, 8: 2e-6, 10: 2e-3,
-            12: 0.4, 14 and beyond: several sigma. Fitted growth rate 2.82 per
-            unit time, the largest Lyapunov exponent of this gas. This is
-            Loschmidt's objection to Boltzmann: the equations are reversible,
-            yet the gas does not un-mix. The pendulum of Lecture 10 is not
-            chaotic, which is why it came back to 6e-14 after 1000 steps.
-          </aside>
-        </section>
-
-        <section>
           <h2>Cooling into a crystal</h2>
-          <img src="figures/md_crystal.png" style="width: 64%; margin: 0 auto; display: block;"
-            alt="Left: a disordered fluid of atoms. Right: after cooling, the same atoms arranged in a triangular lattice">
-          <ul style="font-size: 0.76em; display: block;">
-            <li>256 atoms, slowly cooled by rescaling their velocities every 50
-              steps.</li>
-            <li class="fragment">The atoms find the triangular lattice by
-              themselves: freezing is in Newton's equations too.</li>
+          <video data-autoplay controls muted loop playsinline
+            poster="figures/md_cooling_poster.png"
+            style="width: 58%; display: block; margin: 0 auto;">
+            <source src="figures/md_cooling.mp4" type="video/mp4">
+          </video>
+          <ul style="font-size: 0.74em; display: block;">
+            <li>256 atoms, cooled slowly by rescaling all velocities toward a
+              falling target temperature.</li>
+            <li class="fragment">The jiggling dies down and the atoms line up
+              into a triangular lattice: only Newton's equations and the
+              Lennard-Jones force.</li>
           </ul>
           <aside class="notes">
-            Density 0.9, random initial positions, cooled from kT = 2.5 to
-            0.05 over 10,000 steps, then held. Velocity rescaling is a crude
-            thermostat; production codes use gentler ones (Nose-Hoover,
-            Langevin). Triangular packing is the densest arrangement of disks
-            in 2D.
+            Velocity Verlet, dt = 0.005, density 0.9, kT from 2.5 to 0.05 over
+            12000 steps, then held for 1500; a frame every 20 steps, 22 s at
+            30 fps. Colour is each atom's kinetic energy. psi_6 is the global
+            bond-orientational order parameter, |mean of exp(6 i theta)| over
+            neighbor bonds: 0.08 in the hot fluid, 0.94 at the end; it first
+            passes 0.5 at kT = 1.72. Velocity rescaling is a crude thermostat;
+            production codes use gentler ones (Nose-Hoover, Langevin).
+            Triangular packing is the densest arrangement of disks in 2D.
           </aside>
         </section>
 

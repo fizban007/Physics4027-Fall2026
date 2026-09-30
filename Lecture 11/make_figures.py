@@ -286,107 +286,111 @@ def verlet(x, v, box, dt, n, record=None):
             record(i, x, v)
     return x, v
 
-def square_lattice(n_side, box):
-    g = (np.arange(n_side) + 0.5) * box / n_side
-    return np.array([(a, b) for a in g for b in g])
-
-# ------------------------------------------- 5. speeds relax to Maxwell-Boltzmann
-N_SIDE = 20; N_MD = N_SIDE ** 2; RHO = 0.30
-box = np.sqrt(N_MD / RHO)
-x = square_lattice(N_SIDE, box) + rng.normal(0, 0.05, (N_MD, 2))
-ang = rng.uniform(0, 2 * np.pi, N_MD)
-V0 = 1.5
-v = V0 * np.c_[np.cos(ang), np.sin(ang)]
-v -= v.mean(0)                                        # no net momentum
+# ------------------------------------------- 5. cooling into a crystal (animation)
+from matplotlib.animation import FFMpegWriter
 DT_MD = 0.005
-snap = {}
-energies = []
-pooled = []
-def rec(i, x, v):
-    if (i + 1) in (40, 400, 4000):
-        snap[i + 1] = np.linalg.norm(v, axis=1)
-    if i >= 3000 and i % 100 == 0:                 # pool late snapshots for a smooth histogram
-        pooled.append(np.linalg.norm(v, axis=1))
-    if i % 50 == 0:
-        energies.append(0.5 * (v ** 2).sum() + lj_forces(x, box)[1])
-t0 = time.time()
-x, v = verlet(x, v, box, DT_MD, 4000, rec)
-kT = (v ** 2).sum() / (2 * N_MD)                       # 2D equipartition: <v^2> = 2 kT
-print(f"MD: {N_MD} Lennard-Jones atoms in 2D, density {RHO}, velocity Verlet dt = {DT_MD}, "
-      f"4000 steps in {time.time() - t0:.0f} s")
-print(f"  all speeds start at {V0}; final kT = {kT:.3f}; total energy varies by "
-      f"{np.ptp(energies) / abs(np.mean(energies)):.1e} (relative)")
-fig, ax = plt.subplots(figsize=(7.2, 4.0))
-vs = np.linspace(0, 4.5, 300)
-bins = np.linspace(0, 4.5, 31)
-ax.axvline(V0, color=V[3], lw=3, label=r"$t = 0$: every speed $= 1.5$")
-ax.hist(snap[40], bins=bins, density=True, histtype="step", color=V[2], lw=1.8,
-        label=f"$t = {40 * DT_MD:g}$")
-ax.hist(np.concatenate(pooled), bins=bins, density=True, color=V[1], alpha=0.55,
-        label=r"$t = 15$ to $20$")
-ax.plot(vs, vs / kT * np.exp(-vs ** 2 / (2 * kT)), color=V[0], lw=2.2,
-        label=r"Maxwell-Boltzmann, $\frac{v}{kT}\,e^{-v^2/2kT}$")
-ax.set_xlabel("speed"); ax.set_ylabel("distribution")
-ax.legend(frameon=False, fontsize=11, loc="upper right")
-save(fig, "md_maxwell")
-
-# ------------------------------------------- 6. running the gas backwards (Loschmidt)
-N_SIDE_L = 10; N_L = N_SIDE_L ** 2
-box_l = np.sqrt(N_L / RHO)
-x0 = square_lattice(N_SIDE_L, box_l) + rng.normal(0, 0.05, (N_L, 2))
-ang = rng.uniform(0, 2 * np.pi, N_L)
-v0 = V0 * np.c_[np.cos(ang), np.sin(ang)]; v0 -= v0.mean(0)
-t_rev = [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
-miss = []
-for T_R in t_rev:
-    nstep = int(round(T_R / DT_MD))
-    x1, v1 = verlet(x0.copy(), v0.copy(), box_l, DT_MD, nstep)
-    x2, v2 = verlet(x1, -v1, box_l, DT_MD, nstep)
-    d = x2 - x0; d -= box_l * np.round(d / box_l)
-    miss.append(np.sqrt((d ** 2).sum(1).mean()))
-print("Loschmidt: run forward for T, reverse all velocities, run T again; rms distance from start:")
-print("  " + "  ".join(f"T={a:g}:{b:.0e}" for a, b in zip(t_rev, miss)))
-lg = np.log(np.array(miss)); good = (np.array(miss) > 1e-13) & (np.array(miss) < 1e-2)
-rate = np.polyfit(np.array(t_rev)[good], lg[good], 1)[0]
-print(f"  exponential growth rate {rate:.2f} per unit time: error x e every {1 / rate:.2f}")
-fig, ax = plt.subplots(figsize=(6.6, 4.0))
-ax.semilogy(t_rev, miss, "o-", color=V[0], ms=6)
-ax.axhline(1.0, color=MUTED, lw=0.8, ls=":"); ax.text(0.8, 1.5, r"atom size $\sigma$", color=MUTED, fontsize=12)
-ax.axhline(1e-16 * box_l, color=MUTED, lw=0.8, ls=":")
-ax.text(0.8, 2.5e-16 * box_l, "rounding", color=MUTED, fontsize=12)
-ax.set_xlabel(r"time $T$ before reversing"); ax.set_ylabel("distance from the start")
-save(fig, "md_loschmidt")
-
-# ------------------------------------------- 7. cooling into a crystal
 N_SIDE_C = 16; N_C = N_SIDE_C ** 2; RHO_C = 0.90
 box_c = np.sqrt(N_C / RHO_C)
 x = rng.uniform(0, box_c, (N_C, 2))
-# push overlapping random atoms apart with a few tiny, damped steps
-for _ in range(400):
+for _ in range(400):                                   # push overlapping random atoms apart
     f, _ = lj_forces(x, box_c)
-    step = np.clip(1e-4 * f, -0.05, 0.05)
-    x = (x + step) % box_c
-v = rng.normal(0, np.sqrt(1.0), (N_C, 2)); v -= v.mean(0)
-def cool(target, n):
-    global x, v
-    for _ in range(n // 50):
-        x, v = verlet(x, v, box_c, DT_MD, 50)
-        kt = (v ** 2).sum() / (2 * N_C)
-        v *= np.sqrt(target / kt)                      # rescale to the target temperature
+    x = (x + np.clip(1e-4 * f, -0.05, 0.05)) % box_c
+v = rng.normal(0, 1.0, (N_C, 2)); v -= v.mean(0)
+
+KT_HOT, KT_COLD = 2.5, 0.05
+RESCALE = 50                                           # steps between velocity rescalings
+FRAME = 20                                             # steps between frames
+N_EQUIL, N_COOL, N_HOLD = 1000, 12000, 1500
+
+def temperature(v):
+    return (v ** 2).sum() / (2 * len(v))               # 2D equipartition
+
+def rescale(v, target):
+    return v * np.sqrt(target / temperature(v))
+
+def psi6(x, box, r_nb=1.5):
+    """Global bond-orientational order: |<exp(6 i theta)>| over neighbor bonds.
+    About 0 in a disordered fluid, near 1 in a single triangular crystal."""
+    d = x[:, None, :] - x[None, :, :]
+    d -= box * np.round(d / box)
+    r2 = (d ** 2).sum(-1); np.fill_diagonal(r2, np.inf)
+    nb = r2 < r_nb ** 2
+    theta = np.arctan2(d[..., 1], d[..., 0])
+    per_atom = np.where(nb, np.exp(6j * theta), 0).sum(1) / np.maximum(nb.sum(1), 1)
+    return abs(per_atom.mean())
+
+# equilibrate hot (not filmed)
+for _ in range(N_EQUIL // RESCALE):
+    x, v = verlet(x, v, box_c, DT_MD, RESCALE)
+    v = rescale(v, KT_HOT)
+
+# film the cooling and the hold, recording every FRAME steps
+frames_x, frames_ke, frames_t, frames_kt, targets, frames_psi = [], [], [], [], [], []
 t0 = time.time()
-x_hot_snap = None
-cool(2.5, 1000); x_hot = x.copy()
-for target in np.linspace(2.5, 0.05, 25):
-    cool(target, 400)
-cool(0.05, 2000)
-print(f"crystallization: {N_C} atoms at density {RHO_C}, cooled from kT = 2.5 to 0.05 "
-      f"in {time.time() - t0:.0f} s")
-fig, (a1, a2) = plt.subplots(1, 2, figsize=(8.4, 4.2))
-for a, pts, ttl in ((a1, x_hot, r"hot, $kT = 2.5$: fluid"), (a2, x, r"cooled, $kT = 0.05$: crystal")):
-    a.scatter(pts[:, 0], pts[:, 1], s=26, color=V[1], edgecolor=V[0], lw=0.5)
-    a.set_xlim(0, box_c); a.set_ylim(0, box_c); a.set_aspect("equal")
-    a.set_xticks([]); a.set_yticks([]); a.set_title(ttl, fontsize=14)
-save(fig, "md_crystal")
+total = N_COOL + N_HOLD
+f, _ = lj_forces(x, box_c)
+for i in range(total):
+    v = v + DT_MD / 2 * f
+    x = (x + DT_MD * v) % box_c
+    f, _ = lj_forces(x, box_c)
+    v = v + DT_MD / 2 * f
+    target = KT_HOT + (KT_COLD - KT_HOT) * min(i / N_COOL, 1.0)
+    if (i + 1) % RESCALE == 0:
+        v = rescale(v, target)
+    if i % FRAME == 0:
+        frames_x.append(x.copy()); frames_ke.append(0.5 * (v ** 2).sum(1))
+        frames_t.append(i * DT_MD); frames_kt.append(temperature(v)); targets.append(target)
+        frames_psi.append(psi6(x, box_c))
+print(f"cooling animation: {N_C} atoms at density {RHO_C}, kT {KT_HOT} -> {KT_COLD} over "
+      f"{N_COOL} steps, then {N_HOLD} held; {len(frames_x)} frames; MD took {time.time() - t0:.0f} s")
+
+with plt.rc_context({"text.usetex": False, "font.family": "serif", "mathtext.fontset": "cm"}):
+    fig = plt.figure(figsize=(9.6, 5.4), dpi=100)
+    ax = fig.add_axes([0.01, 0.07, 0.47, 0.90])
+    ax.set_xlim(0, box_c); ax.set_ylim(0, box_c); ax.set_aspect("equal")
+    ax.set_xticks([]); ax.set_yticks([])
+    for sp in ax.spines.values():
+        sp.set_visible(True); sp.set_color(MUTED)
+    sc = ax.scatter(frames_x[0][:, 0], frames_x[0][:, 1], s=70, c=frames_ke[0],
+                    cmap="viridis", vmin=0, vmax=4.0, edgecolor=INK, lw=0.4)
+    at = fig.add_axes([0.62, 0.18, 0.27, 0.62])
+    tt = np.array(frames_t)
+    at.plot(tt, targets, color=MUTED, lw=1.0, ls="--", label="target")
+    kt_line, = at.plot([], [], color=V[0], lw=1.6, label="measured")
+    dot, = at.plot([], [], "o", color=V[0], ms=6)
+    at.set_xlim(0, tt[-1]); at.set_ylim(0, 2.9)
+    at.set_xlabel("time"); at.set_ylabel(r"temperature $kT$")
+    at.spines["top"].set_visible(False); at.spines["right"].set_visible(False)
+    at.legend(frameon=False, fontsize=11, loc="upper right")
+    ap = fig.add_axes([0.62, 0.18, 0.27, 0.62], sharex=at, frameon=False)
+    ap.yaxis.tick_right(); ap.yaxis.set_label_position("right")
+    ap.set_ylim(0, 1.05); ap.set_ylabel(r"crystal order $\psi_6$", color=V[2])
+    ap.tick_params(axis="y", colors=V[2]); ap.tick_params(axis="x", bottom=False, labelbottom=False)
+    psi_line, = ap.plot([], [], color=V[2], lw=1.6)
+    label = fig.text(0.62, 0.86, "", fontsize=16, color=INK)
+    fig.text(0.245, 0.02, "colour: kinetic energy of each atom", ha="center", fontsize=11, color=MUTED)
+
+    def draw(k):
+        sc.set_offsets(frames_x[k]); sc.set_array(frames_ke[k])
+        kt_line.set_data(tt[:k + 1], frames_kt[:k + 1]); dot.set_data([tt[k]], [frames_kt[k]])
+        psi_line.set_data(tt[:k + 1], frames_psi[:k + 1])
+        label.set_text(f"$kT = {frames_kt[k]:.2f}$     $\\psi_6 = {frames_psi[k]:.2f}$")
+
+    t0 = time.time()
+    writer = FFMpegWriter(fps=30, codec="libx264", bitrate=2400,
+                          extra_args=["-pix_fmt", "yuv420p", "-movflags", "+faststart"])
+    with writer.saving(fig, "figures/md_cooling.mp4", dpi=100):
+        for k in range(len(frames_x)):
+            draw(k); writer.grab_frame()
+    draw(len(frames_x) - 1)
+    fig.savefig("figures/md_cooling_poster.png", dpi=100, facecolor=PAPER)
+    plt.close(fig)
+psi = np.array(frames_psi); kt_arr = np.array(frames_kt)
+order_onset = kt_arr[np.argmax(psi > 0.5)]
+print(f"  psi6: {psi[:25].mean():.2f} while hot, {psi[-25:].mean():.2f} at the end; "
+      f"first exceeds 0.5 at kT = {order_onset:.2f}")
+print(f"  wrote figures/md_cooling.mp4 ({os.path.getsize('figures/md_cooling.mp4') / 1e6:.1f} MB, "
+      f"{len(frames_x) / 30:.0f} s at 30 fps) in {time.time() - t0:.0f} s")
 
 # ============================================================ Part IV: cosmology
 try:

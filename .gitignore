@@ -4,3 +4,7 @@
 *.synctex.gz
 _minted*
 *.dvi
+
+# The lecture PDFs belong to the site: scripts/pdf.mjs writes them and
+# index.html links to them. Undo the global *.pdf ignore for this directory.
+!pdf/*.pdf

@@ -4,7 +4,8 @@
   "description": "lectures of phys-4027",
   "main": "index.js",
   "scripts": {
-    "deploy": "gh-pages -d ."
+    "pdf": "node scripts/pdf.mjs",
+    "deploy": "node scripts/pdf.mjs && gh-pages -d ."
   },
   "author": "Alex Chen",
   "license": "ISC",

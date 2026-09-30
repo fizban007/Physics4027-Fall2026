@@ -14,16 +14,6 @@
     <link rel="stylesheet" href=
       "../plugin/highlight/monokai.css" id="highlight-theme">
     <style>
-      /* Space held for slides to be filled in later. */
-      .reveal .placeholder {
-        border: 3px dashed var(--r-muted-color);
-        border-radius: 12px;
-        color: var(--r-muted-color);
-        padding: 2.2em 1em;
-        margin: 0.6em auto;
-        width: 85%;
-        font-size: 0.8em;
-      }
       .reveal .video-note {
         font-size: 0.55em;
         color: var(--r-muted-color);
@@ -216,21 +206,31 @@
           </aside>
         </section>
 
-        <!-- ============ RESEARCH SLIDES: to be filled in ============ -->
+        <!-- ============ RESEARCH SLIDES: local-only ============ -->
+        <!-- Removed before reveal starts unless the deck is opened from the
+             laptop (file:// or localhost, and not in print mode); the media
+             files are git-ignored. See the script at the end of the file. -->
 
-        <section>
+        <section class="local-only">
           <h2>Research from our group</h2>
-          <div class="placeholder">Space for new research results (1)</div>
+          <video controls preload="none" playsinline
+            style="max-height: 560px; width: auto; max-width: 95%; display: block; margin: 0 auto;">
+            <source src="figures/bh_vert_B0.6_pair.mp4" type="video/mp4">
+          </video>
           <aside class="notes">
-            PLACEHOLDER: insert research slide 1 here.
+            GR PIC simulation of black hole accretion (bh_vert_B0.6_pair).
+            Local-only slide.
           </aside>
         </section>
 
-        <section>
+        <section class="local-only">
           <h2>Research from our group</h2>
-          <div class="placeholder">Space for new research results (2)</div>
+          <iframe data-local-src="figures/volume_movie_ns_rotator_L7_a60_rlc10_thr12_gs4_bp30k_cool.html"
+            title="3D pulsar magnetosphere, interactive"
+            style="width: 1180px; height: 540px; border: 0; display: block; margin: 0 auto;"></iframe>
           <aside class="notes">
-            PLACEHOLDER: insert research slide 2 here, or delete this slide.
+            Interactive 3D pulsar magnetosphere (ns_rotator_L7_a60). The viewer
+            (167 MB) loads only when this slide is reached. Local-only slide.
           </aside>
         </section>
 
@@ -428,7 +428,9 @@
             alt="The CMB temperature power spectrum, with peaks at multipoles 220, 536, and 813">
           <ul style="font-size: 0.76em; display: block;">
             <li>Temperature fluctuations of about $10^{-5}$, left from when the
-              universe became transparent, 380,000 years after the big bang.</li>
+              universe became transparent, 380,000 years after the big bang.
+              The multipole $\ell$ is an angle on the sky: about
+              $180°/\ell$.</li>
             <li class="fragment">The peaks are sound waves in the early
               plasma. Their positions and heights measure the contents of the
               universe.</li>
@@ -468,34 +470,104 @@
         </section>
 
         <section>
-          <h2>The ODEs</h2>
-          <ul style="font-size: 0.72em; display: block;">
-            <li><strong>Background:</strong> the Friedmann equation
-              $\left(\frac{1}{a}\frac{da}{d\tau}\right)^2 = \frac{8\pi G}{3}\, a^2 \rho$,
-              for the expansion $a(\tau)$.</li>
-            <li class="fragment"><strong>Recombination:</strong> an ODE for the
-              free-electron fraction $x_e(\tau)$ as protons and electrons form
-              hydrogen.</li>
-            <li class="fragment"><strong>Perturbations, for each $k$:</strong>
-              density and velocity of dark matter and of baryons; the photon
-              and neutrino distributions, expanded in multipoles $\ell$; and
-              the metric potentials. For the photons,
-              $$\frac{dF_\ell}{d\tau} = \frac{k}{2\ell+1}\Big[\ell F_{\ell-1} - (\ell+1)F_{\ell+1}\Big] - a n_e \sigma_T F_\ell \quad (\ell \ge 3)$$</li>
-            <li class="fragment">Stiff: early on, the scattering rate
-              $a n_e \sigma_T$ is enormous compared with the expansion rate.
-              Codes use a tight-coupling approximation there, or an implicit
-              solver.</li>
+          <h2>The ODEs, for each $k$</h2>
+          <p style="font-size: 0.72em;">Background first (the expansion
+            $a(\tau)$, and the free-electron fraction as hydrogen forms). Then,
+            for each $k$, ODEs for every component:</p>
+          <table style="font-size: 0.6em; margin: 0.2em auto;">
+            <thead>
+              <tr><th>component</th><th>unknowns</th><th>what drives them</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>photons</td><td>temperature fluctuation $\Theta = \delta T/T$
+                in each direction, as angular moments: $\Theta_0$ (temperature),
+                $\Theta_1$ (flow), $\Theta_2, \dots$</td>
+                <td>gravity, pressure, scattering off electrons</td></tr>
+              <tr><td>ordinary matter</td><td>density, velocity</td>
+                <td>gravity, pressure, drag from the photons</td></tr>
+              <tr><td>dark matter</td><td>density, velocity</td>
+                <td>gravity only</td></tr>
+              <tr><td>neutrinos</td><td>angular moments, like the photons</td>
+                <td>gravity only: they stream freely</td></tr>
+              <tr><td>spacetime</td><td>two potentials $\phi, \psi$</td>
+                <td>Einstein's equations, sourced by all of the above</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment" style="font-size: 0.72em;">Stiff early on: photons
+            scatter off electrons far faster than the universe expands.</p>
+          <aside class="notes">
+            Conformal Newtonian gauge, Ma &amp; Bertschinger 1995 (ApJ 455, 7).
+            The photon moments are the natural unknowns: the fluid variables
+            used for matter are the first two of them (energy density goes as
+            T^4, so the photon density contrast is 4 Theta_0; Theta_1 is the
+            velocity). The moments form a chain, each coupled to its
+            neighbors, truncated after a few dozen. The simplest pair of
+            equations, dark matter (' = d/d tau, delta the density contrast,
+            theta the velocity divergence): delta_c' = -theta_c + 3 phi',
+            theta_c' = -(a'/a) theta_c + k^2 psi. Baryons add pressure and the
+            photon drag, (4 rho_gamma / 3 rho_b) a n_e sigma_T (theta_gamma -
+            theta_b). A full system is a few dozen to a few hundred ODEs per
+            k, for a few thousand k. Stiffness: codes use a tight-coupling
+            approximation, or an implicit solver (from memory: CLASS defaults
+            to ndf15, a BDF-type method; CAMB uses an explicit Runge-Kutta
+            method with tight coupling; worth checking before quoting).
+          </aside>
+        </section>
+
+        <section>
+          <h2>From the ODEs to $C_\ell$</h2>
+          <ul style="font-size: 0.74em; display: block;">
+            <li>Expand the temperature map of the sky in spherical harmonics:
+              $$\frac{\delta T}{T}(\hat n) = \sum_{\ell m} a_{\ell m}\, Y_{\ell m}(\hat n), \qquad
+                C_\ell = \langle |a_{\ell m}|^2 \rangle$$
+              $C_\ell$ measures how much the temperature varies on angular scales
+              of about $180°/\ell$.</li>
+            <li class="fragment">For one wave $k$, the photon moments at our
+              position today, $\Theta_\ell(k, \tau_0)$, are that wave's pattern
+              on our sky.</li>
+            <li class="fragment">The sky is all the waves together, with random
+              amplitudes from the early universe (spectrum $P(k)$):
+              $$C_\ell = \frac{2}{\pi}\int dk\, k^2\, P(k)\, \big|\Theta_\ell(k, \tau_0)\big|^2$$</li>
           </ul>
           <aside class="notes">
-            Equations in the conformal Newtonian gauge of Ma &amp; Bertschinger
-            1995 (ApJ 455, 7); the photon hierarchy is truncated at some
-            l_max. A full system is a few dozen to a few hundred ODEs per k,
-            solved for a few thousand values of k, then combined by a
-            line-of-sight integral (Seljak &amp; Zaldarriaga 1996) into C_l.
-            CLASS's default evolver is ndf15, an implicit method of the BDF
-            family (Lecture 10); CAMB uses an explicit Runge-Kutta method with
-            the tight-coupling approximation. Worth verifying against current
-            documentation before quoting to students as fact.
+            Normalization as in Dodelson &amp; Schmidt, with Theta_l per unit
+            initial amplitude. Why a few dozen moments suffice when the plot
+            goes to l = 2500: after recombination the photons stream freely to
+            us, and a wave of size 1/k seen from distance D appears at l of
+            about k D (D = r_s / theta_* = about 13,900 Mpc), so free streaming
+            moves power from low to high l. Following that with the chain of
+            moments would take about 2500 ODEs per k. Instead, codes evolve a
+            few dozen moments through recombination and do the free streaming
+            exactly with a line-of-sight integral over spherical Bessel
+            functions (Seljak &amp; Zaldarriaga 1996), which made CMB codes
+            about 100 times faster.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The solution meets the sky</h2>
+          <img src="figures/cmb_planck.png" style="width: 62%; margin: 0 auto; display: block;"
+            alt="Planck 2018 measurements of the CMB power spectrum lying on the Lambda-CDM curve computed with CAMB; a model without dark matter misses the peaks">
+          <ul style="font-size: 0.72em; display: block;">
+            <li class="fragment">Six parameters, and the ODE solution runs through
+              every Planck point: $\chi^2 = 80$ for 83 binned measurements.</li>
+            <li class="fragment">This agreement is among the strongest evidence
+              for $\Lambda$CDM: remove dark matter, keeping the same total
+              matter, and the peaks come out wrong.</li>
+          </ul>
+          <aside class="notes">
+            How k becomes l: a wave of wavenumber k, seen at the distance of
+            last scattering D_* = r_s / theta_* = 144.4 / 0.010412 = about
+            13,900 Mpc, appears on the sky at l of about k D_*. Data: Planck
+            2018 (PR3) TT spectrum from the Planck Legacy Archive, binned for
+            l &gt;= 30 and every l below; make_figures.py downloads it each
+            run and does not commit it. The LCDM curve uses rounded Planck
+            parameters (H0 = 67.4, Omega_b h^2 = 0.0224, Omega_c h^2 = 0.120,
+            n_s = 0.965, tau = 0.054); Planck's own best fit gives chi^2 = 65
+            on the same points. The no-dark-matter curve puts all the matter
+            in baryons (Omega_b h^2 = 0.1424) and is computed without lensing
+            (CAMB cannot compute the lensing for it); its first peak runs off
+            the top of the plot.
           </aside>
         </section>
 
@@ -544,6 +616,26 @@
     <script src="../plugin/highlight/highlight.js"></script>
 
     <script>
+      // Research slides with media that live only on the instructor's laptop.
+      // Keep them for file:// and localhost, except in print mode (the PDF is
+      // published with the website).
+      (function () {
+        var local = location.protocol === 'file:' ||
+          ['localhost', '127.0.0.1'].indexOf(location.hostname) >= 0;
+        var printing = /print-pdf/.test(location.search);
+        if (!local || printing) {
+          document.querySelectorAll('.reveal .slides > section.local-only')
+            .forEach(function (s) { s.remove(); });
+        }
+      })();
+      // Load heavy iframes only when their slide is reached.
+      function loadLocalFrames(slide) {
+        slide.querySelectorAll('iframe[data-local-src]').forEach(function (f) {
+          if (!f.getAttribute('src')) f.setAttribute('src', f.dataset.localSrc);
+        });
+      }
+    </script>
+    <script>
       Reveal.initialize({
         transition: "fade",
         slideNumber: true,
@@ -572,6 +664,8 @@
           81: null, // Do not respond to Q
         }
       });
+      Reveal.on('ready', function (e) { loadLocalFrames(e.currentSlide); });
+      Reveal.on('slidechanged', function (e) { loadLocalFrames(e.currentSlide); });
     </script>
   </body>
 </html>

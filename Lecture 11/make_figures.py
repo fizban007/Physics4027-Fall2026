@@ -510,5 +510,38 @@ try:
     ax.set_xlim(2, 2500); ax.set_ylim(0, 6500)
     ax.set_xlabel(r"multipole $\ell$"); ax.set_ylabel(r"$\ell(\ell+1)C_\ell/2\pi$ ($\mu$K$^2$)")
     save(fig, "cmb_tt")
+
+    # --------------------------------------- solution against the Planck 2018 data
+    import tempfile, urllib.request
+    PLA = "https://pla.esac.esa.int/pla/aio/product-action?COSMOLOGY.FILE_ID="
+    data = {}
+    with tempfile.TemporaryDirectory() as tmp:                # downloaded, never committed
+        for name in ("COM_PowerSpect_CMB-TT-binned_R3.01.txt", "COM_PowerSpect_CMB-TT-full_R3.01.txt"):
+            path = os.path.join(tmp, name)
+            urllib.request.urlretrieve(PLA + name, path)
+            data[name] = np.loadtxt(path)
+    binned = data["COM_PowerSpect_CMB-TT-binned_R3.01.txt"]
+    full = data["COM_PowerSpect_CMB-TT-full_R3.01.txt"]
+    low = full[full[:, 0] < 30]                               # large scales: every l
+    lb, db, eb = binned[:, 0], binned[:, 1], 0.5 * (binned[:, 2] + binned[:, 3])
+    chi2 = (((db - np.interp(lb, ell, dl)) / eb) ** 2).sum()
+    # the same total matter, all of it ordinary (baryonic): no dark matter
+    p_nodm = camb.set_params(H0=67.4, ombh2=0.1424, omch2=0.0, As=2.1e-9, ns=0.965,
+                             tau=0.054, lmax=2500, DoLensing=False)
+    dl_nodm = camb.get_results(p_nodm).get_cmb_power_spectra(p_nodm, CMB_unit="muK")["total"][:, 0]
+    print(f"Planck 2018 TT, {len(lb)} binned points (l = {lb[0]:.0f} to {lb[-1]:.0f}): "
+          f"chi^2 = {chi2:.1f} for the CAMB LCDM curve, chi^2/N = {chi2 / len(lb):.2f}")
+    fig, ax = plt.subplots(figsize=(8.4, 4.0))
+    ax.plot(ell[m], dl_nodm[:len(ell)][m], color=V[2], lw=1.6, ls="--",
+            label="no dark matter (same total matter)")
+    ax.plot(ell[m], dl[m], color=V[0], lw=1.8, label=r"$\Lambda$CDM, solved with CAMB")
+    ax.errorbar(low[:, 0], low[:, 1], yerr=[low[:, 2], low[:, 3]], fmt="o", ms=2.5,
+                color=V[1], ecolor=V[1], elinewidth=0.6, alpha=0.6)
+    ax.errorbar(lb, db, yerr=eb, fmt="o", ms=3.5, color=V[1], ecolor=V[1],
+                elinewidth=0.9, label="Planck 2018 measurements")
+    ax.set_xlim(2, 2500); ax.set_ylim(0, 6500)
+    ax.set_xlabel(r"multipole $\ell$"); ax.set_ylabel(r"$\ell(\ell+1)C_\ell/2\pi$ ($\mu$K$^2$)")
+    ax.legend(frameon=False, fontsize=11, loc="upper right")
+    save(fig, "cmb_planck")
 except ImportError as exc:
-    print(f"skipping the CMB figure: {exc}")
+    print(f"skipping the CMB figures: {exc}")

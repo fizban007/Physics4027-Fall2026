@@ -8,3 +8,8 @@ _minted*
 # The lecture PDFs belong to the site: scripts/pdf.mjs writes them and
 # index.html links to them. Undo the global *.pdf ignore for this directory.
 !pdf/*.pdf
+
+# Research media shown only when a deck is served from the instructor's laptop
+# (too large for GitHub; the slides that use them are marked local-only).
+Lecture 11/figures/bh_vert_B0.6_pair.mp4
+Lecture 11/figures/volume_movie_ns_rotator_L7_a60_rlc10_thr12_gs4_bp30k_cool.html

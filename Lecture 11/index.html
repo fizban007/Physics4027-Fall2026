@@ -364,7 +364,7 @@
 
         <section>
           <h2>Cooling into a crystal</h2>
-          <video data-autoplay controls muted loop playsinline
+          <video controls muted loop playsinline
             poster="figures/md_cooling_poster.png"
             style="width: 58%; display: block; margin: 0 auto;">
             <source src="figures/md_cooling.mp4" type="video/mp4">
@@ -385,6 +385,33 @@
             passes 0.5 at kT = 1.72. Velocity rescaling is a crude thermostat;
             production codes use gentler ones (Nose-Hoover, Langevin).
             Triangular packing is the densest arrangement of disks in 2D.
+          </aside>
+        </section>
+
+        <section>
+          <h2>A meteorite hits a crystal</h2>
+          <video controls muted playsinline
+            poster="figures/md_impact_poster.png"
+            style="width: 56%; display: block; margin: 0 auto;">
+            <source src="figures/md_impact.mp4" type="video/mp4">
+          </video>
+          <ul style="font-size: 0.74em; display: block;">
+            <li class="fragment">A shock wave runs through the lattice at the
+              speed of sound, atoms splash out, and a crater with raised rims is
+              left behind.</li>
+            <li class="fragment">No thermostat: 12,000 Verlet steps keep the
+              total energy constant to $5 \times 10^{-7}$.</li>
+          </ul>
+          <aside class="notes">
+            A 19-atom hexagonal cluster at speed 16 (kinetic energy 2432 in
+            units of epsilon) into a 4000-atom triangular crystal, periodic
+            sideways, bottom two rows held fixed; the shock reflects off them.
+            dt = 0.001 because of the fast atoms; 12 time units, a frame every
+            20 steps, 20 s at 30 fps. 120 atoms end up above the surface.
+            Forces from a neighbor search (scipy cKDTree) instead of all
+            pairs: the O(N) trick from the previous slide, which is what makes
+            4000 atoms take 90 s in Python. At 5 times the projectile energy
+            the whole slab melts.
           </aside>
         </section>
 

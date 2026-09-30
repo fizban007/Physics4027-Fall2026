@@ -392,6 +392,86 @@ print(f"  psi6: {psi[:25].mean():.2f} while hot, {psi[-25:].mean():.2f} at the e
 print(f"  wrote figures/md_cooling.mp4 ({os.path.getsize('figures/md_cooling.mp4') / 1e6:.1f} MB, "
       f"{len(frames_x) / 30:.0f} s at 30 fps) in {time.time() - t0:.0f} s")
 
+# ------------------------------------------- 6. a meteorite hits a crystal (animation)
+from scipy.spatial import cKDTree
+A_LAT = 2 ** (1 / 6)                                   # Lennard-Jones minimum
+NX_I, NY_I = 100, 40                                   # slab: atoms per row, rows
+LX_I, LY_I = NX_I * A_LAT, 1000.0                      # periodic in x; open in y
+slab = np.array([((i + 0.5 * (j % 2)) * A_LAT, 2.0 + j * A_LAT * np.sqrt(3) / 2)
+                 for j in range(NY_I) for i in range(NX_I)])
+held = slab[:, 1] < 2.0 + 1.5 * A_LAT * np.sqrt(3) / 2 # bottom two rows held in place
+surface = slab[:, 1].max()
+SHELLS, V_HIT = 2, 16.0                                # 19-atom hexagonal cluster
+c0 = np.array([LX_I / 2, surface + 4.0 + SHELLS * A_LAT])
+cluster = np.array([c0 + A_LAT * np.array([q + r / 2, r * np.sqrt(3) / 2])
+                    for q in range(-SHELLS, SHELLS + 1) for r in range(-SHELLS, SHELLS + 1)
+                    if abs(q + r) <= SHELLS])
+x = np.vstack([slab, cluster]); held = np.r_[held, np.zeros(len(cluster), bool)]
+v = rng.normal(0, np.sqrt(0.02), x.shape); v[held] = 0
+v[len(slab):] = [0.0, -V_HIT]
+
+def slab_forces(x):
+    """Lennard-Jones forces with a neighbor search (cKDTree), periodic in x."""
+    tree = cKDTree(np.c_[x[:, 0] % LX_I, np.clip(x[:, 1], 0, LY_I - 1)], boxsize=[LX_I, LY_I])
+    pairs = tree.query_pairs(R_CUT, output_type="ndarray")
+    i, j = pairs[:, 0], pairs[:, 1]
+    d = x[i] - x[j]; d[:, 0] -= LX_I * np.round(d[:, 0] / LX_I)
+    r2 = (d ** 2).sum(1); inv6 = 1 / r2 ** 3
+    fij = (24 * inv6 * (2 * inv6 - 1) / r2)[:, None] * d
+    f = np.zeros_like(x); np.add.at(f, i, fij); np.add.at(f, j, -fij)
+    pot = (4 * inv6 * (inv6 - 1) - 4 * (R_CUT ** -12 - R_CUT ** -6)).sum()
+    f[held] = 0
+    return f, pot
+
+DT_I, T_FILM, FRAME_I = 0.001, 12.0, 20
+f, pot = slab_forces(x)
+e_start = 0.5 * (v ** 2).sum() + pot
+film_x, film_ke, film_t = [], [], []
+t0 = time.time()
+for n in range(int(T_FILM / DT_I) + 1):
+    if n % FRAME_I == 0:
+        film_x.append(x.copy()); film_ke.append(0.5 * (v ** 2).sum(1)); film_t.append(n * DT_I)
+    v = v + DT_I / 2 * f
+    x = x + DT_I * v
+    f, pot = slab_forces(x)
+    v = v + DT_I / 2 * f
+e_end = 0.5 * (v ** 2).sum() + pot
+print(f"impact: {len(cluster)}-atom cluster at speed {V_HIT} (kinetic energy "
+      f"{0.5 * len(cluster) * V_HIT ** 2:.0f}) into a {len(slab)}-atom crystal; "
+      f"{int(T_FILM / DT_I)} steps in {time.time() - t0:.0f} s")
+print(f"  total energy conserved to {abs(e_end - e_start) / abs(e_start):.1e} (relative); "
+      f"{int((x[:, 1] > surface + 3).sum())} atoms thrown above the surface")
+
+with plt.rc_context({"text.usetex": False, "font.family": "serif", "mathtext.fontset": "cm"}):
+    fig = plt.figure(figsize=(9.6, 5.4), dpi=100)
+    ax = fig.add_axes([0.01, 0.07, 0.98, 0.86])
+    ax.set_xlim(0, LX_I); ax.set_ylim(0, surface + 22); ax.set_aspect("equal")
+    ax.set_xticks([]); ax.set_yticks([])
+    for sp in ax.spines.values():
+        sp.set_color(MUTED)
+    sc = ax.scatter(film_x[0][:, 0] % LX_I, film_x[0][:, 1], s=9, c=film_ke[0],
+                    cmap="viridis", vmin=0, vmax=1.0, lw=0)
+    title = fig.text(0.5, 0.95, "", ha="center", fontsize=15, color=INK)
+    fig.text(0.5, 0.02, "colour: kinetic energy of each atom (bright = hot)",
+             ha="center", fontsize=11, color=MUTED)
+
+    def draw(k):
+        sc.set_offsets(np.c_[film_x[k][:, 0] % LX_I, film_x[k][:, 1]]); sc.set_array(film_ke[k])
+        title.set_text(f"a {len(cluster)}-atom cluster hits a {len(slab)}-atom crystal     "
+                       f"$t = {film_t[k]:.1f}$")
+
+    t0 = time.time()
+    writer = FFMpegWriter(fps=30, codec="libx264", bitrate=3000,
+                          extra_args=["-pix_fmt", "yuv420p", "-movflags", "+faststart"])
+    with writer.saving(fig, "figures/md_impact.mp4", dpi=100):
+        for k in range(len(film_x)):
+            draw(k); writer.grab_frame()
+    draw(int(3.0 / (DT_I * FRAME_I)))                  # poster: the shock at t = 3
+    fig.savefig("figures/md_impact_poster.png", dpi=100, facecolor=PAPER)
+    plt.close(fig)
+print(f"  wrote figures/md_impact.mp4 ({os.path.getsize('figures/md_impact.mp4') / 1e6:.1f} MB, "
+      f"{len(film_x) / 30:.0f} s at 30 fps) in {time.time() - t0:.0f} s")
+
 # ============================================================ Part IV: cosmology
 try:
     import camb

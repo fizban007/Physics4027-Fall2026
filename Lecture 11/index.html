@@ -212,10 +212,13 @@
              files are git-ignored. See the script at the end of the file. -->
 
         <section class="local-only">
-          <h2>Research from our group</h2>
-          <video controls preload="none" playsinline
-            style="max-height: 560px; width: auto; max-width: 95%; display: block; margin: 0 auto;">
-            <source src="figures/bh_vert_B0.6_pair.mp4" type="video/mp4">
+          <h2>Black hole accretion using particles</h2>
+          <!-- preload="metadata" plus #t=0.001 makes the browser show the
+               first frame at full size; the box has the movie's aspect ratio
+               (2640 x 1838) so it is the right size even before loading. -->
+          <video controls preload="metadata" playsinline width="804" height="560"
+            style="display: block; margin: 0 auto;">
+            <source src="figures/bh_vert_B0.6_pair.mp4#t=0.001" type="video/mp4">
           </video>
           <aside class="notes">
             GR PIC simulation of black hole accretion (bh_vert_B0.6_pair).
@@ -223,11 +226,11 @@
           </aside>
         </section>
 
-        <section class="local-only">
-          <h2>Research from our group</h2>
+        <section class="local-only" style="padding: 0;">
           <iframe data-local-src="figures/volume_movie_ns_rotator_L7_a60_rlc10_thr12_gs4_bp30k_cool.html"
             title="3D pulsar magnetosphere, interactive"
-            style="width: 1180px; height: 540px; border: 0; display: block; margin: 0 auto;"></iframe>
+            style="width: 1280px; height: 720px; max-width: none; max-height: none;
+              border: 0; display: block; margin: 0;"></iframe>
           <aside class="notes">
             Interactive 3D pulsar magnetosphere (ns_rotator_L7_a60). The viewer
             (167 MB) loads only when this slide is reached. Local-only slide.

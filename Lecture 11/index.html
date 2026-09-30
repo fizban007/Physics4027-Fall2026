@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 11</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+    <style>
+      /* Space held for slides to be filled in later. */
+      .reveal .placeholder {
+        border: 3px dashed var(--r-muted-color);
+        border-radius: 12px;
+        color: var(--r-muted-color);
+        padding: 2.2em 1em;
+        margin: 0.6em auto;
+        width: 85%;
+        font-size: 0.8em;
+      }
+      .reveal .video-note {
+        font-size: 0.55em;
+        color: var(--r-muted-color);
+        margin-top: 0.2em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 11</p>
+          <h1>The Boris Pusher, and ODEs across Physics</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+        </section>
+
+        <section>
+          <h2>Today</h2>
+          <ul style="display: block;">
+            <li><strong>The Boris pusher.</strong> The standard integrator for
+              charged particles, and why it conserves energy.</li>
+            <li class="fragment"><strong>Orbits.</strong> How NASA chose an
+              integrator for spacecraft, and why it still uses it.</li>
+            <li class="fragment"><strong>Molecular dynamics.</strong> Velocity
+              Verlet on a gas of atoms, and three things it shows.</li>
+            <li class="fragment"><strong>Cosmology.</strong> Why the
+              microwave background is an ODE problem.</li>
+          </ul>
+          <aside class="notes">
+            Every number on the slides is printed by make_figures.py in this
+            directory. The Gauss-Jackson comparison needs a local clone of
+            lorcan2440/Gauss-Jackson-Integrator (GJ8_DIR); the cosmology figure
+            needs camb (pip install camb).
+          </aside>
+        </section>
+
+        <!-- ============ Part I: the Boris pusher ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; The Boris pusher</h2>
+          <p>Charged particles</p>
+        </section>
+
+        <section>
+          <h2>A charged particle in a magnetic field</h2>
+          $$\frac{d\mathbf{x}}{dt} = \mathbf{v}, \qquad
+            \frac{d\mathbf{v}}{dt} = \frac{q}{m}\left(\mathbf{E} + \mathbf{v}\times\mathbf{B}\right)$$
+          <ul style="font-size: 0.82em; display: block;">
+            <li class="fragment">With $\mathbf{E} = 0$ the magnetic force is
+              always perpendicular to $\mathbf{v}$: it does no work, and
+              $|\mathbf{v}|$ never changes.</li>
+            <li class="fragment">In a uniform $\mathbf{B}$ the particle
+              circles at the cyclotron frequency $\omega_c = qB/m$.</li>
+            <li class="fragment">A good method should keep $|\mathbf{v}|$
+              exactly, over millions of gyrations.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Leapfrog for the Lorentz force</h2>
+          <p style="font-size: 0.8em;">Stagger as in Lecture 10: positions at
+            whole steps, velocities at half steps.</p>
+          $$\begin{split}
+            \mathbf{x}_{n+1} &= \mathbf{x}_n + \Delta t\, \mathbf{v}_{n+1/2} \\
+            \frac{\mathbf{v}_{n+1/2} - \mathbf{v}_{n-1/2}}{\Delta t} &=
+              \frac{q}{m}\left(\mathbf{E}_n + \frac{\mathbf{v}_{n+1/2} + \mathbf{v}_{n-1/2}}{2}\times\mathbf{B}_n\right)
+          \end{split}$$
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment">The force depends on the velocity, which lives
+              at half steps, so it is averaged over the step.</li>
+            <li class="fragment">The unknown $\mathbf{v}_{n+1/2}$ appears on both
+              sides: the update looks implicit.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Boris's trick (1970)</h2>
+          <p style="font-size: 0.8em;">Half an electric kick, a rotation about
+            $\mathbf{B}$, and another half kick:</p>
+          $$\begin{split}
+            \mathbf{v}^- &= \mathbf{v}_{n-1/2} + \frac{q\mathbf{E}}{m}\frac{\Delta t}{2}
+              &\qquad& \mathbf{t} = \frac{q\mathbf{B}}{m}\frac{\Delta t}{2}, \quad
+              \mathbf{s} = \frac{2\mathbf{t}}{1 + t^2} \\
+            \mathbf{v}^+ &= \mathbf{v}^- + \left(\mathbf{v}^- + \mathbf{v}^-\times\mathbf{t}\right)\times\mathbf{s}
+              &\qquad& \mathbf{v}_{n+1/2} = \mathbf{v}^+ + \frac{q\mathbf{E}}{m}\frac{\Delta t}{2}
+          \end{split}$$
+          <ul style="font-size: 0.8em; display: block;">
+            <li class="fragment">Two cross products solve the "implicit" equation
+              exactly: no iteration, no matrix.</li>
+            <li class="fragment">The middle step is an exact rotation, so
+              $|\mathbf{v}^+| = |\mathbf{v}^-|$: with $\mathbf{E} = 0$ the energy
+              is conserved to rounding.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: with E = 0 the averaged equation is
+            v+ - v- = (v+ + v-) x t. Writing T for the matrix of (. x t), this
+            is (1 - T) v+ = (1 + T) v-, and since T is antisymmetric,
+            (1 - T)^{-1}(1 + T) is orthogonal (a Cayley transform): a rotation
+            about B. The two cross products compute exactly that rotation;
+            check by substitution. The rotation angle theta satisfies
+            tan(theta/2) = |t| = omega_c dt/2, slightly less than omega_c dt:
+            the gyration is a little slow, but always on the right circle.
+            Boris preserves phase-space volume (Qin et al. 2013, "Why is Boris
+            algorithm so good?"), which is why it behaves like the symplectic
+            methods of Lecture 10.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Boris against RK4, uniform field</h2>
+          <img src="figures/boris_uniform.png" style="width: 64%; margin: 0 auto; display: block;"
+            alt="After 1000 gyrations RK4 has spiraled inward and lost 19 percent of its energy; Boris is on the exact circle">
+          <ul style="font-size: 0.76em; display: block;">
+            <li>$\omega_c \Delta t = 0.3$, about 21 steps per gyration, 1000
+              gyrations.</li>
+            <li class="fragment">RK4 loses a factor $1 - (\omega_c\Delta t)^6/72$ of
+              energy per step (Lecture 10): 19% by the end. Boris: $|\mathbf{v}|$
+              exact to $10^{-13}$.</li>
+          </ul>
+          <aside class="notes">
+            Predicted RK4 energy after 20943 steps: (1 - 0.3^6/72)^20943 = 0.809;
+            measured 0.811. Boris |v| after the run: 1.0000000000000944. Boris
+            turns by 2 atan(0.15) = 0.29778 per step instead of 0.3.
+          </aside>
+        </section>
+
+        <section>
+          <h2>A proton in the Van Allen belt</h2>
+          <img src="figures/van_allen.png" style="width: 58%; margin: 0 auto; display: block;"
+            alt="A proton trajectory in Earth's dipole field: it gyrates, bounces between the hemispheres, and drifts once around the Earth in 75 seconds">
+          <table style="font-size: 0.62em; margin: 0.2em auto;">
+            <tbody>
+              <tr><td>10 MeV proton, $4\,R_E$ from Earth's center</td><td>gyration</td>
+                <td>bounce</td><td>drift around the Earth</td></tr>
+              <tr><td>period</td><td>$0.14$ s</td><td>$2.3$ s</td><td>$1.2$ min</td></tr>
+            </tbody>
+          </table>
+          <aside class="notes">
+            Earth's dipole: B0 = 3.07e-5 T at the equatorial surface, falling as
+            1/r^3. Relativistic Boris (gamma = 1.0107 is constant in a pure
+            magnetic field, so q/m becomes q/(gamma m)), dt = T_gyro/30, 16280
+            steps for 75 s, 0.7 s of wall time in Python. Gyroradius 478 km;
+            mirror latitude 29.8 degrees; bounce period 2.29 s against the
+            textbook estimate 4 L R_E/v (1.30 - 0.56 sin alpha) = 2.39 s; drift
+            1.22 min, westward, as it must be for protons. |v| conserved to
+            1e-14. RK4 with the same step loses 98 percent of the energy in
+            those 75 s (5 percent at half the step, 0.17 percent at a quarter):
+            the gyration is fastest near the mirror points, where the field is
+            strongest.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Three timescales, one integrator</h2>
+          <ul style="font-size: 0.8em; display: block;">
+            <li>The step is set by the fastest motion, the gyration. The physics
+              of interest (the drift that forms the belt) is 500 times slower.</li>
+            <li class="fragment">Over the drift, Boris conserves the energy to
+              $10^{-14}$. RK4, with the same step, loses 98% of it.</li>
+            <li class="fragment">This is why plasma codes push every particle
+              with Boris.</li>
+          </ul>
+          <p class="fragment why">Structure preservation matters most when the
+            interesting timescale is far longer than the step.</p>
+        </section>
+
+        <section>
+          <h2>Particle-in-cell simulations</h2>
+          <iframe width="704" height="396" src="https://www.youtube.com/embed/Gj9mwAww3TM"
+            title="Relativistic kinetic turbulence simulations (sigma=10): density"
+            frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+            style="display: block; margin: 0 auto;"></iframe>
+          <p class="video-note">Relativistic plasma turbulence (J. Nättilä):
+            <a href="https://www.youtube.com/watch?v=Gj9mwAww3TM">youtube.com/watch?v=Gj9mwAww3TM</a></p>
+          <p style="font-size: 0.72em;">Billions of particles pushed by Boris
+            (ODEs), and the fields on a grid, evolved by Maxwell's equations
+            (PDEs): coming later in the course.</p>
+          <aside class="notes">
+            Foreshadow PDEs here: the particles move in the fields, and the
+            particles' currents are the sources of the fields. The ODE half of
+            each time step is Boris; the PDE half is a finite-difference update
+            of E and B on the grid. The 2025 lecture also showed a PIC
+            simulation around a spinning black hole:
+            youtube.com/watch?v=0VgxrDxbcGA.
+          </aside>
+        </section>
+
+        <!-- ============ RESEARCH SLIDES: to be filled in ============ -->
+
+        <section>
+          <h2>Research from our group</h2>
+          <div class="placeholder">Space for new research results (1)</div>
+          <aside class="notes">
+            PLACEHOLDER: insert research slide 1 here.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Research from our group</h2>
+          <div class="placeholder">Space for new research results (2)</div>
+          <aside class="notes">
+            PLACEHOLDER: insert research slide 2 here, or delete this slide.
+          </aside>
+        </section>
+
+        <!-- ============ Part II: orbits ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; How NASA integrates orbits</h2>
+          <p>Choosing an integrator in 1963</p>
+        </section>
+
+        <section>
+          <h2>NASA's comparison, 1963</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.25;">
+              <img src="figures/nasa_table.png" style="height: 560px; width: auto; display: block; margin: 0 auto;"
+                alt="Table 1 of the NASA Space Flight Handbook comparing integration methods by truncation error, ease of changing step size, speed, stability, and roundoff accumulation">
+            </div>
+            <div class="col" style="font-size: 0.6em;">
+              <p><a href="https://ntrs.nasa.gov/citations/19630011221">NASA
+                Space Flight Handbook, vol. 1</a> (1963), Chapter IV.C: the
+                methods of the last five lectures, rated for computing
+                trajectories.</p>
+              <p class="fragment">Runge-Kutta: easy to start, slow.
+                Multistep: fast.</p>
+              <p class="fragment">"Unconditionally stable" here means no
+                growing parasitic roots at small $h$, not the stiff stability
+                of Lecture 10.</p>
+              <p class="fragment">Their pick for orbits: Gauss-Jackson.</p>
+            </div>
+          </div>
+          <aside class="notes">
+            In 1963 usage, "stable" meant that the parasitic roots of a
+            multistep method (Lecture 10) stay inside the unit circle as h goes
+            to zero. Milne's method is the classic failure: one of its
+            parasitic roots sits on the unit circle at h = 0 and moves outside
+            for any small h lambda &lt; 0, so it is rated "unstable". Adams-Moulton's
+            parasitic roots start at 0, hence "unconditionally stable" in that
+            sense; for stiff problems AM4 is still limited to h lambda &gt;= -3.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Gauss-Jackson</h2>
+          <ul style="font-size: 0.8em; display: block;">
+            <li>A multistep predictor-corrector method (Lecture 10), built for
+              second-order equations $\ddot{\mathbf{r}} = \mathbf{f}(t, \mathbf{r})$:
+              it integrates twice without converting to a first-order system.</li>
+            <li class="fragment">Eighth order, fixed step, and about one or two
+              evaluations of the force per step.</li>
+            <li class="fragment">Needs a start-up (a Runge-Kutta run for the
+              first points), like every multistep method.</li>
+            <li class="fragment">Still used for satellite orbit propagation
+              (Berry &amp; Healy 2004).</li>
+          </ul>
+          <aside class="notes">
+            The "Gauss-Jackson" name refers to the summed (second-sum) form of
+            the Stormer-Cowell multistep method, which accumulates the
+            accelerations in running sums; that form controls the growth of
+            rounding error over very long runs, the last column of NASA's
+            table. Berry &amp; Healy 2004, J. Astronaut. Sci. 52, 331, is the
+            standard implementation description; the Python port used here
+            follows it.
+          </aside>
+        </section>
+
+        <section>
+          <h2>100 orbits, measured</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.3;">
+              <img src="figures/gj8_compare.png" style="width: 100%; display: block;"
+                alt="Position error over 100 orbits: RK4 reaches thousands of kilometers, DOP853 about a meter, Gauss-Jackson half a millimeter">
+            </div>
+            <div class="col" style="font-size: 0.62em;">
+              <p>A circular orbit 7000 km from Earth's center (period 97
+                minutes), error after 100 orbits:</p>
+              <table style="margin: 0.3em 0;">
+                <tbody>
+                  <tr><td>RK4, 20k evaluations</td><td>1900 km</td></tr>
+                  <tr><td>DOP853, 40k</td><td>1.2 m</td></tr>
+                  <tr><td>DOP853, 97k</td><td>0.7 mm</td></tr>
+                  <tr><td>Gauss-Jackson 8, 20k</td><td>0.5 mm</td></tr>
+                </tbody>
+              </table>
+              <p class="fragment">High order, one or two evaluations per step,
+                and a smooth periodic problem: the best case for a fixed-step
+                multistep method.</p>
+            </div>
+          </div>
+          <aside class="notes">
+            GJ8 at dt = 60 s: 19853 evaluations (2.04 per step: one corrector
+            iteration per step); at dt = 30 s the corrector converges in one
+            evaluation (1.03 per step) and the error is 7e-3 mm. DOP853 is
+            scipy's adaptive 8th-order Runge-Kutta, rtol 1e-10 (40k
+            evaluations, 1.2 m) and 1e-13 (97k, 0.7 mm). So against the best
+            Runge-Kutta the advantage is a factor of about 5 in cost; against
+            RK4 it is overwhelming. Strongly eccentric orbits are harder for
+            any fixed step; that is where adaptive methods (or a change of
+            time variable) come back.
+          </aside>
+        </section>
+
+        <!-- ============ Part III: molecular dynamics ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; Molecular dynamics</h2>
+          <p>Newton's equations for many atoms</p>
+        </section>
+
+        <section>
+          <h2>Molecular dynamics</h2>
+          <p style="font-size: 0.8em;">$N$ atoms, Newton's second law, and a
+            pair potential. For noble-gas atoms, Lennard-Jones:</p>
+          $$m\,\ddot{\mathbf{r}}_i = -\sum_{j\ne i}\nabla_i V(r_{ij}), \qquad
+            V(r) = 4\varepsilon\left[\left(\frac{\sigma}{r}\right)^{12} - \left(\frac{\sigma}{r}\right)^{6}\right]$$
+          <ul style="font-size: 0.78em; display: block;">
+            <li class="fragment">Integrated with velocity Verlet (Lecture 10):
+              one force evaluation per step, and bounded energy error over
+              millions of steps.</li>
+            <li class="fragment">The cost is in the forces: all pairs is
+              $O(N^2)$. Cutting the potential off at a few $\sigma$ and keeping
+              neighbor lists makes it $O(N)$.</li>
+            <li class="fragment">Used for liquids, materials, proteins and drug
+              binding.</li>
+          </ul>
+          <aside class="notes">
+            The demos use reduced units (sigma = epsilon = m = 1) in 2D with
+            periodic boundaries and a cutoff at 2.5 sigma, all-pairs forces in
+            numpy. Setup and every number are in make_figures.py, Part III.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Collisions make Maxwell-Boltzmann</h2>
+          <img src="figures/md_maxwell.png" style="width: 52%; margin: 0 auto; display: block;"
+            alt="Histograms of atomic speeds: all equal at the start, spread by t = 0.2, and matching the Maxwell-Boltzmann distribution by t = 15 to 20">
+          <ul style="font-size: 0.76em; display: block;">
+            <li>400 atoms, every one starting at the same speed, in random
+              directions.</li>
+            <li class="fragment">Nothing statistical is put in: Newton's
+              equations and collisions produce the Maxwell-Boltzmann
+              distribution, at the temperature set by the energy.</li>
+          </ul>
+          <aside class="notes">
+            Density 0.3, dt = 0.005, 4000 steps (34 s in numpy). Final
+            temperature from 2D equipartition, kT = mean(v^2)/2 = 1.61; the
+            curve is the 2D Maxwell-Boltzmann distribution at that kT, not a
+            fit. Total energy constant to 5e-4 relative. The histogram pools
+            snapshots from t = 15 to 20.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Running the gas backwards</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.1;">
+              <img src="figures/md_loschmidt.png" style="width: 100%; display: block;"
+                alt="Distance from the starting configuration after reversing the velocities at time T: it grows exponentially from 1e-14 at T = 1 to the size of an atom by T = 12">
+            </div>
+            <div class="col" style="font-size: 0.64em;">
+              <p>Run 100 atoms for a time $T$, reverse every velocity, run $T$
+                again. Leapfrog is exactly reversible (Lecture 10), so the gas
+                should return to where it started.</p>
+              <p class="fragment">At $T = 1$ it does, to $10^{-14}$. But every
+                0.35 time units the miss grows by a factor $e$: rounding errors
+                are amplified by the chaos of the collisions.</p>
+              <p class="fragment">By $T \approx 12$ the gas misses by half an
+                atom, and after that it keeps no memory of its start.</p>
+            </div>
+          </div>
+          <aside class="notes">
+            Measured miss (rms distance from the starting positions):
+            T=1: 9e-15, 2: 2e-13, 4: 4e-11, 6: 5e-9, 8: 2e-6, 10: 2e-3,
+            12: 0.4, 14 and beyond: several sigma. Fitted growth rate 2.82 per
+            unit time, the largest Lyapunov exponent of this gas. This is
+            Loschmidt's objection to Boltzmann: the equations are reversible,
+            yet the gas does not un-mix. The pendulum of Lecture 10 is not
+            chaotic, which is why it came back to 6e-14 after 1000 steps.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Cooling into a crystal</h2>
+          <img src="figures/md_crystal.png" style="width: 64%; margin: 0 auto; display: block;"
+            alt="Left: a disordered fluid of atoms. Right: after cooling, the same atoms arranged in a triangular lattice">
+          <ul style="font-size: 0.76em; display: block;">
+            <li>256 atoms, slowly cooled by rescaling their velocities every 50
+              steps.</li>
+            <li class="fragment">The atoms find the triangular lattice by
+              themselves: freezing is in Newton's equations too.</li>
+          </ul>
+          <aside class="notes">
+            Density 0.9, random initial positions, cooled from kT = 2.5 to
+            0.05 over 10,000 steps, then held. Velocity rescaling is a crude
+            thermostat; production codes use gentler ones (Nose-Hoover,
+            Langevin). Triangular packing is the densest arrangement of disks
+            in 2D.
+          </aside>
+        </section>
+
+        <!-- ============ Part IV: cosmology ============ -->
+
+        <section class="divider">
+          <h2>Part IV &middot; Cosmology</h2>
+          <p>The universe as an ODE problem</p>
+        </section>
+
+        <section>
+          <h2>The microwave background</h2>
+          <img src="figures/cmb_tt.png" style="width: 56%; margin: 0 auto; display: block;"
+            alt="The CMB temperature power spectrum, with peaks at multipoles 220, 536, and 813">
+          <ul style="font-size: 0.76em; display: block;">
+            <li>Temperature fluctuations of about $10^{-5}$, left from when the
+              universe became transparent, 380,000 years after the big bang.</li>
+            <li class="fragment">The peaks are sound waves in the early
+              plasma. Their positions and heights measure the contents of the
+              universe.</li>
+          </ul>
+          <aside class="notes">
+            Computed with CAMB (pip install camb) for Planck-like parameters:
+            H0 = 67.4, Omega_b h^2 = 0.0224, Omega_c h^2 = 0.120, n_s = 0.965,
+            tau = 0.054. 0.6 s for the spectrum to l = 2500. Peaks at
+            l = 220, 536, 813, 1126. Recombination at z = 1090; sound horizon
+            144.4 Mpc; angular size 100 theta_* = 1.0412.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Why it is an ODE problem</h2>
+          <ul style="font-size: 0.8em; display: block;">
+            <li>On large scales the universe is homogeneous: the background
+              (expansion, density, temperature) depends on time alone.</li>
+            <li class="fragment">The fluctuations are small, so their equations
+              are linear. Fourier transform in space: each wavenumber $k$
+              evolves on its own.</li>
+            <li class="fragment">For each $k$, every unknown is a function of
+              one variable:</li>
+          </ul>
+          <div class="fragment" style="border: 2px solid var(--r-link-color); border-radius: 10px;
+            padding: 0.4em 0.8em; margin: 0.4em auto; width: 80%; font-size: 0.85em;">
+            <strong>conformal time</strong> $\tau$, with $d\tau = dt / a(t)$.
+            A PDE in space and time becomes a set of ODEs in $\tau$, one set per $k$.
+          </div>
+          <aside class="notes">
+            a(t) is the scale factor. The spatial dependence of each
+            perturbation is exp(i k.x) and drops out of the linear equations;
+            isotropy means only |k| matters. The same idea, a linear PDE on a
+            homogeneous background reduced to ODEs mode by mode, returns when
+            we get to PDEs.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The ODEs</h2>
+          <ul style="font-size: 0.72em; display: block;">
+            <li><strong>Background:</strong> the Friedmann equation
+              $\left(\frac{1}{a}\frac{da}{d\tau}\right)^2 = \frac{8\pi G}{3}\, a^2 \rho$,
+              for the expansion $a(\tau)$.</li>
+            <li class="fragment"><strong>Recombination:</strong> an ODE for the
+              free-electron fraction $x_e(\tau)$ as protons and electrons form
+              hydrogen.</li>
+            <li class="fragment"><strong>Perturbations, for each $k$:</strong>
+              density and velocity of dark matter and of baryons; the photon
+              and neutrino distributions, expanded in multipoles $\ell$; and
+              the metric potentials. For the photons,
+              $$\frac{dF_\ell}{d\tau} = \frac{k}{2\ell+1}\Big[\ell F_{\ell-1} - (\ell+1)F_{\ell+1}\Big] - a n_e \sigma_T F_\ell \quad (\ell \ge 3)$$</li>
+            <li class="fragment">Stiff: early on, the scattering rate
+              $a n_e \sigma_T$ is enormous compared with the expansion rate.
+              Codes use a tight-coupling approximation there, or an implicit
+              solver.</li>
+          </ul>
+          <aside class="notes">
+            Equations in the conformal Newtonian gauge of Ma &amp; Bertschinger
+            1995 (ApJ 455, 7); the photon hierarchy is truncated at some
+            l_max. A full system is a few dozen to a few hundred ODEs per k,
+            solved for a few thousand values of k, then combined by a
+            line-of-sight integral (Seljak &amp; Zaldarriaga 1996) into C_l.
+            CLASS's default evolver is ndf15, an implicit method of the BDF
+            family (Lecture 10); CAMB uses an explicit Runge-Kutta method with
+            the tight-coupling approximation. Worth verifying against current
+            documentation before quoting to students as fact.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Every pixel is an ODE</h2>
+          <iframe width="800" height="450" src="https://www.youtube.com/embed/rQcKIN9vj3U"
+            title="The Doubly Warped World of Binary Black Holes"
+            frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+            style="display: block; margin: 0 auto;"></iframe>
+          <p class="video-note">NASA Goddard, "The Doubly Warped World of Binary
+            Black Holes":
+            <a href="https://www.youtube.com/watch?v=rQcKIN9vj3U">youtube.com/watch?v=rQcKIN9vj3U</a></p>
+          <aside class="notes">
+            Ray tracing, as in Project 1: one photon trajectory per pixel, per
+            frame.
+          </aside>
+        </section>
+
+        <section>
+          <h2>References</h2>
+          <ul>
+            <li>Further reading:
+              <ul style="font-size: 0.8em;">
+                <li>Qin et al., "Why is Boris algorithm so good?",
+                  <em>Phys. Plasmas</em> 20, 084503 (2013).</li>
+                <li>Berry &amp; Healy, "Implementation of Gauss-Jackson
+                  integration for orbit propagation", <em>J. Astronaut.
+                  Sci.</em> 52, 331 (2004).</li>
+                <li>Frenkel &amp; Smit, <em>Understanding Molecular
+                  Simulation</em>.</li>
+                <li>Ma &amp; Bertschinger, <em>ApJ</em> 455, 7 (1995);
+                  Dodelson &amp; Schmidt, <em>Modern Cosmology</em>.</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 11</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

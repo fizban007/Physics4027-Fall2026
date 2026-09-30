@@ -261,6 +261,17 @@ except ImportError as exc:
 # ============================================================ Part III: molecular dynamics
 # Lennard-Jones in reduced units (sigma = epsilon = m = 1), 2D, periodic box.
 R_CUT = 2.5
+from matplotlib.colors import LinearSegmentedColormap
+# Kinetic-energy colours for a light background: cold atoms pale and
+# recessive, hot atoms saturated and dark, so the energetic ones stand out.
+HEAT = LinearSegmentedColormap.from_list(
+    "heat", ["#b8c4d0", "#f4a261", "#e63946", "#6a040f"])
+
+def hot_on_top(pts, ke, vmax, s_cold, s_hot):
+    """Sort atoms so the hottest are drawn last, and size them by energy."""
+    order = np.argsort(ke)
+    size = s_cold + (s_hot - s_cold) * np.clip(ke[order] / vmax, 0, 1)
+    return pts[order], ke[order], size
 
 def lj_forces(x, box):
     d = x[:, None, :] - x[None, :, :]
@@ -352,7 +363,7 @@ with plt.rc_context({"text.usetex": False, "font.family": "serif", "mathtext.fon
     for sp in ax.spines.values():
         sp.set_visible(True); sp.set_color(MUTED)
     sc = ax.scatter(frames_x[0][:, 0], frames_x[0][:, 1], s=70, c=frames_ke[0],
-                    cmap="viridis", vmin=0, vmax=4.0, edgecolor=INK, lw=0.4)
+                    cmap=HEAT, vmin=0, vmax=4.0, edgecolor=INK, lw=0.3)
     at = fig.add_axes([0.62, 0.18, 0.27, 0.62])
     tt = np.array(frames_t)
     at.plot(tt, targets, color=MUTED, lw=1.0, ls="--", label="target")
@@ -368,10 +379,11 @@ with plt.rc_context({"text.usetex": False, "font.family": "serif", "mathtext.fon
     ap.tick_params(axis="y", colors=V[2]); ap.tick_params(axis="x", bottom=False, labelbottom=False)
     psi_line, = ap.plot([], [], color=V[2], lw=1.6)
     label = fig.text(0.62, 0.86, "", fontsize=16, color=INK)
-    fig.text(0.245, 0.02, "colour: kinetic energy of each atom", ha="center", fontsize=11, color=MUTED)
+    fig.text(0.245, 0.02, "colour: kinetic energy of each atom (dark red = hot)", ha="center", fontsize=11, color=MUTED)
 
     def draw(k):
-        sc.set_offsets(frames_x[k]); sc.set_array(frames_ke[k])
+        pts, ke, size = hot_on_top(frames_x[k], frames_ke[k], 4.0, 60, 95)
+        sc.set_offsets(pts); sc.set_array(ke); sc.set_sizes(size)
         kt_line.set_data(tt[:k + 1], frames_kt[:k + 1]); dot.set_data([tt[k]], [frames_kt[k]])
         psi_line.set_data(tt[:k + 1], frames_psi[:k + 1])
         label.set_text(f"$kT = {frames_kt[k]:.2f}$     $\\psi_6 = {frames_psi[k]:.2f}$")
@@ -450,13 +462,15 @@ with plt.rc_context({"text.usetex": False, "font.family": "serif", "mathtext.fon
     for sp in ax.spines.values():
         sp.set_color(MUTED)
     sc = ax.scatter(film_x[0][:, 0] % LX_I, film_x[0][:, 1], s=9, c=film_ke[0],
-                    cmap="viridis", vmin=0, vmax=1.0, lw=0)
+                    cmap=HEAT, vmin=0, vmax=1.0, lw=0)
     title = fig.text(0.5, 0.95, "", ha="center", fontsize=15, color=INK)
-    fig.text(0.5, 0.02, "colour: kinetic energy of each atom (bright = hot)",
+    fig.text(0.5, 0.02, "colour: kinetic energy of each atom (dark red = hot)",
              ha="center", fontsize=11, color=MUTED)
 
     def draw(k):
-        sc.set_offsets(np.c_[film_x[k][:, 0] % LX_I, film_x[k][:, 1]]); sc.set_array(film_ke[k])
+        pts, ke, size = hot_on_top(np.c_[film_x[k][:, 0] % LX_I, film_x[k][:, 1]], film_ke[k],
+                                   1.0, 7, 20)
+        sc.set_offsets(pts); sc.set_array(ke); sc.set_sizes(size)
         title.set_text(f"a {len(cluster)}-atom cluster hits a {len(slab)}-atom crystal     "
                        f"$t = {film_t[k]:.1f}$")
 

@@ -163,13 +163,25 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  (registers the 3d project
 fig = plt.figure(figsize=(11.0, 5.0))
 gs = fig.add_gridspec(1, 2, width_ratios=[1.5, 1])
 ax = fig.add_subplot(gs[0], projection="3d")
-uu, vv = np.mgrid[0:2 * np.pi:40j, 0:np.pi:20j]
-ax.plot_surface(np.cos(uu) * np.sin(vv), np.sin(uu) * np.sin(vv), np.cos(vv),
-                color=V[1], alpha=0.35, linewidth=0)
+# mplot3d depth-sorts whole artists, not pixels, so a single line would be
+# drawn entirely in front of the Earth. Split the path by which side of the
+# Earth's center it is on, as seen from the camera, and draw far half,
+# Earth, near half in that order.
+ELEV, AZIM = 22, -60
+ax.computed_zorder = False
+eye = np.array([np.cos(np.radians(ELEV)) * np.cos(np.radians(AZIM)),
+                np.cos(np.radians(ELEV)) * np.sin(np.radians(AZIM)),
+                np.sin(np.radians(ELEV))])
 p = path / RE
-ax.plot(p[:, 0], p[:, 1], p[:, 2], color=V[0], lw=0.2, alpha=0.8)
+near = p @ eye > 0
+for side, z_order, alpha in ((~near, 1, 0.55), (near, 3, 0.9)):
+    q = p.copy(); q[~side] = np.nan                   # NaN breaks the line
+    ax.plot(q[:, 0], q[:, 1], q[:, 2], color=V[0], lw=0.2, alpha=alpha, zorder=z_order)
+uu, vv = np.mgrid[0:2 * np.pi:60j, 0:np.pi:30j]
+ax.plot_surface(np.cos(uu) * np.sin(vv), np.sin(uu) * np.sin(vv), np.cos(vv),
+                color=V[1], alpha=0.9, linewidth=0, shade=True, zorder=2)
 ax.set_xlim(-4.5, 4.5); ax.set_ylim(-4.5, 4.5); ax.set_zlim(-2.5, 2.5)
-ax.set_box_aspect((9, 9, 5), zoom=1.35); ax.view_init(elev=22, azim=-60)
+ax.set_box_aspect((9, 9, 5), zoom=1.35); ax.view_init(elev=ELEV, azim=AZIM)
 ax.set_axis_off()
 ax.set_title("75 s: one drift around the Earth", fontsize=14)
 a2 = fig.add_subplot(gs[1])

@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 12</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 12</p>
+          <h1>Boundary Value Problems</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            Condenses the 2025 Lectures 12 and 13 into one lecture. Part I:
+            shooting (a basketball shot, the infinite square well, and where
+            shooting fails). Part II: the grid method, ending at a sparse
+            linear system, which is the topic of the next two weeks. Every
+            number on the slides is printed by make_figures.py in this
+            directory.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Two ways to pin down a second-order ODE</h2>
+          <p style="font-size: 0.85em;">A second-order ODE, $y'' = f(x, y, y')$,
+            needs two conditions.</p>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment"><strong>Initial value problem.</strong> Both
+              at the same point: $y(a)$ and $y'(a)$. Everything so far.</li>
+            <li class="fragment"><strong>Boundary value problem.</strong> One
+              at each end: $y(a) = \alpha$ and $y(b) = \beta$.
+              <ul style="font-size: 0.92em;">
+                <li>A ball thrown from the hand that has to go through the
+                  hoop.</li>
+                <li>The electric potential between two electrodes held at
+                  fixed voltages.</li>
+                <li>A quantum particle in a box: $\psi = 0$ at both
+                  walls.</li>
+              </ul>
+            </li>
+          </ul>
+          <p class="fragment why">An IVP can be marched forward one step at a
+            time. A BVP cannot: a naive marching cannot guarantee the solution will meet $y(b) = \beta$.</p>
+        </section>
+
+        <!-- ============ Part I: shooting ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Shooting</h2>
+          <p>Find the missing initial condition</p>
+        </section>
+
+        <section>
+          <h2>Shooting a basket ball</h2>
+          <p>How do you find out the way to shoot a projectile, so that it
+          lands at a target location?</p>
+          <img src="figures/shooting-basketball.jpeg" width="50%">
+        </section>
+
+        <section>
+          <h2>The missing initial condition</h2>
+          <p style="font-size: 0.78em;">$y'' = f(x, y, y')$ with $y(a) = \alpha$
+            and $y(b) = \beta$. To march it like an IVP, we need $y(a)$
+            <em>and</em> $y'(a)$. We have only the first.</p>
+          <img src="figures/shooting_idea.png" style="width: 56%; margin: 0 auto; display: block;"
+            alt="Trial solutions starting from the same point with different initial slopes s; only the one with s = 4.5 reaches the target value at x = b.">
+          <p class="fragment why" style="font-size: 0.85em;">Shooting: find
+            the initial slope $y'(a)$ whose solution lands on
+            $y(b) = \beta$.</p>
+        </section>
+
+        <section>
+          <h2>Shooting a basketball</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.35;">
+              <img src="figures/basketball_shots.png" style="width: 100%; display: block;"
+                alt="Trial trajectories of a basketball at launch angles from 25 to 70 degrees; two of them, at 35.3 and 61.6 degrees, pass through the hoop.">
+            </div>
+            <div class="col" style="font-size: 0.68em;">
+              <p>The ball leaves the hand at $10$ m/s, with air drag. The
+                hoop is $6.75$ m away and $1.05$ m higher.</p>
+              <p class="fragment">The starting point and the speed are known.
+                The missing initial condition is the angle.</p>
+              <p class="fragment">Try an angle, follow the ball to the hoop,
+                see by how much it misses, and adjust.</p>
+              <p class="fragment">Two angles go in: a flat shot and a high
+                arc.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>What we are solving</h2>
+          <p style="font-size: 0.78em;">Call the missing slope $s$, and solve
+            the IVP</p>
+          $$y'' = f(x, y, y'), \qquad y(a) = \alpha, \qquad y'(a) = s.$$
+          <div class="cols" style="align-items: flex-start; margin-top: 0.3em;">
+            <div class="col fragment" style="font-size: 0.74em;">
+              <p>The solution $y(x;\, s)$ depends on $s$, and so does where
+                it ends up at $x = b$. Measure the miss:</p>
+              $$F(s) = y(b;\, s) - \beta$$
+              <p class="why" style="font-size: 1.1em;">Shooting is solving
+                $F(s) = 0$: one equation for one unknown.</p>
+            </div>
+            <div class="col fragment" style="font-size: 0.7em;">
+              <p>One evaluation of $F(s)$:</p>
+              <ol>
+                <li>set $y(a) = \alpha$ and $y'(a) = s$;</li>
+                <li>integrate to $x = b$ with an IVP solver (Homework 5's
+                  Dormand-Prince, landing on $b$ exactly);</li>
+                <li>return $y(b) - \beta$.</li>
+              </ol>
+              <p>For the basketball, $s$ is the launch angle and $F$ is how
+                far above or below the hoop the ball passes.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Solving $F(s) = 0$</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.15;">
+              <img src="figures/basketball_miss.png" style="width: 100%; display: block;"
+                alt="The miss at the hoop as a function of launch angle; it crosses zero at two angles.">
+            </div>
+            <div class="col" style="font-size: 0.68em;">
+              <p>$F$ has no formula, but we can evaluate it at any $s$. Any
+                root finder from Lecture 3 works. The secant method needs no
+                derivative:</p>
+              <div style="font-size: 0.9em;">
+              $$s_{n+1} = s_n - F(s_n)\,\frac{s_n - s_{n-1}}{F(s_n) - F(s_{n-1})}$$
+              </div>
+              <p class="fragment">Each iteration is one new shot. Starting
+                from $30°$ and $35°$: $35.3°$ after 6 shots. Starting from
+                $60°$ and $65°$: $61.6°$ after 9.</p>
+              <p class="fragment">$F$ has two roots, so the problem has two
+                solutions. The starting guesses decide which one you get.</p>
+            </div>
+          </div>
+          <aside class="notes">
+            DERIVATION (linear ODE): if the ODE is linear, y(x; s) =
+            u(x) + s v(x), where u solves the IVP with u(a) = alpha,
+            u'(a) = 0, and v solves the homogeneous equation with v(a) = 0,
+            v'(a) = 1. So F(s) = u(b) + s v(b) - beta is a straight line in
+            s, and a single secant step from any two shots lands on the root.
+            Bisection also works once two shots bracket a root.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Eigenvalue problems</h2>
+          <p style="font-size: 0.78em;">A particle in a box ($\hbar = m = 1$):</p>
+          $$-\frac{1}{2}\psi'' = E\psi, \qquad \psi(0) = \psi(1) = 0$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">$\psi = 0$ always solves it. A nonzero
+              solution exists only for special values of $E$: the energy
+              levels.</li>
+            <li class="fragment">In a box we know them: $\psi_n = \sin(n\pi x)$,
+              $E_n = n^2\pi^2/2$. With a potential $V(x)$ added, there is
+              usually no formula, and we have to compute them.</li>
+            <li class="fragment">The new feature: the unknown is a number
+              inside the equation, $E$, and not only an initial
+              condition.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>What to shoot with</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.15;">
+              <img src="figures/well_psi.png" style="width: 100%; display: block;"
+                alt="Solutions starting with psi(0) = 0 and slope 1 for E = 3, pi squared over 2, and 7; only the middle one returns to zero at x = 1.">
+            </div>
+            <div class="col" style="font-size: 0.68em;">
+              <p>At $x = 0$ we know $\psi(0) = 0$. Two things are unknown:
+                the slope $\psi'(0)$ and the energy $E$.</p>
+              <p class="fragment">The slope only sets the size: doubling
+                $\psi'(0)$ doubles $\psi$ everywhere, and the zeros stay where
+                they are. So fix $\psi'(0) = 1$.</p>
+              <p class="fragment">The energy changes the shape. Too low, and
+                $\psi$ has not come back to zero by $x = 1$; too high, and it
+                crosses zero too early.</p>
+            </div>
+          </div>
+          <p class="fragment why">So we fix $\psi'(0) = 1$ and shoot in $E$.</p>
+        </section>
+
+        <section>
+          <h2>Root finding in $E$</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.15;">
+              <img src="figures/well_F.png" style="width: 100%; display: block;"
+                alt="psi(1) as a function of E, crossing zero at the first three energy levels.">
+            </div>
+            <div class="col" style="font-size: 0.68em;">
+              <p>Same recipe, with $E$ in place of $s$:</p>
+              <div style="font-size: 0.9em;">
+              $$F(E) = \psi(1;\, E) = 0$$
+              </div>
+              <p class="fragment">Each root is an energy level. The secant
+                method started near the first one finds
+                $E_1 = 4.9348022005$, equal to $\pi^2/2$ to 10 digits, in 9
+                IVP solves.</p>
+              <p class="fragment">Last step: rescale $\psi$ so that
+                $\int_0^1 \psi^2\,dx = 1$.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- OLD second-draft slides, replaced above:
+        <section>
+          <h2>Adjusting the aim is root finding</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.2;">
+              <img src="figures/basketball_miss.png" style="width: 100%; display: block;"
+                alt="The miss at the hoop as a function of launch angle; it crosses zero at two angles.">
+            </div>
+            <div class="col" style="font-size: 0.7em;">
+              <p>Every angle gives a miss: $\text{miss}(\theta) = y(D) - H$.
+                We want $\text{miss}(\theta) = 0$.</p>
+              <p class="fragment">That is root finding (Lecture 3). Each
+                evaluation of the miss is one IVP solve.</p>
+              <p class="fragment">The secant method needs only a handful of
+                shots: 6 for the flat shot, 9 for the high arc.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Same idea for energy levels</h2>
+          <p style="font-size: 0.75em;">A particle in a box:
+            $-\tfrac{1}{2}\psi'' = E\psi$ with $\psi(0) = \psi(1) = 0$.
+            Here the unknown is the energy $E$.</p>
+          <img src="figures/well.png" style="width: 84%; margin: 0 auto; display: block;"
+            alt="Left: wavefunctions for E = 3, pi squared over 2, and 7; only the middle one returns to zero at x = 1. Right: psi(1) as a function of E, with zeros at the first three energy levels.">
+          <p class="fragment" style="font-size: 0.72em;">Start with
+            $\psi(0) = 0$ and any slope (it only sets the size), and adjust
+            $E$ until $\psi(1) = 0$. Only special energies work: the energy
+            levels.</p>
+        </section>
+
+        -->
+
+        <section>
+          <h2>When shooting fails</h2>
+          <p style="font-size: 0.72em;">A linear BVP with a known exact
+            solution:</p>
+          <div style="font-size: 0.78em; margin: -0.3em 0;">
+          $$\phi'' = \kappa^2\phi, \quad \phi(0) = \phi(1) = 1
+          \qquad\Longrightarrow\qquad
+          \phi(x) = \frac{\cosh\kappa(x - \tfrac{1}{2})}{\cosh(\kappa/2)}$$
+          </div>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1;">
+              <img src="figures/debye_shoot_single.png" style="width: 84%; display: block;"
+                alt="On a log scale, the exact solution decays from both ends to about 1e-11 in the middle; the shooting solution follows it to x = 0.35 and then grows to about 1e6 at x = 1.">
+            </div>
+            <div class="col" style="font-size: 0.62em;">
+              <p>Every solution is a mix of $e^{-\kappa x}$ and
+                $e^{+\kappa x}$. The exact one decays away from each end
+                over a length $1/\kappa$, down to
+                $e^{-\kappa/2} \approx 10^{-11}$ in the middle for
+                $\kappa = 50$.</p>
+              <p class="fragment">Shooting from $x = 0$, an error
+                $\delta s$ in the slope adds
+                $\frac{\delta s}{\kappa}\sinh(\kappa x)$: a little of
+                $e^{+\kappa x}$, which grows by $e^{\kappa} \approx 5 \times 10^{21}$
+                on the way across.</p>
+              <p class="fragment">Here the slope is right to 15 digits, and
+                the solution still misses by a factor of $10^6$.</p>
+            </div>
+          </div>
+          <p class="fragment why">Shooting marches across the whole domain.
+            We need a method that does not march.</p>
+          <aside class="notes">
+            PHYSICS (to introduce in words): Debye screening between two
+            charged plates. Poisson with Boltzmann charges, eps0 phi'' = -rho;
+            linearized for e phi << kT this is phi'' = phi / lambda_D^2,
+            lambda_D^2 = eps0 kT / (n0 e^2), and with lengths in units of the
+            gap L, kappa = L / lambda_D. Cleanest setting: an electrolyte
+            (salt water) between plates (Debye-Hueckel). For a plasma with
+            fixed ions, same linear equation; but a real plasma at a biased
+            wall forms a sheath, so avoid presenting it as a plasma.
+            DERIVATION: phi'' = kappa^2 phi has solutions e^{-kappa x} and
+            e^{+kappa x}. An error delta_s in the initial slope adds
+            delta_s sinh(kappa x)/kappa to phi(x), about delta_s e^kappa /
+            (2 kappa) at x = 1. With delta_s ~ 1e-16 kappa (rounding of s),
+            that is 1e-16 e^kappa / 2: 2.6e5 at kappa = 50, and above 1 once
+            kappa > 37. Integration errors are amplified the same way.
+            Numbers from make_figures.py: slope found -49.999999999999986,
+            exact -50 (to 15 digits). Bound states in quantum mechanics have
+            the same problem in the walls; the usual fix is to shoot from
+            both ends and match in the middle.
+          </aside>
+        </section>
+
+        <!-- OLD Part I slides (first draft), replaced above:
+        <section>
+          <h2>Shooting a basketball</h2>
+          <img src="figures/basketball.png" style="width: 92%; margin: 0 auto; display: block;"
+            alt="Left: trial trajectories of a basketball at launch angles from 25 to 70 degrees, two of which pass through the hoop. Right: the miss distance as a function of launch angle, with two zeros.">
+          <p style="font-size: 0.72em;">Speed $10$ m/s, quadratic air drag,
+            hoop $6.75$ m away and $1.05$ m above the hand. Pick an angle,
+            integrate until $x = D$ (a stop condition, Lecture 9), and see by
+            how much the ball misses.</p>
+        </section>
+
+        <section>
+          <h2>Shooting is root finding</h2>
+          <p style="font-size: 0.8em;">Write the missed condition as a function
+            of the guess $s = y'(a)$:</p>
+          $$F(s) = y(b;\, s) - \beta = 0$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">Evaluating $F$ once means solving one
+              initial value problem from $a$ to $b$.</li>
+            <li class="fragment">Then use any root finder from Lecture 3. The
+              secant method needs no derivative of $F$: the basketball took 6
+              and 9 IVP solves for the two arcs, $35.3°$ and $61.6°$.</li>
+            <li class="fragment">A nonlinear BVP can have more than one
+              solution. Which one you find depends on where the root finder
+              starts.</li>
+            <li class="fragment">For a linear ODE, $F(s)$ is a straight line,
+              so a single secant step lands on the root.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION (linear case): if the ODE is linear, y(x; s) =
+            u(x) + s v(x), where u solves the IVP with u(a) = alpha,
+            u'(a) = 0, and v solves the homogeneous equation with v(a) = 0,
+            v'(a) = 1. So F(s) = u(b) + s v(b) - beta is linear in s, and the
+            secant line through any two shots is F itself.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Eigenvalue problems: shoot in the energy</h2>
+          <p style="font-size: 0.75em;">The infinite square well,
+            $-\tfrac{1}{2}\psi'' = E\psi$ with $\psi(0) = \psi(1) = 0$
+            ($\hbar = m = 1$). Start with $\psi(0) = 0$, $\psi'(0) = 1$, and
+            vary $E$ until $\psi(1) = 0$:</p>
+          <img src="figures/well.png" style="width: 88%; margin: 0 auto; display: block;"
+            alt="Left: wavefunctions for E = 3, pi squared over 2, and 7; only the middle one returns to zero at x = 1. Right: psi(1) as a function of E, with zeros at the first three eigenvalues.">
+          <p class="fragment" style="font-size: 0.72em;">$\psi'(0)$ only sets
+            the overall scale, fixed afterwards by normalizing. The secant
+            method finds $E_1 = \pi^2/2$ to 10 digits in 9 IVP solves.</p>
+        </section>
+
+        <section>
+          <h2>Where shooting fails</h2>
+          <p style="font-size: 0.75em;">Debye screening: the potential in a
+            plasma between two electrodes at the same voltage,
+            $\phi'' = \kappa^2 \phi$, $\phi(0) = \phi(1) = 1$. The screening
+            length is $1/\kappa$.</p>
+          <img src="figures/debye_shoot.png" style="width: 88%; margin: 0 auto; display: block;"
+            alt="Left: on a log scale, the exact potential decays from both electrodes to a minimum of about 1e-9 in the middle; the shooting solution follows it to x = 0.45 and then grows to about 15 at x = 1. Right: the maximum relative error of shooting grows exponentially with kappa and passes 1 near kappa = 37.">
+          <p class="fragment" style="font-size: 0.72em;">Integrated with
+            Dormand-Prince at tolerance $10^{-12}$, and the shot is linear,
+            so the secant step is exact.</p>
+        </section>
+
+        <section>
+          <h2>Why it fails</h2>
+          <ul style="font-size: 0.78em;">
+            <li>The equation has two solutions, $e^{-\kappa x}$ and
+              $e^{+\kappa x}$. The answer is almost entirely the decaying one
+              near $x = 0$.</li>
+            <li class="fragment">Any error made near $x = 0$, in $s$ or in a
+              step of the integrator, excites a little of the growing
+              solution, which is amplified by up to $e^{\kappa}$ by the time it
+              reaches $x = 1$.</li>
+            <li class="fragment">At $\kappa = 50$, the slope comes out as
+              $-49.999999999999986$ against the exact $-50.000000000000000$:
+              right to 15 digits, and the solution is still off by a factor
+              of $10^6$.</li>
+            <li class="fragment">The same thing happens with bound states in
+              quantum mechanics, which decay exponentially into the walls.
+              The common fix is to shoot from both ends and match in the
+              middle.</li>
+          </ul>
+          <p class="fragment why">Shooting marches across the whole domain, so
+            it inherits every instability of the IVP. The fix is to stop
+            marching.</p>
+          <aside class="notes">
+            DERIVATION: an error delta_s in the initial slope adds
+            delta_s sinh(kappa x)/kappa to phi(x). At x = 1 this is about
+            delta_s e^kappa / (2 kappa). With delta_s ~ 1e-16 kappa (rounding
+            of s), the error at x = 1 is about 1e-16 e^kappa / 2, which
+            reaches 1 near kappa = 37, as on the plot. Integration errors of
+            relative size 1e-12 are amplified the same way, which is why the
+            curve already rises from kappa = 12.
+          </aside>
+        </section>
+
+        -->
+
+        <!-- ============ Part II: grid ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; The grid method</h2>
+          <p>Solve for every point at once</p>
+        </section>
+
+        <section>
+          <h2>The idea</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Put a grid on $[a, b]$: $x_i = a + i h$, $i = 0, \dots, N$,
+              with $h = (b - a)/N$. The unknowns are all the values $y_i$ at
+              once.</li>
+            <li class="fragment">Replace every derivative in the ODE by a
+              difference of neighbouring $y_i$. Each interior point gives one
+              equation.</li>
+            <li class="fragment">The boundary conditions are simply
+              $y_0 = \alpha$ and $y_N = \beta$. Both ends are imposed
+              exactly, and nothing is integrated from one end to the
+              other.</li>
+            <li class="fragment">The ODE becomes $N - 1$ algebraic equations
+              for $N - 1$ unknowns. Numerical Recipes calls this the
+              <em>relaxation</em> method; it is also called the
+              <em>finite-difference</em> method.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Finite differences</h2>
+          <p style="font-size: 0.78em;">Taylor-expand the neighbours,
+            $y_{i \pm 1} = y_i \pm h y_i' + \tfrac{h^2}{2} y_i'' \pm \tfrac{h^3}{6} y_i''' + \dots$,
+            and combine:</p>
+          <table style="font-size: 0.7em; margin: 0.3em auto;">
+            <tbody>
+              <tr class="fragment"><td>forward</td>
+                <td>$y_i' \approx \dfrac{y_{i+1} - y_i}{h}$</td>
+                <td>error $-\tfrac{h}{2} y''$</td><td>first order</td></tr>
+              <tr class="fragment"><td>central</td>
+                <td>$y_i' \approx \dfrac{y_{i+1} - y_{i-1}}{2h}$</td>
+                <td>error $-\tfrac{h^2}{6} y'''$</td><td>second order</td></tr>
+              <tr class="fragment"><td>second derivative</td>
+                <td>$y_i'' \approx \dfrac{y_{i+1} - 2 y_i + y_{i-1}}{h^2}$</td>
+                <td>error $-\tfrac{h^2}{12} y''''$</td><td>second order</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment" style="font-size: 0.72em;">Symmetric formulas
+            cancel the even (or odd) terms of the expansion and gain an
+            order. More neighbours give higher order.</p>
+          <aside class="notes">
+            DERIVATION: forward: (y_{i+1} - y_i)/h = y' + h y''/2 + ...
+            Central: y_{i+1} - y_{i-1} = 2 h y' + h^3 y'''/3 + ..., so
+            dividing by 2h leaves y' + h^2 y'''/6. Second derivative:
+            y_{i+1} + y_{i-1} = 2 y_i + h^2 y'' + h^4 y''''/12 + ..., so
+            (y_{i+1} - 2 y_i + y_{i-1})/h^2 = y'' + h^2 y''''/12 + ...
+            The error column is (exact - formula).
+          </aside>
+        </section>
+
+        <section>
+          <h2>The order, and the rounding floor</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.25;">
+              <img src="figures/fd_error.png" style="width: 100%; display: block;"
+                alt="Error of forward and central differences of sin x at x = 1 against h on log-log axes. The truncation error falls with slopes 1 and 2, then rounding error rises as h shrinks further.">
+            </div>
+            <div class="col" style="font-size: 0.66em;">
+              <p>The derivative of $\sin x$ at $x = 1$. Truncation error falls
+                with slope 1 and 2.</p>
+              <p class="fragment">Below $h \approx 10^{-8}$ (forward) and
+                $10^{-5}$ (central), the subtraction $y_{i+1} - y_i$ cancels
+                most digits, and the rounding error grows like
+                $\epsilon/h$: catastrophic cancellation, Lecture 1.</p>
+              <p class="fragment">A BVP grid has $h \sim 10^{-3}$ or larger,
+                far from the floor. There, the order is what matters.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>The same problem on a grid</h2>
+          <p style="font-size: 0.75em;">At each interior point,
+            $\dfrac{\phi_{i+1} - 2\phi_i + \phi_{i-1}}{h^2} - \kappa^2 \phi_i = 0$.
+            The known $\phi_0$ and $\phi_N$ move to the right-hand side:</p>
+          <div style="font-size: 0.8em;">
+          $$
+          \frac{1}{h^2}
+          \begin{pmatrix}
+            -2 - \kappa^2 h^2 & 1 & & \\
+            1 & -2 - \kappa^2 h^2 & \ddots & \\
+            & \ddots & \ddots & 1 \\
+            & & 1 & -2 - \kappa^2 h^2
+          \end{pmatrix}
+          \begin{pmatrix} \phi_1 \\ \phi_2 \\ \vdots \\ \phi_{N-1} \end{pmatrix}
+          = -\frac{1}{h^2}
+          \begin{pmatrix} \phi_0 \\ 0 \\ \vdots \\ \phi_N \end{pmatrix}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.75em;">A linear ODE becomes
+            one linear system, $\mathbf{A}\boldsymbol{\phi} = \mathbf{b}$.
+            Each row involves only a point and its two neighbours, so
+            $\mathbf{A}$ is <em>tridiagonal</em>.</p>
+          <p class="fragment why">Solve it once, and every $\phi_i$ comes
+            out together. No guessing, no iteration.</p>
+        </section>
+
+        <section>
+          <h2>The grid succeeds where shooting failed</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.25;">
+              <img src="figures/debye_grid.png" style="width: 100%; display: block;"
+                alt="Maximum relative error of the grid solution against the number of grid intervals for kappa = 10, 30, and 50; all three fall with slope 2.">
+            </div>
+            <div class="col" style="font-size: 0.66em;">
+              <p>Slope 2 for every $\kappa$, as the second-order formula
+                promises.</p>
+              <p class="fragment">At $\kappa = 50$ with $N = 1024$: relative
+                error $2.5 \times 10^{-3}$, where shooting was off by a
+                factor of $10^6$.</p>
+              <p class="fragment">Larger $\kappa$ needs a finer grid, since
+                $h$ has to resolve the decay length $1/\kappa$. But the
+                error is controlled by $h$, and no longer amplified by
+                $e^{\kappa}$.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>A nonlinear version</h2>
+          <p style="font-size: 0.78em;">Make the same problem nonlinear,
+            $\phi'' = \kappa^2 \sinh\phi$, and use the same grid. One
+            equation per interior point:</p>
+          $$\frac{\phi_{i+1} - 2\phi_i + \phi_{i-1}}{h^2} - \kappa^2 \sinh\phi_i = 0,
+          \qquad i = 1, \dots, N - 1$$
+          <ul style="font-size: 0.78em;">
+            <li class="fragment">Still $N - 1$ equations for $N - 1$
+              unknowns, and each one involves only a point and its two
+              neighbours.</li>
+            <li class="fragment">But $\sinh\phi_i$ is not linear in
+              $\phi_i$, so this is no longer a matrix equation
+              $\mathbf{A}\boldsymbol{\phi} = \mathbf{b}$ that we can solve in
+              one go.</li>
+            <li class="fragment">Call the left-hand side $F_i(\boldsymbol{\phi})$.
+              We need $\mathbf{F}(\boldsymbol{\phi}) = 0$: root finding again,
+              now for a vector of unknowns.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Newton's method for many unknowns</h2>
+          <table style="font-size: 0.68em; margin: 0.2em auto;">
+            <thead>
+              <tr><th></th><th>one unknown (Lecture 3)</th><th>a vector of unknowns</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>linearize</td>
+                <td>$F(x + \delta) \approx F(x) + F'(x)\,\delta$</td>
+                <td>$\mathbf{F}(\boldsymbol{\phi} + \boldsymbol{\delta}) \approx \mathbf{F}(\boldsymbol{\phi}) + \mathbf{J}\,\boldsymbol{\delta}$</td></tr>
+              <tr class="fragment"><td>step</td>
+                <td>$\delta = -F / F'$</td>
+                <td>solve $\mathbf{J}\,\boldsymbol{\delta} = -\mathbf{F}$</td></tr>
+              <tr class="fragment"><td>update</td>
+                <td>$x \leftarrow x + \delta$</td>
+                <td>$\boldsymbol{\phi} \leftarrow \boldsymbol{\phi} + \boldsymbol{\delta}$</td></tr>
+            </tbody>
+          </table>
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">$\mathbf{J}$ is the Jacobian, the matrix of
+              derivatives $J_{ij} = \partial F_i / \partial \phi_j$. It plays
+              the role of $F'$.</li>
+            <li class="fragment">$F_i$ depends only on $\phi_{i-1}$,
+              $\phi_i$, $\phi_{i+1}$, so $\mathbf{J}$ is tridiagonal, just like
+              the matrix of the linear problem: $1/h^2$ next to the
+              diagonal, $-2/h^2 - \kappa^2\cosh\phi_i$ on it.</li>
+          </ul>
+          <p class="fragment why">Each Newton iteration is one tridiagonal
+            linear system. A nonlinear BVP becomes a sequence of linear
+            ones.</p>
+          <aside class="notes">
+            PHYSICS (to introduce in words): the full Poisson-Boltzmann
+            equation for a symmetric electrolyte (two ion species, both
+            Boltzmann): rho = -2 n0 e sinh(e phi / kT), so phi'' = kappa^2
+            sinh(phi) with phi in units of kT/e. The linear equation is its
+            small-phi limit; phi = 5 is far outside it.
+            DERIVATION: F_i depends on phi_{i-1}, phi_i, phi_{i+1} only.
+            dF_i/dphi_{i+-1} = 1/h^2, dF_i/dphi_i = -2/h^2 - kappa^2
+            cosh(phi_i), and all other entries are zero. For a general
+            y'' = f(x, y, y') with central differences, the off-diagonal
+            entries pick up -+ (df/dy') / (2h) as well; still tridiagonal.
+          </aside>
+        </section>
+
+        <!-- OLD Newton slide, replaced by the two slides above:
+        <section>
+          <h2>Nonlinear problems: Newton on the grid</h2>
+          <p style="font-size: 0.75em;">Make the same problem nonlinear:
+            $\phi'' = \kappa^2 \sinh\phi$. The grid equations become</p>
+          $$F_i(\boldsymbol{\phi}) = \frac{\phi_{i+1} - 2\phi_i + \phi_{i-1}}{h^2} - \kappa^2 \sinh\phi_i = 0$$
+          <ul style="font-size: 0.75em;">
+            <li class="fragment">Newton's method, for a vector of
+              unknowns: solve $\mathbf{J}\,\boldsymbol{\delta} = -\mathbf{F}$,
+              then $\boldsymbol{\phi} \leftarrow \boldsymbol{\phi} + \boldsymbol{\delta}$.</li>
+            <li class="fragment">The Jacobian $J_{ij} = \partial F_i / \partial \phi_j$
+              is again tridiagonal: $1/h^2$ off the diagonal, and
+              $-2/h^2 - \kappa^2 \cosh\phi_i$ on it.</li>
+            <li class="fragment">Every Newton iteration is one tridiagonal
+              linear solve.</li>
+          </ul>
+          <aside class="notes">
+            PHYSICS (to introduce in words): the full Poisson-Boltzmann
+            equation for a symmetric electrolyte (two ion species, both
+            Boltzmann): rho = -2 n0 e sinh(e phi / kT), so phi'' = kappa^2
+            sinh(phi) with phi in units of kT/e. The linear equation is its
+            small-phi limit; phi = 5 is far outside it.
+            DERIVATION: F_i depends on phi_{i-1}, phi_i, phi_{i+1} only.
+            dF_i/dphi_{i+-1} = 1/h^2, dF_i/dphi_i = -2/h^2 - kappa^2
+            cosh(phi_i), and all other entries are zero. For a general
+            y'' = f(x, y, y') with central differences, the off-diagonal
+            entries pick up -+ (df/dy') / (2h) as well; still tridiagonal.
+          </aside>
+        </section>
+        -->
+
+        <section>
+          <h2>Newton converges quickly</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.25;">
+              <img src="figures/newton.png" style="width: 100%; display: block;"
+                alt="Newton iterates for phi'' = kappa^2 sinh(phi) with phi = 5 at both ends: the initial guess is zero inside, and the iterates settle onto a profile that decays from both ends within a few iterations.">
+            </div>
+            <div class="col" style="font-size: 0.62em;">
+              <p>$\kappa = 10$, $\phi = 5$ at both ends, $N = 200$, starting
+                from $\phi = 0$ inside.</p>
+              <table style="margin: 0.3em 0;">
+                <thead><tr><th>$k$</th><th>$\max|\boldsymbol{\delta}|$</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>$4.8$</td></tr>
+                  <tr><td>2</td><td>$0.61$</td></tr>
+                  <tr><td>3</td><td>$0.15$</td></tr>
+                  <tr><td>4</td><td>$6.5 \times 10^{-3}$</td></tr>
+                  <tr><td>5</td><td>$1.0 \times 10^{-5}$</td></tr>
+                  <tr><td>6</td><td>$2.4 \times 10^{-11}$</td></tr>
+                </tbody>
+              </table>
+              <p class="fragment">Once close, the number of correct digits
+                doubles each iteration.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Shooting or grid?</h2>
+          <table style="font-size: 0.66em; margin: 0.4em auto;">
+            <thead>
+              <tr><th></th><th>shooting</th><th>grid</th></tr>
+            </thead>
+            <tbody>
+              <tr class="fragment"><td>reuses</td><td>your IVP solver and a
+                root finder</td><td>finite differences and a linear
+                solver</td></tr>
+              <tr class="fragment"><td>accuracy</td><td>adaptive, set by the
+                tolerance</td><td>set by $h$: second order here</td></tr>
+              <tr class="fragment"><td>weak spot</td><td>growing solutions
+                amplify errors across the domain</td><td>needs a good
+                initial guess when nonlinear</td></tr>
+              <tr class="fragment"><td>many unknown functions</td>
+                <td>a multidimensional root find</td><td>a larger, still
+                sparse, system</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment" style="font-size: 0.72em;">Shooting is quick to
+            write when the problem is benign. The grid method is the one that
+            carries over to partial differential equations.</p>
+        </section>
+
+        <section>
+          <h2>Every grid method ends in $\mathbf{A}\mathbf{x} = \mathbf{b}$</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.3;">
+              <img src="figures/sparsity.png" style="width: 100%; display: block;"
+                alt="Nonzero entries of the matrix for the second derivative on a 1D grid (three diagonals) and on a 6 by 6 2D grid (five diagonals, two of them far from the main one).">
+            </div>
+            <div class="col" style="font-size: 0.64em;">
+              <p>In 2D, each point couples to four neighbours. A $6 \times 6$
+                grid gives a $36 \times 36$ matrix with 156 nonzeros out of
+                1296.</p>
+              <p class="fragment">A $1000 \times 1000$ grid has $10^6$
+                unknowns. How do we solve that system, and how fast?</p>
+              <p class="fragment">The square well on a grid becomes
+                $\mathbf{A}\boldsymbol{\psi} = E\boldsymbol{\psi}$: a matrix
+                eigenvalue problem.</p>
+              <p class="fragment why">Next two weeks: numerical linear
+                algebra.</p>
+            </div>
+          </div>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 12</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

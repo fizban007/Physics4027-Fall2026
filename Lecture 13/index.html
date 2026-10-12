@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 13</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 13</p>
+          <h1>Solving Linear Systems</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            Follows the 2025 Lecture 14: Gaussian elimination, pivoting, LU
+            decomposition. New: the small-pivot demonstration and the timing
+            of factor vs solve (lu_timing.cpp). Every number on the slides is
+            printed by make_figures.py or lu_timing.cpp in this directory.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Where linear systems come from</h2>
+          <ul style="font-size: 0.8em;">
+            <li class="fragment"><strong>Grids.</strong> A BVP on a grid is
+              one linear system (Lecture 12). A PDE on a 2D grid of
+              $1000 \times 1000$ points has $10^6$ unknowns.</li>
+            <li class="fragment"><strong>Newton's method in many
+              variables.</strong> Every iteration solves
+              $\mathbf{J}\boldsymbol{\delta} = -\mathbf{F}$ (Lecture 12).
+              Implicit ODE methods do this at every step (Lecture 7).</li>
+            <li class="fragment"><strong>Fitting data.</strong> More data
+              points than parameters: more equations than unknowns.</li>
+            <li class="fragment"><strong>Eigenvalue problems.</strong> The
+              particle in a box on a grid becomes
+              $\mathbf{A}\boldsymbol{\psi} = E\boldsymbol{\psi}$; normal modes
+              of molecules and structures.</li>
+          </ul>
+          <p class="fragment why">In many large simulations, solving linear
+            systems is where most of the time goes.</p>
+        </section>
+
+        <section>
+          <h2>The next two weeks</h2>
+          <table style="font-size: 0.72em; margin: 0.4em auto;">
+            <tbody>
+              <tr><td style="white-space: nowrap;">Lecture 13</td>
+                <td>Solving $\mathbf{A}\mathbf{x} = \mathbf{b}$: Gaussian
+                  elimination, pivoting, LU decomposition</td></tr>
+              <tr><td style="white-space: nowrap;">Lecture 14</td>
+                <td>Matrices with structure: tridiagonal, Cholesky; the QR
+                  decomposition</td></tr>
+              <tr><td style="white-space: nowrap;">Lecture 15</td>
+                <td>Computing QR; the singular value decomposition</td></tr>
+              <tr><td style="white-space: nowrap;">Lecture 16</td>
+                <td>The SVD at work: least squares, low-rank approximation,
+                  principal component analysis</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h2>In practice: use a library</h2>
+          <ul style="font-size: 0.8em;">
+            <li><strong>BLAS</strong> (Basic Linear Algebra Subprograms):
+              matrix-vector and matrix-matrix products.</li>
+            <li><strong>LAPACK</strong> (Linear Algebra PACKage): linear
+              systems, decompositions, eigenvalues. Built on BLAS, written in
+              Fortran, available everywhere.</li>
+            <li>In C++: <a href="https://eigen.tuxfamily.org">Eigen</a>, with
+              matrix and vector types that read like the math. In Python:
+              <code>numpy.linalg</code> and <code>scipy.linalg</code>, which
+              call LAPACK.</li>
+          </ul>
+          <p class="fragment why">These are faster and more robust than
+            anything we will write. Our goal is to know what each routine
+            does, what it costs, and when it can fail.</p>
+        </section>
+
+        <section>
+          <h2>What kind of system?</h2>
+          <p style="font-size: 0.8em;">$m$ equations for $n$ unknowns,
+            $\mathbf{A}\mathbf{x} = \mathbf{b}$ with $\mathbf{A}$ an
+            $m \times n$ matrix:</p>
+          <ul style="font-size: 0.78em;">
+            <li class="fragment"><strong>Square</strong>, $m = n$: exactly one
+              solution, unless $\mathbf{A}$ is <em>singular</em>, meaning one
+              equation is a combination of the others. Then there is either
+              no solution or infinitely many.</li>
+            <li class="fragment"><strong>Over-determined</strong>, $m &gt; n$:
+              usually no exact solution. We look for the best one (least
+              squares, Lecture 16).</li>
+            <li class="fragment"><strong>Under-determined</strong>,
+              $m &lt; n$: infinitely many solutions.</li>
+          </ul>
+          <p class="fragment" style="font-size: 0.78em;">Today: square and
+            nonsingular.</p>
+        </section>
+
+        <!-- ============ Part I: Gaussian elimination ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Gaussian elimination</h2>
+          <p>Eliminate, then substitute back</p>
+        </section>
+
+        <section>
+          <h2>Eliminate the first column</h2>
+          $$
+          \begin{pmatrix} 1 & 2 & 3 \\ 4 & 6 & 7 \\ 5 & 8 & 9 \end{pmatrix}
+          \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix}
+          = \begin{pmatrix} 1 \\ 2 \\ 4 \end{pmatrix}
+          $$
+          <p class="fragment" style="font-size: 0.78em;">Subtract 4 times
+            row 1 from row 2, and 5 times row 1 from row 3. Do the same to the
+            right-hand side:</p>
+          <div class="fragment">
+          $$
+          \begin{pmatrix} 1 & 2 & 3 \\ 0 & -2 & -5 \\ 0 & -2 & -6 \end{pmatrix}
+          \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix}
+          = \begin{pmatrix} 1 \\ -2 \\ -1 \end{pmatrix}
+          $$
+          <p style="font-size: 0.72em;">The factors $4 = a_{21}/a_{11}$ and
+            $5 = a_{31}/a_{11}$ are the <em>multipliers</em>. The entry we
+            divide by, $a_{11}$, is the <em>pivot</em>.</p>
+          </div>
+        </section>
+
+        <section>
+          <h2>Eliminate the second column</h2>
+          <p style="font-size: 0.78em;">Now subtract 1 times row 2 from
+            row 3 (multiplier $-2/-2 = 1$):</p>
+          $$
+          \begin{pmatrix} 1 & 2 & 3 \\ 0 & -2 & -5 \\ 0 & 0 & -1 \end{pmatrix}
+          \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix}
+          = \begin{pmatrix} 1 \\ -2 \\ 1 \end{pmatrix}
+          $$
+          <p class="fragment" style="font-size: 0.78em;">The matrix is now
+            <em>upper triangular</em>: zeros below the diagonal. The last
+            equation has one unknown, the one above it two, and so on.</p>
+        </section>
+
+        <section>
+          <h2>Back substitution</h2>
+          <p style="font-size: 0.78em;">Solve from the bottom up:</p>
+          <div style="font-size: 0.85em;">
+          $$-x_3 = 1 \implies x_3 = -1$$
+          <div class="fragment">
+          $$-2x_2 - 5(-1) = -2 \implies x_2 = 3.5$$
+          </div>
+          <div class="fragment">
+          $$x_1 + 2(3.5) + 3(-1) = 1 \implies x_1 = -3$$
+          </div>
+          </div>
+          <p class="fragment" style="font-size: 0.78em;">In general, for an
+            upper-triangular $\mathbf{U}$:
+            $\displaystyle x_i = \frac{1}{u_{ii}}\Big(b_i - \sum_{j &gt; i} u_{ij}x_j\Big)$,
+            for $i = n, n-1, \dots, 1$.</p>
+        </section>
+
+        <section>
+          <h2>The recipe</h2>
+          <p style="font-size: 0.78em;">For each column $k = 1, 2, \dots, n-1$,
+            with pivot $a_{kk}$, and for each row $i = k+1, \dots, n$ below
+            it:</p>
+          <ol style="font-size: 0.76em;">
+            <li class="fragment">Compute the multiplier
+              $m_{ik} = a_{ik}/a_{kk}$.</li>
+            <li class="fragment">Subtract $m_{ik}$ times row $k$ from row $i$,
+              on both sides:
+              $$a_{ij} \leftarrow a_{ij} - m_{ik}\,a_{kj} \quad (j = k, \dots, n),
+              \qquad b_i \leftarrow b_i - m_{ik}\,b_k$$
+              This makes $a_{ik} = 0$.</li>
+          </ol>
+          <p class="fragment" style="font-size: 0.74em;">Our example:
+            $k = 1$ used $m_{21} = 4$ and $m_{31} = 5$; $k = 2$ used
+            $m_{32} = 1$. Then back substitution.</p>
+          <p class="fragment" style="font-size: 0.74em;"><strong>Cost.</strong>
+            Column $k$ updates $n - k$ rows, each over about $n - k$ entries:
+            $\sum_k (n-k)^2 \approx n^3/3$ multiply-subtracts, about
+            $\tfrac{2}{3}n^3$ operations. Back substitution: about $n^2$.</p>
+          <!-- OLD version with the C++ loop:
+          <h2>The algorithm</h2>
+          <p style="font-size: 0.75em;">For each column $k$: for each row $i$
+            below it, compute the multiplier $m_{ik} = a_{ik}/a_{kk}$, and
+            subtract $m_{ik}$ times row $k$ from row $i$.</p>
+          <pre style="font-size: 0.5em; width: 92%;"><code class="language-cpp" data-trim>
+for (int k = 0; k &lt; n; k++) {          // column to eliminate
+  for (int i = k + 1; i &lt; n; i++) {    // every row below the pivot
+    double m = a[i][k] / a[k][k];      // the multiplier
+    for (int j = k; j &lt; n; j++)
+      a[i][j] -= m * a[k][j];
+    b[i] -= m * b[k];
+  }
+}
+          </code></pre>
+          <p class="fragment" style="font-size: 0.75em;">Three nested loops,
+            each up to $n$ long: about $\tfrac{2}{3}n^3$ operations. Back
+            substitution is two loops: about $n^2$.</p>
+          -->
+          <aside class="notes">
+            DERIVATION: at column k there are (n - k) rows below, each
+            updated over (n - k) columns with one multiply and one subtract:
+            2 (n - k)^2 operations. Summing over k gives 2 sum_k k^2, about
+            2n^3/3. Back substitution: row i needs (n - i) multiply-adds, total
+            about n^2.
+          </aside>
+        </section>
+
+        <section>
+          <h2>What $n^3$ means</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Doubling $n$ makes elimination 8 times slower.</li>
+            <li class="fragment">Our own C++ code (with pivoting, next part)
+              on a laptop: $n = 3200$ takes 9 seconds.</li>
+            <li class="fragment">The 2D grid of $10^6$ unknowns:
+              $(10^6/3200)^3 \approx 3 \times 10^7$ times longer. About 9
+              years.</li>
+          </ul>
+          <p class="fragment why">Dense elimination does not scale. Large
+            problems are only solvable because their matrices have structure,
+            like the tridiagonal matrix of Lecture 12 (next lecture).</p>
+        </section>
+
+        <!-- ============ Part II: pivoting ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Pivoting</h2>
+          <p>Choosing which row to eliminate with</p>
+        </section>
+
+        <section>
+          <h2>A zero pivot</h2>
+          $$
+          \begin{pmatrix} 0 & 2 & 3 \\ 4 & 6 & 7 \\ 5 & 8 & 9 \end{pmatrix}
+          \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix}
+          = \begin{pmatrix} 1 \\ 2 \\ 4 \end{pmatrix}
+          $$
+          <p class="fragment" style="font-size: 0.78em;">The multiplier
+            $a_{21}/a_{11} = 4/0$ does not exist. Row 1 cannot eliminate
+            anything.</p>
+          <p class="fragment" style="font-size: 0.78em;">But the order of the
+            equations is ours to choose. Swap rows 1 and 3, and swap $b_1$ and
+            $b_3$ with them:</p>
+          <div class="fragment">
+          $$
+          \begin{pmatrix} 5 & 8 & 9 \\ 4 & 6 & 7 \\ 0 & 2 & 3 \end{pmatrix}
+          \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix}
+          = \begin{pmatrix} 4 \\ 2 \\ 1 \end{pmatrix}
+          $$
+          </div>
+        </section>
+
+        <section>
+          <h2>A tiny pivot is just as bad</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="font-size: 0.66em;">
+              $$\begin{pmatrix} \varepsilon & 1 \\ 1 & 1 \end{pmatrix}
+              \begin{pmatrix} x_1 \\ x_2 \end{pmatrix}
+              = \begin{pmatrix} 1 \\ 2 \end{pmatrix},
+              \qquad x_1 \approx x_2 \approx 1$$
+              <p class="fragment">Eliminate with the pivot $\varepsilon$:
+                the multiplier is $1/\varepsilon$, and row 2 becomes
+                $(1 - 1/\varepsilon)\,x_2 = 2 - 1/\varepsilon$.</p>
+              <p class="fragment">For $\varepsilon &lt; 10^{-16}$, both sides
+                round to $-1/\varepsilon$ (Lecture 1). The information in
+                row 2 is gone: $x_2 = 1$, and then
+                $x_1 = (1 - x_2)/\varepsilon = 0$.</p>
+              <p class="fragment">Swap the rows first, and the multiplier is
+                $\varepsilon$: nothing is lost.</p>
+            </div>
+            <div class="col" style="flex: 1.15;">
+              <img src="figures/small_pivot.png" style="width: 100%; display: block;"
+                alt="Relative error in x1 against pivot size epsilon: without pivoting the error grows like 1e-16 over epsilon and reaches 1 at epsilon = 1e-16; with pivoting it stays at rounding level.">
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Partial pivoting</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Before eliminating column $k$, find the row (at or below
+              row $k$) with the largest $|a_{ik}|$, and swap it into row $k$.
+              Swap $b$ along with it.</li>
+            <li class="fragment">Then every multiplier has
+              $|m_{ik}| \le 1$: no row is ever multiplied up, so rounding
+              errors are not amplified.</li>
+            <li class="fragment">Swapping columns as well is <em>full
+              pivoting</em>. It is rarely needed. Partial pivoting is what
+              LAPACK does.</li>
+          </ul>
+          <p class="fragment why">Always pivot. It costs a search down one
+            column, almost nothing next to the $n^3$ work.</p>
+        </section>
+
+        <!-- ============ Part III: LU ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; LU decomposition</h2>
+          <p>Keep the multipliers</p>
+        </section>
+
+        <section>
+          <h2>Elimination as matrix multiplication</h2>
+          <p style="font-size: 0.75em;">Each elimination step is a
+            multiplication by a lower-triangular matrix. For our example:</p>
+          <div style="font-size: 0.82em;">
+          $$
+          \underbrace{\begin{pmatrix} 1 & 0 & 0 \\ -4 & 1 & 0 \\ -5 & 0 & 1 \end{pmatrix}}_{\mathbf{L}_1}
+          \mathbf{A} = \begin{pmatrix} 1 & 2 & 3 \\ 0 & -2 & -5 \\ 0 & -2 & -6 \end{pmatrix},
+          \qquad
+          \underbrace{\begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & -1 & 1 \end{pmatrix}}_{\mathbf{L}_2}
+          \mathbf{L}_1\mathbf{A} = \mathbf{U}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.75em;">$\mathbf{L}_1$ is the
+            identity with $-m_{i1}$ below the diagonal: row $i$ of
+            $\mathbf{L}_1\mathbf{A}$ is row $i$ of $\mathbf{A}$ minus $m_{i1}$
+            times row 1.</p>
+          <p class="fragment" style="font-size: 0.75em;">After all $n - 1$
+            columns: $\mathbf{L}_{n-1}\cdots\mathbf{L}_2\mathbf{L}_1\mathbf{A} = \mathbf{U}$.</p>
+        </section>
+
+        <section>
+          <h2>Undo the elimination: $\mathbf{A} = \mathbf{L}\mathbf{U}$</h2>
+          <p style="font-size: 0.75em;">Undoing a step means adding the rows
+            back: $\mathbf{L}_1^{-1}$ is $\mathbf{L}_1$ with the signs below
+            the diagonal flipped. Then</p>
+          <div style="font-size: 0.82em;">
+          $$
+          \mathbf{A} = \mathbf{L}_1^{-1}\mathbf{L}_2^{-1}\,\mathbf{U}
+          = \underbrace{\begin{pmatrix} 1 & 0 & 0 \\ 4 & 1 & 0 \\ 5 & 1 & 1 \end{pmatrix}}_{\mathbf{L}}
+          \underbrace{\begin{pmatrix} 1 & 2 & 3 \\ 0 & -2 & -5 \\ 0 & 0 & -1 \end{pmatrix}}_{\mathbf{U}}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.75em;">Check row 3:
+            $5\,(1, 2, 3) + 1\,(0, -2, -5) + (0, 0, -1) = (5, 8, 9)$.</p>
+          <p class="fragment why">$\mathbf{L}$ is just the multipliers, each
+            in the place it eliminated. Gaussian elimination already computes
+            the LU decomposition; we only have to keep the multipliers.</p>
+          <aside class="notes">
+            DERIVATION: L_k^{-1} = I + m_k e_k^T, where m_k holds the
+            multipliers of column k below the diagonal. In the product
+            L_1^{-1} L_2^{-1} ... the cross terms m_j e_j^T m_k e_k^T vanish
+            for j &lt; k, because e_j^T m_k = 0 (m_k is zero in rows up to k).
+            So the product is I + sum_k m_k e_k^T: every multiplier lands in
+            its own place, with no mixing.
+          </aside>
+        </section>
+
+        <section>
+          <h2>With pivoting: $\mathbf{P}\mathbf{A} = \mathbf{L}\mathbf{U}$</h2>
+          <ul style="font-size: 0.78em;">
+            <li>The row swaps are collected in a permutation matrix
+              $\mathbf{P}$: the identity with its rows reordered. Elimination
+              with partial pivoting gives $\mathbf{P}\mathbf{A} = \mathbf{L}\mathbf{U}$.</li>
+            <li class="fragment">With pivoting, this exists for every
+              nonsingular $\mathbf{A}$. Without it, not always:
+              $\begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$ has no
+              $\mathbf{L}\mathbf{U}$.</li>
+            <li class="fragment">Storage: $\mathbf{L}$ has 1s on its
+              diagonal, so $\mathbf{L}$ and $\mathbf{U}$ fit in one $n \times n$
+              array, overwriting $\mathbf{A}$:
+              $$\begin{pmatrix} u_{11} & u_{12} & u_{13} \\ l_{21} & u_{22} & u_{23} \\ l_{31} & l_{32} & u_{33} \end{pmatrix}$$</li>
+          </ul>
+          <aside class="notes">
+            The 2025 deck also covered Crout's algorithm, which computes the
+            same L and U column by column instead of by row operations. The
+            result is identical; it is a different loop order. Proof that
+            PA = LU always exists: e.g. arXiv:math/0506382.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Solving with $\mathbf{L}$ and $\mathbf{U}$</h2>
+          <p style="font-size: 0.78em;">$\mathbf{A}\mathbf{x} = \mathbf{L}(\mathbf{U}\mathbf{x}) = \mathbf{b}$
+            splits into two triangular solves. Call $\mathbf{y} = \mathbf{U}\mathbf{x}$:</p>
+          <div class="cols" style="align-items: flex-start;">
+            <div class="col fragment" style="font-size: 0.72em;">
+              <p><strong>1. Forward substitution</strong>,
+                $\mathbf{L}\mathbf{y} = \mathbf{b}$, top to bottom:</p>
+              $$y_i = b_i - \sum_{j &lt; i} l_{ij}\,y_j$$
+            </div>
+            <div class="col fragment" style="font-size: 0.72em;">
+              <p><strong>2. Back substitution</strong>,
+                $\mathbf{U}\mathbf{x} = \mathbf{y}$, bottom to top:</p>
+              $$x_i = \frac{1}{u_{ii}}\Big(y_i - \sum_{j &gt; i} u_{ij}\,x_j\Big)$$
+            </div>
+          </div>
+          <p class="fragment" style="font-size: 0.75em;">Each is about $n^2$
+            operations. With pivoting, apply the same row swaps to
+            $\mathbf{b}$ first.</p>
+        </section>
+
+        <section>
+          <h2>Factor once, solve many times</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.2;">
+              <img src="figures/lu_timing.png" style="width: 100%; display: block;"
+                alt="Time to factor a dense matrix grows like n cubed; time for one solve with the stored factors grows like n squared. At n = 3200: 9 seconds against 12 milliseconds.">
+            </div>
+            <div class="col" style="font-size: 0.66em;">
+              <p>At $n = 3200$: 9 s to factor, 12 ms for each solve
+                afterwards, about 700 times less.</p>
+              <p class="fragment">Many problems solve with the same matrix
+                and different right-hand sides:</p>
+              <ul class="fragment">
+                <li>an implicit method with a fixed step on a linear ODE:
+                  the same matrix every step;</li>
+                <li>the potential on a grid for many different charge
+                  distributions.</li>
+              </ul>
+              <p class="fragment">Keep $\mathbf{L}$ and $\mathbf{U}$, and pay
+                $n^3$ only once.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Why not just compute $\mathbf{A}^{-1}$?</h2>
+          <p style="font-size: 0.76em;">$\mathbf{x} = \mathbf{A}^{-1}\mathbf{b}$
+            is how we write it on paper. Numerically, it loses on every
+            count:</p>
+          <ul style="font-size: 0.74em;">
+            <li class="fragment"><strong>It never saves time.</strong> With
+              $\mathbf{L}$ and $\mathbf{U}$ stored, each solve costs $n^2$,
+              the same as multiplying by $\mathbf{A}^{-1}$. Computing
+              $\mathbf{A}^{-1}$ means solving with every column of the
+              identity: about 3 times the work of the factorization, for
+              nothing.</li>
+            <li class="fragment"><strong>It is less accurate.</strong> Test
+              on $500 \times 500$ matrices, increasingly close to singular.
+              How well does the computed $\mathbf{x}$ satisfy the equations
+              (relative residual $|\mathbf{A}\mathbf{x} - \mathbf{b}|$)?
+              <table style="font-size: 0.9em; margin: 0.3em auto;">
+                <thead><tr><th>closeness to singular</th><th>mild</th><th></th><th></th><th>severe</th></tr></thead>
+                <tbody>
+                  <tr><td>LU solve</td><td>$2 \times 10^{-15}$</td><td>$6 \times 10^{-16}$</td><td>$3 \times 10^{-16}$</td><td>$3 \times 10^{-16}$</td></tr>
+                  <tr><td>$\mathbf{A}^{-1}\mathbf{b}$</td><td>$2 \times 10^{-14}$</td><td>$2 \times 10^{-11}$</td><td>$4 \times 10^{-8}$</td><td>$3 \times 10^{-4}$</td></tr>
+                </tbody>
+              </table>
+              The LU answer always satisfies the equations to rounding
+              precision. The inverse does not, and the error in $\mathbf{x}$
+              itself is 10 to 25 times larger.</li>
+          </ul>
+          <aside class="notes">
+            Numbers from make_figures.py: random 500 x 500 matrices with
+            singular values spread from 1 to 1/kappa, kappa = 1e2, 1e6,
+            1e10, 1e14 (the condition number; do not need to name it yet).
+            Residual |Ax - b| / (|A| |x|). Errors in x, LU vs inverse:
+            3e-14 vs 1e-13, 4e-11 vs 6e-10, 2e-7 vs 4e-6, 1e-3 vs 3e-2.
+            Why: LU with pivoting is backward stable (the computed x solves
+            a nearby system exactly); forming A^{-1} and multiplying is not,
+            because rounding errors in the entries of A^{-1} are multiplied
+            by b afterwards. Cost: 2n^3/3 for LU plus n solves of about 2n^2
+            each (less, exploiting the zeros of the identity): about 2n^3
+            in total.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The inverse of a sparse matrix is dense</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.25;">
+              <img src="figures/inverse_fill.png" style="width: 100%; display: block;"
+                alt="The 12 by 12 second-difference matrix has nonzeros only on three diagonals; its inverse has every entry nonzero.">
+            </div>
+            <div class="col" style="font-size: 0.66em;">
+              <p>A tridiagonal matrix has only three
+                nonzero diagonals. Its inverse has none of that
+                structure.</p>
+              <p class="fragment">With $n = 1000$: $\mathbf{A}$ has 2998
+                nonzeros, $\mathbf{L}$ and $\mathbf{U}$ have 1999 each, and
+                $\mathbf{A}^{-1}$ has all $10^6$.</p>
+              <p class="fragment">With $10^6$ unknowns, $\mathbf{L}$ and
+                $\mathbf{U}$ take about 30 megabytes. $\mathbf{A}^{-1}$ would be
+                $10^{12}$ numbers: 8 terabytes.</p>
+            </div>
+          </div>
+          <p class="fragment why">We almost never need $\mathbf{A}^{-1}$,
+            only $\mathbf{A}^{-1}$ applied to a vector. Solving gives exactly
+            that.</p>
+          <aside class="notes">
+            Physically: A^{-1} is the Green's function of the discrete
+            operator. A point source at one grid point produces a potential
+            everywhere, so every entry is nonzero. The rare cases where the
+            entries of A^{-1} are wanted (e.g. the covariance matrix of fit
+            parameters) are the exception.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The determinant</h2>
+          <ul style="font-size: 0.8em;">
+            <li><strong>It comes for free with LU:</strong>
+              $\det\mathbf{A} = (-1)^{p}\prod_i u_{ii}$, with $p$ the number of
+              row swaps. For our example: $1 \cdot (-2) \cdot (-1) = 2$.</li>
+            <li class="fragment">Cofactor expansion, the formula from linear
+              algebra class, takes about $n!$ operations: hopeless beyond
+              $n \approx 20$.</li>
+            <li class="fragment">A tiny determinant does <em>not</em> mean
+              nearly singular: $0.1\,\mathbf{I}$ in 100 dimensions has
+              $\det = 10^{-100}$ and is perfectly easy to solve.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: det(PA) = det(L) det(U); det L = 1 (unit diagonal),
+            det U = prod u_ii, det P = (-1)^p.
+          </aside>
+        </section>
+
+        <!-- OLD slide, replaced by the three above:
+        <section>
+          <h2>Inverse and determinant</h2>
+          <ul style="font-size: 0.78em;">
+            <li><strong>Do not form $\mathbf{A}^{-1}$ to solve a system.</strong>
+              Computing it (one solve per column of the identity) costs about
+              three times the factorization, and $\mathbf{A}^{-1}\mathbf{b}$
+              then costs $n^2$, the same as a solve with $\mathbf{L}$ and
+              $\mathbf{U}$. It is also less accurate.</li>
+            <li class="fragment"><strong>The determinant comes for
+              free:</strong>
+              $\det\mathbf{A} = (-1)^{p}\prod_i u_{ii}$, with $p$ the number of
+              row swaps. For our example: $1 \cdot (-2) \cdot (-1) = 2$.</li>
+            <li class="fragment">A tiny determinant does <em>not</em> mean
+              nearly singular: $0.1\,\mathbf{I}$ in 100 dimensions has
+              $\det = 10^{-100}$ and is perfectly easy to solve.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION (determinant): det(PA) = det(L) det(U); det L = 1
+            (unit diagonal), det U = prod u_ii, det P = (-1)^p. Inverse cost:
+            factorization 2n^3/3, plus n solves of 2n^2 each, about 2n^3 in
+            total with savings from the zeros of the identity, roughly 3 times
+            the factorization.
+          </aside>
+        </section>
+        -->
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Gaussian elimination turns $\mathbf{A}\mathbf{x} = \mathbf{b}$
+              into an upper-triangular system, solved by back
+              substitution.</li>
+            <li class="fragment">Always pivot: a small pivot destroys the
+              answer through rounding.</li>
+            <li class="fragment">The multipliers form $\mathbf{L}$:
+              $\mathbf{P}\mathbf{A} = \mathbf{L}\mathbf{U}$. Factor once for
+              $n^3$, then solve for $n^2$ per right-hand side.</li>
+          </ul>
+          <p class="fragment why">Next time: matrices with structure. The
+            tridiagonal system of Lecture 12 can be solved in about $n$
+            operations instead of $n^3$.</p>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 13</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 14</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 14</p>
+          <h1>Matrices with Structure, and QR Decomposition</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            Follows the 2025 Lecture 15: tridiagonal systems, Cholesky, QR and
+            the QR eigenvalue iteration. The 2025 QR example had a transposed
+            Q and a non-symmetric A_9; the numbers here are recomputed. New:
+            tridiagonal timing against Lecture 13's dense LU, banded
+            matrices, correlated random numbers with Cholesky. Every number
+            is printed by make_figures.py or tridiagonal_timing.cpp.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Gaussian elimination with partial pivoting gives
+              $\mathbf{P}\mathbf{A} = \mathbf{L}\mathbf{U}$.</li>
+            <li class="fragment">Factoring costs about $\tfrac{2}{3}n^3$; each
+              solve with $\mathbf{L}$ and $\mathbf{U}$ afterwards about
+              $n^2$.</li>
+            <li class="fragment">That does not scale: the $10^6$ unknowns of a
+              2D grid would take about 9 years.</li>
+          </ul>
+          <p class="fragment why">Today: matrices from physics are rarely
+            arbitrary. Their structure makes them far cheaper to solve.</p>
+        </section>
+
+        <!-- ============ Part I: tridiagonal ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Tridiagonal systems</h2>
+          <p>Only three diagonals</p>
+        </section>
+
+        <section>
+          <h2>Tridiagonal matrices</h2>
+          <div style="font-size: 0.85em;">
+          $$
+          \begin{pmatrix}
+          b_0 & c_0 & & & \\
+          a_1 & b_1 & c_1 & & \\
+          & a_2 & b_2 & \ddots & \\
+          & & \ddots & \ddots & c_{n-2} \\
+          & & & a_{n-1} & b_{n-1}
+          \end{pmatrix}
+          \begin{pmatrix} x_0 \\ x_1 \\ x_2 \\ \vdots \\ x_{n-1} \end{pmatrix}
+          =
+          \begin{pmatrix} r_0 \\ r_1 \\ r_2 \\ \vdots \\ r_{n-1} \end{pmatrix}
+          $$
+          </div>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">Store three vectors $\mathbf{a}$,
+              $\mathbf{b}$, $\mathbf{c}$ instead of the whole matrix: $3n$
+              numbers instead of $n^2$.</li>
+            <li class="fragment">Every point coupled only to its two
+              neighbours: the BVP grid of Lecture 12
+              ($b_i = -2 - \kappa^2 h^2$, $a_i = c_i = 1$), cubic splines,
+              implicit methods for diffusion.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Elimination stays inside the band</h2>
+          <ul style="font-size: 0.76em;">
+            <li>Below each pivot $u_{i-1}$ there is only one nonzero entry,
+              $a_i$. So each column needs one multiplier, $l_i$, and changes
+              only the next row.</li>
+            <li class="fragment">That row's super-diagonal $c_i$ is
+              untouched, since the entry above it in row $i-1$ is zero. The
+              factors are</li>
+          </ul>
+          <div class="fragment" style="font-size: 0.78em;">
+          $$
+          \mathbf{A} =
+          \begin{pmatrix}
+          1 & & & \\
+          l_1 & 1 & & \\
+          & \ddots & \ddots & \\
+          & & l_{n-1} & 1
+          \end{pmatrix}
+          \begin{pmatrix}
+          u_0 & c_0 & & \\
+          & u_1 & \ddots & \\
+          & & \ddots & c_{n-2} \\
+          & & & u_{n-1}
+          \end{pmatrix}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.76em;">$\mathbf{L}$ and
+            $\mathbf{U}$ are as sparse as $\mathbf{A}$. Nothing fills in.</p>
+        </section>
+
+        <section>
+          <h2>The recipe (Thomas algorithm)</h2>
+          <p style="font-size: 0.76em;">Start with $u_0 = b_0$, $y_0 = r_0$.
+            Then, top to bottom, for $i = 1, \dots, n-1$:</p>
+          <div style="font-size: 0.82em;">
+          $$l_i = \frac{a_i}{u_{i-1}}, \qquad u_i = b_i - l_i\,c_{i-1}, \qquad y_i = r_i - l_i\,y_{i-1}$$
+          </div>
+          <p class="fragment" style="font-size: 0.76em;">Then back
+            substitution, bottom to top:</p>
+          <div class="fragment" style="font-size: 0.82em;">
+          $$x_{n-1} = \frac{y_{n-1}}{u_{n-1}}, \qquad x_i = \frac{y_i - c_i\,x_{i+1}}{u_i}, \quad i = n-2, \dots, 0$$
+          </div>
+          <p class="fragment" style="font-size: 0.76em;">The first loop is
+            elimination and forward substitution together; the second is
+            back substitution. About $8n$ operations in all, and about ten
+            lines of C++.</p>
+          <aside class="notes">
+            The ten-line C++ version is solve_tridiagonal in
+            tridiagonal_timing.cpp, in the course's C++ subset.
+            DERIVATION: matching (LU)_{i,i-1} = l_i u_{i-1} = a_i and
+            (LU)_{ii} = l_i c_{i-1} + u_i = b_i gives the first two
+            formulas; (LU)_{i,i+1} = c_i holds automatically. Count: per row,
+            l_i is 1 division, u_i 2 operations, y_i 2, x_i 3.
+          </aside>
+        </section>
+
+        <section>
+          <h2>From years to milliseconds</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.3;">
+              <img src="figures/tridiagonal_timing.png" style="width: 100%; display: block;"
+                alt="Time against number of unknowns on log-log axes. Dense LU grows like n cubed, extrapolating to 9 years at a million unknowns; the tridiagonal solver grows like n and takes 10 milliseconds at a million unknowns.">
+            </div>
+            <div class="col" style="font-size: 0.68em;">
+              <p>The same matrix, solved two ways, with our own C++ code.</p>
+              <p class="fragment">Dense LU at $n = 10^6$: about 9 years
+                (extrapolated).</p>
+              <p class="fragment">Tridiagonal at $n = 10^6$: 10 ms. At
+                $10^7$: 86 ms.</p>
+              <p class="fragment">The time grows like $n$: twice the
+                unknowns, twice the time.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>What about pivoting?</h2>
+          <ul style="font-size: 0.78em;">
+            <li>The recipe never swaps rows. A swap would push entries
+              outside the three diagonals.</li>
+            <li class="fragment">It is safe when the matrix is
+              <em>diagonally dominant</em>: each diagonal entry at least as
+              large as the rest of its row,
+              $$|b_i| \ge |a_i| + |c_i|,$$
+              with $&gt;$ in at least one row. Then no $u_i$ can become
+              small.</li>
+            <li class="fragment">Matrices from grids usually are. Lecture 12:
+              $|{-2} - \kappa^2 h^2| \ge 1 + 1$, with $&gt;$ in the first and
+              last rows.</li>
+            <li class="fragment">If not, use a banded LU with pivoting
+              (LAPACK's <code>gbsv</code>, behind
+              <code>solve_banded</code>).</li>
+          </ul>
+          <aside class="notes">
+            Precisely: strict diagonal dominance in every row, or weak
+            dominance with strict in at least one row for an irreducible
+            matrix (every point connected to every other through the
+            couplings), guarantees nonsingularity and that elimination without
+            pivoting is stable. The Lecture 12 matrices are irreducible.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Banded matrices</h2>
+          <ul style="font-size: 0.78em;">
+            <li>A matrix with $p$ nonzero diagonals on each side of the main
+              one. Elimination again stays inside the band: about $n p^2$
+              operations, storage $n p$.</li>
+            <li class="fragment">A 2D grid of $N \times N$ points, numbered row
+              by row: the neighbours above and below are $N$ places away in
+              the numbering, so $p = N$.</li>
+            <li class="fragment">$N = 1000$: $n = 10^6$ unknowns, about
+              $n p^2 = 10^{12}$ operations. Of order ten minutes, instead of
+              9 years.</li>
+          </ul>
+          <p class="fragment why">Structure turned years into minutes. Sparse
+            direct solvers and iterative methods go further still.</p>
+          <aside class="notes">
+            Inside the band elimination does fill in: the band of width N
+            becomes dense, n p = 1e9 numbers, 8 GB. Our dense code ran at
+            about 2.4e9 operations per second (2n^3/3 at n = 3200 in 9 s), so
+            2 n p^2 = 2e12 operations is about 14 minutes.
+          </aside>
+        </section>
+
+        <!-- ============ Part II: Cholesky ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Cholesky decomposition</h2>
+          <p>Symmetric positive definite matrices</p>
+        </section>
+
+        <section>
+          <h2>Symmetric positive definite</h2>
+          <ul style="font-size: 0.78em;">
+            <li><strong>Symmetric:</strong> $a_{ij} = a_{ji}$, so
+              $\mathbf{A}^T = \mathbf{A}$.</li>
+            <li class="fragment"><strong>Positive definite:</strong>
+              $\mathbf{v}^T\mathbf{A}\mathbf{v} &gt; 0$ for every
+              $\mathbf{v} \neq 0$. Equivalently, all eigenvalues are
+              positive.</li>
+          </ul>
+          <p class="fragment" style="font-size: 0.78em;">Physics is full of
+            them, because they are energies:</p>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">Coupled oscillators: the potential energy
+              $\tfrac{1}{2}\mathbf{x}^T\mathbf{K}\mathbf{x} &gt; 0$ for any
+              displacement, so the spring matrix $\mathbf{K}$ is positive
+              definite.</li>
+            <li class="fragment">Covariance matrices of noise or of fitted
+              parameters;
+              $\mathbf{A}^T\mathbf{A}$ in least squares (Lecture 16).</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>$\mathbf{A} = \mathbf{L}\mathbf{L}^T$: a 2 &times; 2 example</h2>
+          <p style="font-size: 0.78em;">For symmetric positive definite
+            $\mathbf{A}$, look for $\mathbf{U} = \mathbf{L}^T$:</p>
+          <div style="font-size: 0.85em;">
+          $$
+          \begin{pmatrix} 4 & 2 \\ 2 & 5 \end{pmatrix}
+          = \begin{pmatrix} l_{11} & 0 \\ l_{21} & l_{22} \end{pmatrix}
+          \begin{pmatrix} l_{11} & l_{21} \\ 0 & l_{22} \end{pmatrix}
+          = \begin{pmatrix} l_{11}^2 & l_{11}l_{21} \\ l_{11}l_{21} & l_{21}^2 + l_{22}^2 \end{pmatrix}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.78em;">Match the entries one
+            at a time:</p>
+          <div class="fragment" style="font-size: 0.85em;">
+          $$l_{11} = \sqrt{4} = 2, \qquad l_{21} = \frac{2}{l_{11}} = 1, \qquad l_{22} = \sqrt{5 - l_{21}^2} = 2$$
+          </div>
+          <p class="fragment" style="font-size: 0.78em;">So
+            $\mathbf{L} = \begin{pmatrix} 2 & 0 \\ 1 & 2 \end{pmatrix}$: a
+            lower-triangular "square root" of $\mathbf{A}$.</p>
+        </section>
+
+        <section>
+          <h2>The recipe</h2>
+          <p style="font-size: 0.78em;">The same matching, column by column,
+            $i = 1, \dots, n$:</p>
+          <div style="font-size: 0.85em;">
+          $$
+          \begin{aligned}
+          l_{ii} &= \Big(a_{ii} - \sum_{k &lt; i} l_{ik}^2\Big)^{1/2} \\
+          l_{ji} &= \frac{1}{l_{ii}}\Big(a_{ji} - \sum_{k &lt; i} l_{jk}\,l_{ik}\Big), \qquad j &gt; i
+          \end{aligned}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.78em;">Then solve
+            $\mathbf{A}\mathbf{x} = \mathbf{b}$ as with LU: forward
+            substitution with $\mathbf{L}$, back substitution with
+            $\mathbf{L}^T$.</p>
+          <aside class="notes">
+            DERIVATION: (L L^T)_{ji} = sum_{k &lt;= i} l_{jk} l_{ik} for j &gt;= i.
+            Setting j = i gives the diagonal formula; j &gt; i the column below.
+            Each l_{ji} needs only entries from earlier columns, so the
+            recipe can run column by column.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Why use Cholesky</h2>
+          <ul style="font-size: 0.8em;">
+            <li><strong>Half the work</strong> of LU, about $\tfrac{1}{3}n^3$,
+              and half the storage: only $\mathbf{L}$ is kept.</li>
+            <li class="fragment"><strong>No pivoting needed.</strong> It is
+              stable for every symmetric positive definite matrix.</li>
+            <li class="fragment"><strong>A free test.</strong> If
+              $\mathbf{A}$ is not positive definite, a square root of a
+              negative number appears. Attempting Cholesky is the cheapest
+              way to check.</li>
+          </ul>
+          <aside class="notes">
+            Stability without pivoting: each l_{ji}^2 &lt;= a_{jj} (from the
+            diagonal formula for row j), so the entries of L can never grow
+            larger than the square roots of the diagonal of A.
+          </aside>
+        </section>
+
+        <section>
+          <h2>A preview: random numbers with a shape</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.3;">
+              <img src="figures/correlated.png" style="width: 100%; display: block;"
+                alt="Left: 3000 random pairs form a round cloud. Right: the same pairs multiplied by L form a tilted, stretched cloud.">
+            </div>
+            <div class="col" style="font-size: 0.7em;">
+              <p>Later in the semester we will generate random numbers and
+                use them in simulations.</p>
+              <p class="fragment">Left: pairs of random numbers with nothing
+                to do with each other form a round cloud.</p>
+              <p class="fragment">Multiply every pair by the $\mathbf{L}$ of
+                our $2 \times 2$ example, and the cloud stretches and tilts:
+                the two numbers now tend to rise and fall together.</p>
+              <p class="fragment">Real noise often looks like the right
+                panel. Cholesky is how simulations produce it, and we will
+                come back to it with random numbers and Monte Carlo
+                methods.</p>
+            </div>
+          </div>
+          <!-- OLD text, too early for random numbers:
+          <h2>Correlated random numbers</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.3;">
+              <img src="figures/correlated.png" style="width: 100%; display: block;"
+                alt="Left: 3000 independent Gaussian pairs form a round cloud. Right: the same points multiplied by L form a tilted ellipse with covariance [[4, 2], [2, 5]].">
+            </div>
+            <div class="col" style="font-size: 0.68em;">
+              <p>Independent Gaussian numbers $\mathbf{z}$, multiplied by the
+                Cholesky factor $\mathbf{L}$ of a covariance matrix
+                $\boldsymbol{\Sigma}$, have covariance
+                $\mathbf{L}\mathbf{L}^T = \boldsymbol{\Sigma}$.</p>
+              <p class="fragment">Here $\boldsymbol{\Sigma} = \begin{pmatrix} 4 &amp; 2 \\ 2 &amp; 5 \end{pmatrix}$,
+                our example. Measured from 3000 samples:
+                $\begin{pmatrix} 4.04 &amp; 2.04 \\ 2.04 &amp; 5.07 \end{pmatrix}$.</p>
+              <p class="fragment">Used for correlated noise in simulations,
+                and for sampling fitted parameters with their
+                uncertainties.</p>
+            </div>
+          </div>
+          -->
+          <aside class="notes">
+            DERIVATION: cov(L z) = E[L z z^T L^T] = L E[z z^T] L^T = L I L^T.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Tell the library what you know</h2>
+          <ul style="font-size: 0.78em;">
+            <li><code>numpy.linalg.solve</code> always uses general LU with
+              partial pivoting (LAPACK's <code>gesv</code>).</li>
+            <li class="fragment"><code>scipy.linalg.solve(A, b, assume_a="pos")</code>
+              uses Cholesky, for symmetric positive definite
+              $\mathbf{A}$. <code>scipy.linalg.solve_banded</code> handles
+              tridiagonal and banded matrices.</li>
+            <li class="fragment">Eigen (C++): <code>PartialPivLU</code> for
+              general matrices, <code>LLT</code> for Cholesky, and a separate
+              module for sparse matrices.</li>
+          </ul>
+          <p class="fragment why">The library cannot guess the structure. If
+            you do not tell it, it pays the full $n^3$.</p>
+        </section>
+
+        <!-- ============ Part III: QR ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; QR decomposition</h2>
+          <p>Orthogonal times triangular</p>
+        </section>
+
+        <section>
+          <h2>$\mathbf{A} = \mathbf{Q}\mathbf{R}$</h2>
+          <ul style="font-size: 0.78em;">
+            <li>$\mathbf{R}$ is upper triangular. $\mathbf{Q}$ is
+              <em>orthogonal</em>: its columns are unit vectors, perpendicular
+              to each other, so $\mathbf{Q}^T\mathbf{Q} = \mathbf{I}$.</li>
+            <li class="fragment">For the matrix we will use below:</li>
+          </ul>
+          <div class="fragment" style="font-size: 0.72em;">
+          $$
+          \underbrace{\begin{pmatrix} 4 & 2 & 1 \\ 2 & 1 & 0 \\ 1 & 0 & 3 \end{pmatrix}}_{\mathbf{A}}
+          =
+          \underbrace{\begin{pmatrix} -0.873 & -0.195 & -0.447 \\ -0.436 & -0.098 & 0.894 \\ -0.218 & 0.976 & 0 \end{pmatrix}}_{\mathbf{Q}}
+          \underbrace{\begin{pmatrix} -4.583 & -2.182 & -1.528 \\ 0 & -0.488 & 2.733 \\ 0 & 0 & -0.447 \end{pmatrix}}_{\mathbf{R}}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.76em;">The first column of
+            $\mathbf{Q}$ is the first column of $\mathbf{A}$, normalized:
+            $-(4, 2, 1)/\sqrt{21}$. How to compute $\mathbf{Q}$ and
+            $\mathbf{R}$ in general: next lecture.</p>
+        </section>
+
+        <section>
+          <h2>Why orthogonal matrices are safe</h2>
+          <ul style="font-size: 0.78em;">
+            <li><strong>The inverse is free:</strong>
+              $\mathbf{Q}^{-1} = \mathbf{Q}^T$.</li>
+            <li class="fragment"><strong>Lengths are preserved:</strong>
+              $|\mathbf{Q}\mathbf{x}| = |\mathbf{x}|$. A rotation or
+              reflection does not stretch anything, so it cannot amplify
+              rounding errors.</li>
+            <li class="fragment"><strong>Solving:</strong>
+              $\mathbf{Q}\mathbf{R}\mathbf{x} = \mathbf{b}$ becomes
+              $\mathbf{R}\mathbf{x} = \mathbf{Q}^T\mathbf{b}$, then back
+              substitution.</li>
+            <li class="fragment"><strong>The price:</strong> about twice the
+              work of LU. For square systems LU is the default. QR is the tool
+              for rectangular matrices (least squares, Lecture 16) and for
+              eigenvalues.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: |Q x|^2 = x^T Q^T Q x = x^T x. Cost: Householder QR of
+            a square matrix is about 4n^3/3 operations, against 2n^3/3 for LU.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Eigenvalues from QR</h2>
+          <p style="font-size: 0.78em;">Start with $\mathbf{A}_0 = \mathbf{A}$,
+            and repeat:</p>
+          <div style="font-size: 0.85em;">
+          $$\text{factor } \mathbf{A}_k = \mathbf{Q}_k\mathbf{R}_k, \qquad \text{multiply in reverse: } \mathbf{A}_{k+1} = \mathbf{R}_k\mathbf{Q}_k$$
+          </div>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">Since $\mathbf{R}_k = \mathbf{Q}_k^T\mathbf{A}_k$:
+              $\mathbf{A}_{k+1} = \mathbf{Q}_k^T\mathbf{A}_k\mathbf{Q}_k$.
+              This is a change of basis, so $\mathbf{A}_{k+1}$ has the same
+              eigenvalues as $\mathbf{A}_k$, and so as $\mathbf{A}$.</li>
+            <li class="fragment">The iterates become triangular (diagonal, if
+              $\mathbf{A}$ is symmetric). The eigenvalues of a triangular
+              matrix are its diagonal entries.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION (same eigenvalues): if A_k v = lambda v, then
+            A_{k+1} (Q_k^T v) = Q_k^T A_k Q_k Q_k^T v = Q_k^T A_k v = lambda
+            (Q_k^T v). Why it converges: the product Q_0 Q_1 ... Q_k is the
+            orthogonalized result of k steps of power iteration on all
+            columns at once; the (i, j) off-diagonal entry shrinks like
+            |lambda_j / lambda_i|^k for |lambda_i| &gt; |lambda_j|. A
+            non-symmetric matrix converges to upper triangular (Schur) form.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The QR iteration on our matrix</h2>
+          <img src="figures/qr_iteration.png" style="width: 86%; margin: 0 auto; display: block;"
+            alt="Left: the three diagonal entries of A_k settle onto the eigenvalues 5.346, 2.722 and -0.069 within a few iterations. Right: the largest off-diagonal entry falls by about a factor of 2 per iteration, to 1e-9 after 30 iterations.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">The diagonal settles on the eigenvalues
+              $5.346$, $2.722$, $-0.069$ within a few iterations.</li>
+            <li class="fragment">The off-diagonal entries shrink by about a
+              factor of 2 per iteration, the ratio $2.72/5.35$ of two
+              eigenvalues: $10^{-3}$ after 10 iterations, $10^{-9}$ after
+              30. Close eigenvalues would mean slow convergence.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>What the libraries actually do</h2>
+          <ul style="font-size: 0.78em;">
+            <li>First, bring $\mathbf{A}$ to tridiagonal form (if
+              symmetric) with orthogonal transformations. Each QR step then
+              costs only about $n$ operations.</li>
+            <li class="fragment">Then QR iterations with <em>shifts</em>,
+              which make convergence fast even for close eigenvalues: a few
+              iterations per eigenvalue.</li>
+            <li class="fragment">This is <code>numpy.linalg.eigh</code>
+              (symmetric) and <code>eig</code> (general): about $n^3$ in
+              total.</li>
+            <li class="fragment">The particle in a box on a grid is already
+              tridiagonal: <code>scipy.linalg.eigh_tridiagonal</code> skips
+              the first step.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <table style="font-size: 0.68em; margin: 0.3em auto;">
+            <thead>
+              <tr><th>the matrix</th><th>the method</th><th>the cost</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>general, square</td><td>LU with partial pivoting</td><td>$\tfrac{2}{3}n^3$</td></tr>
+              <tr class="fragment"><td>tridiagonal</td><td>Thomas algorithm</td><td>about $8n$</td></tr>
+              <tr class="fragment"><td>banded, width $p$</td><td>banded LU</td><td>about $n p^2$</td></tr>
+              <tr class="fragment"><td>symmetric positive definite</td><td>Cholesky, $\mathbf{L}\mathbf{L}^T$</td><td>$\tfrac{1}{3}n^3$</td></tr>
+              <tr class="fragment"><td>any shape; eigenvalues</td><td>QR</td><td>$\tfrac{4}{3}n^3$ (square)</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment why">Next time: how to compute
+            $\mathbf{Q}$ and $\mathbf{R}$, and the singular value
+            decomposition.</p>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 14</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

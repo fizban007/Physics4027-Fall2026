@@ -34,6 +34,8 @@
             make_figures.py. 2026-10-18: the numerical examples were
             rewritten as step tables (one computation per fragment) with a
             staged Gram-Schmidt figure; the old slides are kept in comments.
+            2026-10-19: Part III (the SVD) moved to Lecture 16; kept in a
+            comment here.
           </aside>
         </section>
 
@@ -50,8 +52,7 @@
               and $\mathbf{R}$.</li>
           </ul>
           <p class="fragment why">Today: two ways to compute QR, one of which
-            fails in floating point. Then the decomposition that exists for
-            every matrix: the SVD.</p>
+            fails in floating point.</p>
         </section>
 
         <!-- ============ Part I: Gram-Schmidt ============ -->
@@ -317,7 +318,7 @@
             </div>
           </div>
           <aside class="notes">
-            Part III names kappa: it is the condition number, sigma_max /
+            Lecture 16 names kappa: it is the condition number, sigma_max /
             sigma_min, because the longest and shortest |A x| over unit x are
             the extreme singular values. Modified Gram-Schmidt
             subtracts each projection from the running vector immediately
@@ -348,7 +349,7 @@
             columns nearly cancels. That is exactly where Gram-Schmidt
             subtracts nearly equal vectors.</p>
           <aside class="notes">
-            Part III names kappa: it is the condition number, sigma_max /
+            Lecture 16 names kappa: it is the condition number, sigma_max /
             sigma_min, because the longest and shortest |A x| over unit x are
             the extreme singular values. For the eps example the SVD gives
             kappa = 1.732e8 exactly as estimated.
@@ -545,7 +546,7 @@
           </aside>
         </section>
 
-        <!-- ============ Part III: SVD ============ -->
+        <!-- MOVED (2026-10-19): Part III, the SVD introduction, was not reached in class and now opens Lecture 16.
 
         <section class="divider">
           <h2>Part III &middot; The singular value decomposition</h2>
@@ -594,32 +595,6 @@
           </aside>
         </section>
 
-        <!-- OLD (2026-10-18): replaced by the step-by-step version below.
-        <section>
-          <h2>An example</h2>
-          <div style="font-size: 0.72em;">
-          $$
-          \mathbf{A} = \begin{pmatrix} 1 & 0 & 0 & 0 & 2 \\ 0 & 0 & 3 & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \\ 0 & 4 & 0 & 0 & 0 \end{pmatrix}
-          $$
-          </div>
-          <div class="fragment" style="font-size: 0.66em;">
-          $$
-          \mathbf{U} = \begin{pmatrix} 0 & 0 & -1 & 0 \\ 0 & 1 & 0 & 0 \\ 0 & 0 & 0 & 1 \\ -1 & 0 & 0 & 0 \end{pmatrix},\quad
-          \boldsymbol{\Sigma} = \begin{pmatrix} 4 & 0 & 0 & 0 & 0 \\ 0 & 3 & 0 & 0 & 0 \\ 0 & 0 & \sqrt{5} & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \end{pmatrix},\quad
-          \mathbf{V} = \begin{pmatrix}
-            0 & 0 & -\tfrac{1}{\sqrt{5}} & -\tfrac{2}{\sqrt{5}} & 0 \\
-            -1 & 0 & 0 & 0 & 0 \\
-            0 & 1 & 0 & 0 & 0 \\
-            0 & 0 & 0 & 0 & 1 \\
-            0 & 0 & -\tfrac{2}{\sqrt{5}} & \tfrac{1}{\sqrt{5}} & 0
-          \end{pmatrix}
-          $$
-          </div>
-          <p class="fragment" style="font-size: 0.74em;">Singular values $4$,
-            $3$, $\sqrt{5}$, $0$. Check one: $\mathbf{v}_1 = (0, -1, 0, 0, 0)$
-            gives $\mathbf{A}\mathbf{v}_1 = (0, 0, 0, -4) = 4\,\mathbf{u}_1$.</p>
-        </section>
-        -->
 
 
         <section>
@@ -714,6 +689,8 @@
             how close to zero each $\sigma_i$ is.</p>
         </section>
 
+        -->
+
         <section>
           <h2>Summary</h2>
           <ul style="font-size: 0.8em;">
@@ -723,12 +700,15 @@
             <li class="fragment">Householder reflections zero a whole column
               at once and stay orthogonal to rounding precision. That is what
               libraries use.</li>
+            <!-- MOVED (2026-10-19) to Lecture 16:
             <li class="fragment">The SVD, $\mathbf{A} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T$:
               rotate, stretch, rotate. It exists for every matrix and reveals
               rank, range, and nullspace.</li>
+            -->
           </ul>
-          <p class="fragment why">Next time: the SVD at work. Least squares,
-            low-rank approximation, and principal component analysis.</p>
+          <p class="fragment why">Next time: the decomposition that exists for
+            every matrix, the SVD, and what it is for: least squares, low-rank
+            approximation, and principal component analysis.</p>
         </section>
 
       </div>

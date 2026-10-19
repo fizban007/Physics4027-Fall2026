@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 15</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 15</p>
+          <h1>Computing QR, and the SVD</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            Follows the 2025 Lecture 16: Gram-Schmidt, Householder, the start
+            of the SVD. Corrections: the 2025 nullspace vector (-2,0,0,1,0)
+            should be (-2,0,0,0,1); the Householder sign choice is added. New:
+            the measured loss of orthogonality, the 2D pictures, the
+            rotate-stretch-rotate figure. Every number is printed by
+            make_figures.py. 2026-10-18: the numerical examples were
+            rewritten as step tables (one computation per fragment) with a
+            staged Gram-Schmidt figure; the old slides are kept in comments.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Last time: $\mathbf{A} = \mathbf{Q}\mathbf{R}$</h2>
+          <ul style="font-size: 0.8em;">
+            <li>$\mathbf{Q}$ has orthonormal columns, $\mathbf{Q}^T\mathbf{Q} = \mathbf{I}$;
+              $\mathbf{R}$ is upper triangular.</li>
+            <li class="fragment">We used it to solve systems
+              ($\mathbf{R}\mathbf{x} = \mathbf{Q}^T\mathbf{b}$) and to find
+              eigenvalues (the QR iteration). It also works for rectangular
+              matrices.</li>
+            <li class="fragment">But we never said how to find $\mathbf{Q}$
+              and $\mathbf{R}$.</li>
+          </ul>
+          <p class="fragment why">Today: two ways to compute QR, one of which
+            fails in floating point. Then the decomposition that exists for
+            every matrix: the SVD.</p>
+        </section>
+
+        <!-- ============ Part I: Gram-Schmidt ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Gram-Schmidt</h2>
+          <p>Straighten the columns one at a time</p>
+        </section>
+
+        <section>
+          <h2>Think in columns</h2>
+          $$
+          \mathbf{A} = \begin{pmatrix} | & | & & | \\ \mathbf{a}_1 & \mathbf{a}_2 & \cdots & \mathbf{a}_n \\ | & | & & | \end{pmatrix}
+          $$
+          <p class="fragment" style="font-size: 0.78em;">Goal: orthonormal
+            vectors $\mathbf{e}_1, \mathbf{e}_2, \dots, \mathbf{e}_n$ (the
+            columns of $\mathbf{Q}$), built so that</p>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">$\mathbf{e}_1$ points along $\mathbf{a}_1$;</li>
+            <li class="fragment">$\mathbf{e}_2$ lies in the plane of
+              $\mathbf{a}_1$ and $\mathbf{a}_2$;</li>
+            <li class="fragment">in general, each $\mathbf{a}_i$ is a
+              combination of $\mathbf{e}_1, \dots, \mathbf{e}_i$ only.</li>
+          </ul>
+          <p class="fragment" style="font-size: 0.76em;">That last property is
+            what makes $\mathbf{R}$ upper triangular.</p>
+        </section>
+
+        <section>
+          <h2>The Gram-Schmidt process</h2>
+          <p style="font-size: 0.78em;">From each column, remove its components
+            along all the earlier $\mathbf{e}_j$, then normalize what is
+            left:</p>
+          <div style="font-size: 0.82em;">
+          $$
+          \begin{array}{ll}
+          \mathbf{u}_1 = \mathbf{a}_1, & \mathbf{e}_1 = \mathbf{u}_1/|\mathbf{u}_1| \\[4pt]
+          \mathbf{u}_2 = \mathbf{a}_2 - (\mathbf{e}_1\cdot\mathbf{a}_2)\,\mathbf{e}_1, & \mathbf{e}_2 = \mathbf{u}_2/|\mathbf{u}_2| \\[4pt]
+          \mathbf{u}_3 = \mathbf{a}_3 - (\mathbf{e}_1\cdot\mathbf{a}_3)\,\mathbf{e}_1 - (\mathbf{e}_2\cdot\mathbf{a}_3)\,\mathbf{e}_2, & \mathbf{e}_3 = \mathbf{u}_3/|\mathbf{u}_3| \\[4pt]
+          \quad\vdots & \\[4pt]
+          \mathbf{u}_i = \mathbf{a}_i - \displaystyle\sum_{j &lt; i}(\mathbf{e}_j\cdot\mathbf{a}_i)\,\mathbf{e}_j, & \mathbf{e}_i = \mathbf{u}_i/|\mathbf{u}_i|
+          \end{array}
+          $$
+          </div>
+        </section>
+
+        <!-- OLD (2026-10-18): replaced by the step-by-step version below.
+        <section>
+          <h2>In two dimensions</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.05;">
+              <img src="figures/gram_schmidt.png" style="width: 100%; display: block;"
+                alt="Gram-Schmidt in the plane: a1 = (3, 4) gives e1; the projection of a2 = (-1, 3) onto e1 is removed, leaving u2, which is normalized to e2.">
+            </div>
+            <div class="col" style="font-size: 0.7em;">
+              <p>$\mathbf{a}_1 = (3, 4)$, $\mathbf{a}_2 = (-1, 3)$.</p>
+              <p class="fragment">$|\mathbf{a}_1| = 5$, so
+                $\mathbf{e}_1 = (0.6,\ 0.8)$.</p>
+              <p class="fragment">$\mathbf{e}_1\cdot\mathbf{a}_2 = 1.8$. Remove
+                that much of $\mathbf{e}_1$:
+                $\mathbf{u}_2 = \mathbf{a}_2 - 1.8\,\mathbf{e}_1 = (-2.08,\ 1.56)$.</p>
+              <p class="fragment">$|\mathbf{u}_2| = 2.6$, so
+                $\mathbf{e}_2 = (-0.8,\ 0.6)$, perpendicular to
+                $\mathbf{e}_1$.</p>
+            </div>
+          </div>
+        </section>
+        -->
+
+
+        <section>
+          <h2>In two dimensions</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 0.95;">
+              <div class="r-stack">
+                <img src="figures/gram_schmidt_0.png" style="width: 100%; display: block;"
+                  alt="The two columns a1 = (3, 4) and a2 = (-1, 3) drawn as arrows from the origin.">
+                <img class="fragment" data-fragment-index="1" src="figures/gram_schmidt_1.png" style="width: 100%; display: block;"
+                  alt="The unit vector e1 along a1 is added.">
+                <img class="fragment" data-fragment-index="2" src="figures/gram_schmidt_2.png" style="width: 100%; display: block;"
+                  alt="The projection of a2 onto e1, of length 1.8, is drawn along e1.">
+                <img class="fragment" data-fragment-index="3" src="figures/gram_schmidt_3.png" style="width: 100%; display: block;"
+                  alt="The remainder u2, from the tip of the projection to the tip of a2, is added.">
+                <img class="fragment" data-fragment-index="4" src="figures/gram_schmidt_4.png" style="width: 100%; display: block;"
+                  alt="The unit vector e2 along u2 completes the picture, perpendicular to e1.">
+              </div>
+            </div>
+            <div class="col" style="flex: 1.2;">
+              <table style="font-size: 0.58em; margin: 0;">
+                <tbody>
+                  <tr><td>start</td>
+                    <td>$\mathbf{a}_1 = (3,\ 4)$, $\quad \mathbf{a}_2 = (-1,\ 3)$</td></tr>
+                  <tr class="fragment" data-fragment-index="1"><td>normalize $\mathbf{a}_1$</td>
+                    <td>$|\mathbf{a}_1| = \sqrt{3^2 + 4^2} = 5$<br>
+                        $\mathbf{e}_1 = \mathbf{a}_1 / 5 = (0.6,\ 0.8)$</td></tr>
+                  <tr class="fragment" data-fragment-index="2"><td>how much $\mathbf{e}_1$ is in $\mathbf{a}_2$</td>
+                    <td>$\mathbf{e}_1 \cdot \mathbf{a}_2 = 0.6 \cdot (-1) + 0.8 \cdot 3 = 1.8$</td></tr>
+                  <tr class="fragment" data-fragment-index="3"><td>remove it</td>
+                    <td>$\mathbf{u}_2 = \mathbf{a}_2 - 1.8\,\mathbf{e}_1$<br>
+                        $\phantom{\mathbf{u}_2} = (-1,\ 3) - (1.08,\ 1.44) = (-2.08,\ 1.56)$</td></tr>
+                  <tr class="fragment" data-fragment-index="4"><td>normalize $\mathbf{u}_2$</td>
+                    <td>$|\mathbf{u}_2| = \sqrt{2.08^2 + 1.56^2} = 2.6$<br>
+                        $\mathbf{e}_2 = \mathbf{u}_2 / 2.6 = (-0.8,\ 0.6)$</td></tr>
+                  <tr class="fragment" data-fragment-index="5"><td>check</td>
+                    <td>$\mathbf{e}_1 \cdot \mathbf{e}_2 = -0.48 + 0.48 = 0$</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Reading off $\mathbf{R}$</h2>
+          <p style="font-size: 0.78em;">Turn the process around and write each
+            column in terms of the $\mathbf{e}$'s:</p>
+          <div style="font-size: 0.82em;">
+          $$\mathbf{a}_1 = |\mathbf{u}_1|\,\mathbf{e}_1, \qquad
+          \mathbf{a}_2 = (\mathbf{e}_1\cdot\mathbf{a}_2)\,\mathbf{e}_1 + |\mathbf{u}_2|\,\mathbf{e}_2, \qquad \dots$$
+          </div>
+          <p class="fragment" style="font-size: 0.78em;">In matrix form, that is
+            $\mathbf{A} = \mathbf{Q}\mathbf{R}$, with
+            $r_{ji} = \mathbf{e}_j\cdot\mathbf{a}_i$ above the diagonal and
+            $r_{ii} = |\mathbf{u}_i|$ on it. For our example:</p>
+          <div class="fragment" style="font-size: 0.85em;">
+          $$
+          \begin{pmatrix} 3 & -1 \\ 4 & 3 \end{pmatrix}
+          = \begin{pmatrix} 0.6 & -0.8 \\ 0.8 & 0.6 \end{pmatrix}
+          \begin{pmatrix} 5 & 1.8 \\ 0 & 2.6 \end{pmatrix}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.78em;">Every entry of
+            $\mathbf{R}$ is a number we already computed along the way.</p>
+        </section>
+
+        <!-- OLD (2026-10-18): replaced by the step-by-step version below.
+        <section>
+          <h2>Gram-Schmidt can fail</h2>
+          <div class="cols" style="align-items: flex-start;">
+            <div class="col" style="font-size: 0.68em;">
+              $$\mathbf{A} = \begin{pmatrix} 1 & 1 & 1 \\ \varepsilon & 0 & 0 \\ 0 & \varepsilon & 0 \\ 0 & 0 & \varepsilon \end{pmatrix},
+              \qquad \varepsilon = 10^{-8}$$
+              <p>Three columns, nearly parallel but independent.</p>
+            </div>
+            <div class="col" style="font-size: 0.68em;">
+              <p class="fragment">$|\mathbf{a}_1| = \sqrt{1 + \varepsilon^2}$,
+                and $1 + 10^{-16}$ rounds to 1. So
+                $\mathbf{e}_1 = (1, \varepsilon, 0, 0)$.</p>
+              <p class="fragment">$\mathbf{u}_2 = \mathbf{a}_2 - \mathbf{e}_1 = (0, -\varepsilon, \varepsilon, 0)$,
+                so $\mathbf{e}_2 = (0, -1, 1, 0)/\sqrt{2}$.</p>
+              <p class="fragment">$\mathbf{e}_2\cdot\mathbf{a}_3 = 0$, so
+                $\mathbf{u}_3 = \mathbf{a}_3 - \mathbf{e}_1 = (0, -\varepsilon, 0, \varepsilon)$,
+                so $\mathbf{e}_3 = (0, -1, 0, 1)/\sqrt{2}$.</p>
+            </div>
+          </div>
+          <p class="fragment" style="font-size: 0.76em;">Then
+            $\mathbf{e}_2\cdot\mathbf{e}_3 = 1/2$, not 0: the "orthonormal"
+            vectors are $60°$ apart. The computer returns exactly this.</p>
+          <aside class="notes">
+            The second removal, (e2 . a3) e2, is zero because e2 . a3 = 0 in
+            the rounded arithmetic. In exact arithmetic e1 has a tiny
+            correction of order eps^2 that would make the projections
+            consistent; rounding throws it away, and subtracting nearly equal
+            vectors amplifies that loss.
+          </aside>
+        </section>
+        -->
+
+
+        <section>
+          <h2>Gram-Schmidt can fail</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 0.85; font-size: 0.7em;">
+              $$\mathbf{A} = \begin{pmatrix} 1 & 1 & 1 \\ \varepsilon & 0 & 0 \\ 0 & \varepsilon & 0 \\ 0 & 0 & \varepsilon \end{pmatrix},
+              \qquad \varepsilon = 10^{-8}$$
+              <p>Three columns, nearly parallel but independent. Run the same
+                steps, rounding where the computer rounds.</p>
+            </div>
+            <div class="col" style="flex: 1.3;">
+              <table style="font-size: 0.56em; margin: 0;">
+                <tbody>
+                  <tr class="fragment"><td>normalize $\mathbf{a}_1$</td>
+                    <td>$|\mathbf{a}_1| = \sqrt{1 + 10^{-16}}$, and $1 + 10^{-16}$ rounds to $1$<br>
+                        $\mathbf{e}_1 = \mathbf{a}_1 / 1 = (1,\ \varepsilon,\ 0,\ 0)$</td></tr>
+                  <tr class="fragment"><td>second column</td>
+                    <td>$\mathbf{e}_1 \cdot \mathbf{a}_2 = 1 \cdot 1 + \varepsilon \cdot 0 = 1$, so $\mathbf{u}_2 = \mathbf{a}_2 - \mathbf{e}_1 = (0,\ -\varepsilon,\ \varepsilon,\ 0)$<br>
+                        $|\mathbf{u}_2| = \sqrt{2}\,\varepsilon$, so $\mathbf{e}_2 = (0,\ -1,\ 1,\ 0)/\sqrt{2}$</td></tr>
+                  <tr class="fragment"><td>third column</td>
+                    <td>$\mathbf{e}_1 \cdot \mathbf{a}_3 = 1$ and $\mathbf{e}_2 \cdot \mathbf{a}_3 = 0$, so $\mathbf{u}_3 = \mathbf{a}_3 - \mathbf{e}_1 = (0,\ -\varepsilon,\ 0,\ \varepsilon)$<br>
+                        $\mathbf{e}_3 = (0,\ -1,\ 0,\ 1)/\sqrt{2}$</td></tr>
+                  <tr class="fragment"><td>check</td>
+                    <td>$\mathbf{e}_2 \cdot \mathbf{e}_3 = \tfrac{1}{2}\,(0 + 1 + 0 + 0) = \tfrac{1}{2}$, not $0$</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="fragment why">The "orthonormal" vectors $\mathbf{e}_2$ and
+            $\mathbf{e}_3$ are $60°$ apart. The computer returns exactly this.</p>
+        </section>
+
+        <section>
+          <h2>What went wrong</h2>
+          <ul style="font-size: 0.76em;">
+            <li>Only one rounding mattered: $1 + \varepsilon^2 \to 1$ in
+              $|\mathbf{a}_1|$. It changed $\mathbf{e}_1$ by about
+              $\varepsilon^2 = 10^{-16}$. Harmless, it seems.</li>
+            <li class="fragment">In exact arithmetic that correction leaks into
+              $\mathbf{u}_2$, whose first entry is $\varepsilon^2$ rather than
+              $0$. After dividing by $|\mathbf{u}_2| \approx \sqrt{2}\,\varepsilon$,
+              the first entry of $\mathbf{e}_2$ is about $\varepsilon/\sqrt{2}$,
+              and $\mathbf{e}_2 \cdot \mathbf{a}_3 \approx \varepsilon/\sqrt{2}$
+              instead of $0$.</li>
+            <li class="fragment">So the term $(\mathbf{e}_2 \cdot \mathbf{a}_3)\,\mathbf{e}_2$
+              that the rounded run skipped has size $\varepsilon$. And
+              $\mathbf{u}_3$ itself has size $\varepsilon$. The skipped term is
+              as big as the answer.</li>
+          </ul>
+          <p class="fragment why">Subtracting nearly equal vectors leaves a
+            small remainder, and every small error is then a large fraction
+            of it: catastrophic cancellation (Lecture 1), one vector at a
+            time.</p>
+          <aside class="notes">
+            DERIVATION: exactly, e1 = (1, eps, 0, 0)/sqrt(1 + eps^2) and
+            e1 . a2 = 1/sqrt(1 + eps^2), so u2 = a2 - (e1 . a2) e1 =
+            (eps^2, -eps, eps (1 + eps^2), 0)/(1 + eps^2). Its first entry is
+            eps^2, not 0. Dividing by |u2| of about sqrt(2) eps gives e2 with
+            first entry about eps/sqrt(2), so e2 . a3 = eps/sqrt(2) + O(eps^3).
+            Then u3 = a3 - (e1 . a3) e1 - (e2 . a3) e2 is about
+            (0, -eps/2, -eps/2, eps), which is orthogonal to u2. The rounded
+            run computed (0, -eps, 0, eps) instead, which is not.
+          </aside>
+        </section>
+
+        <!-- OLD (2026-10-18): split into the two slides below.
+        <section>
+          <h2>How bad, in general</h2>
+          <p style="font-size: 0.7em; margin-bottom: 0.3em;">$\kappa$ measures
+            how close the columns are to dependent. Combine them with
+            unit-length coefficients,
+            $\mathbf{A}\mathbf{x} = x_1\mathbf{a}_1 + \dots + x_n\mathbf{a}_n$
+            with $|\mathbf{x}| = 1$: $\kappa$ is the length of the longest such
+            vector divided by the shortest.</p>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.25;">
+              <img src="figures/orthogonality.png" style="width: 100%; display: block;"
+                alt="Loss of orthogonality against kappa, the ratio of the longest to the shortest unit combination of the columns. Classical Gram-Schmidt reaches complete loss near kappa = 1e9; modified Gram-Schmidt degrades in proportion to kappa; Householder stays at 1e-15 throughout. A dashed line marks the epsilon example at kappa = 1.7e8.">
+            </div>
+            <div class="col" style="font-size: 0.62em;">
+              <p>Orthonormal columns: $\kappa = 1$. The $\varepsilon$ example:
+                longest $\approx \sqrt{3}$, shortest
+                $(\mathbf{a}_1 - \mathbf{a}_2)/\sqrt{2}$ of length
+                $\varepsilon$, so $\kappa \approx 1.7 \times 10^8$
+                (dashed line).</p>
+              <p>The curves: $60 \times 30$ random matrices with $\kappa$ from
+                $1$ to $10^{16}$. Vertical axis: how far the computed
+                $\mathbf{Q}$ is from orthogonal.</p>
+              <p class="fragment"><strong>Classical</strong> Gram-Schmidt
+                (the process above) loses orthogonality completely.</p>
+              <p class="fragment"><strong>Modified</strong> Gram-Schmidt does
+                the same subtractions in a different order. Better, but still
+                degrades.</p>
+              <p class="fragment"><strong>Householder</strong> stays at
+                rounding level, always.</p>
+            </div>
+          </div>
+          <aside class="notes">
+            Part III names kappa: it is the condition number, sigma_max /
+            sigma_min, because the longest and shortest |A x| over unit x are
+            the extreme singular values. Modified Gram-Schmidt
+            subtracts each projection from the running vector immediately
+            (u &lt;- u - (e_j . u) e_j) instead of from the original a_i.
+            Measured: kappa 1e6: classical 2e-3, modified 4e-11, Householder
+            9e-16; kappa 1e15: classical 1, modified 9e-3, Householder 1e-15.
+          </aside>
+        </section>
+        -->
+
+        <section>
+          <h2>How close to dependent?</h2>
+          <p style="font-size: 0.78em;">Combine the columns with unit-length
+            coefficients:
+            $\mathbf{A}\mathbf{x} = x_1\mathbf{a}_1 + \dots + x_n\mathbf{a}_n$,
+            $\ |\mathbf{x}| = 1$.</p>
+          <p class="fragment" style="font-size: 0.78em;">
+            $$\kappa = \frac{\text{length of the longest such vector}}{\text{length of the shortest}}$$
+          </p>
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">Orthonormal columns: every unit combination
+              has length $1$, so $\kappa = 1$.</li>
+            <li class="fragment">The $\varepsilon$ example: $(\mathbf{a}_1 + \mathbf{a}_2 + \mathbf{a}_3)/\sqrt{3}$
+              has length about $\sqrt{3}$; $(\mathbf{a}_1 - \mathbf{a}_2)/\sqrt{2}$
+              has length $\varepsilon$. So $\kappa \approx \sqrt{3}/10^{-8} \approx 1.7 \times 10^8$.</li>
+          </ul>
+          <p class="fragment why">Large $\kappa$ means some combination of the
+            columns nearly cancels. That is exactly where Gram-Schmidt
+            subtracts nearly equal vectors.</p>
+          <aside class="notes">
+            Part III names kappa: it is the condition number, sigma_max /
+            sigma_min, because the longest and shortest |A x| over unit x are
+            the extreme singular values. For the eps example the SVD gives
+            kappa = 1.732e8 exactly as estimated.
+          </aside>
+        </section>
+
+        <section>
+          <h2>How bad, in general</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.5;">
+              <img src="figures/orthogonality.png" style="width: 100%; display: block;"
+                alt="Loss of orthogonality against kappa. Classical Gram-Schmidt reaches complete loss near kappa = 1e9; modified Gram-Schmidt degrades in proportion to kappa; Householder stays at 1e-15 throughout. A dashed line marks the epsilon example at kappa = 1.7e8.">
+            </div>
+            <div class="col" style="font-size: 0.64em;">
+              <p>$60 \times 30$ random matrices, $\kappa$ from $1$ to
+                $10^{16}$. Dashed line: the $\varepsilon$ example.</p>
+              <p class="fragment"><strong>Classical</strong> Gram-Schmidt
+                (the process above): complete loss by $\kappa \sim 10^9$.</p>
+              <p class="fragment"><strong>Modified</strong> Gram-Schmidt, the
+                same subtractions in a different order: error grows in
+                proportion to $\kappa$.</p>
+              <p class="fragment"><strong>Householder</strong> (next part):
+                rounding level, always.</p>
+            </div>
+          </div>
+          <aside class="notes">
+            Modified Gram-Schmidt subtracts each projection from the running
+            vector immediately (u &lt;- u - (e_j . u) e_j) instead of from the
+            original a_i. Measured: kappa 1e6: classical 2e-3, modified 4e-11,
+            Householder 9e-16; kappa 1e15: classical 1, modified 9e-3,
+            Householder 1e-15.
+          </aside>
+        </section>
+
+        <!-- ============ Part II: Householder ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Householder reflections</h2>
+          <p>Reflect instead of subtract</p>
+        </section>
+
+        <section>
+          <h2>The goal</h2>
+          <p style="font-size: 0.78em;">Find an orthogonal matrix $\mathbf{P}$
+            that turns a column into a multiple of $\mathbf{e}_1$:</p>
+          $$
+          \mathbf{a} = \begin{pmatrix} a_1 \\ a_2 \\ \vdots \\ a_n \end{pmatrix}
+          \quad\longrightarrow\quad
+          \mathbf{P}\mathbf{a} = \begin{pmatrix} \alpha \\ 0 \\ \vdots \\ 0 \end{pmatrix}
+          $$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">An orthogonal matrix keeps lengths, so
+              $\alpha = \pm|\mathbf{a}|$.</li>
+            <li class="fragment">Applied to the first column of
+              $\mathbf{A}$, this zeros everything below the diagonal, in one
+              step. No subtraction of nearly equal vectors.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>A reflection does it</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="font-size: 0.68em;">
+              $$\mathbf{P} = \mathbf{I} - 2\,\mathbf{v}\mathbf{v}^T, \qquad
+              \mathbf{v} = \frac{\mathbf{u}}{|\mathbf{u}|}, \qquad
+              \mathbf{u} = \mathbf{a} - \alpha\,\mathbf{e}_1$$
+              <p class="fragment">$\mathbf{P}$ reflects every vector in the
+                mirror perpendicular to $\mathbf{u}$. It is symmetric,
+                orthogonal, and its own inverse: reflecting twice changes
+                nothing.</p>
+        <!-- OLD (2026-10-18): replaced by the step-by-step version below.
+              <p class="fragment">Example: $\mathbf{a} = (3, 4)$,
+                $\alpha = -5$, $\mathbf{u} = (8, 4)$:
+                $$\mathbf{P} = \begin{pmatrix} -0.6 &amp; -0.8 \\ -0.8 &amp; 0.6 \end{pmatrix}, \qquad
+                \mathbf{P}\mathbf{a} = \begin{pmatrix} -5 \\ 0 \end{pmatrix}$$</p>
+        -->
+              <p class="fragment">In the figure, $\mathbf{a} = (3, 4)$ lands on
+                $(-5, 0)$. The arithmetic is on the next slide.</p>
+            </div>
+            <div class="col" style="flex: 1.15;">
+              <img src="figures/householder.png" style="width: 100%; display: block;"
+                alt="The vector a = (3, 4) is reflected in a mirror line perpendicular to u = a + 5 e1, landing on (-5, 0).">
+            </div>
+          </div>
+          <aside class="notes">
+            DERIVATION: P a = a - 2 v (v . a) = a - u [2 (u . a) / |u|^2].
+            With |alpha| = |a|: u . a = |a|^2 - alpha a_1 and |u|^2 =
+            |a|^2 - 2 alpha a_1 + alpha^2 = 2 (|a|^2 - alpha a_1). So the
+            bracket is 1 and P a = a - u = alpha e1.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The reflection, by the numbers</h2>
+          <p style="font-size: 0.76em;">Same $\mathbf{a} = (3, 4)$ as in the
+            Gram-Schmidt example. Send it onto the $x$ axis.</p>
+          <table style="font-size: 0.6em; margin: 0.2em auto;">
+            <tbody>
+              <tr class="fragment"><td>the target</td>
+                <td>$|\mathbf{a}| = 5$; take $\alpha = -5$ (why the minus sign: next slide)</td></tr>
+              <tr class="fragment"><td>the mirror normal</td>
+                <td>$\mathbf{u} = \mathbf{a} - \alpha\,\mathbf{e}_1 = (3 + 5,\ 4) = (8,\ 4)$, $\quad
+                    \mathbf{v} = \mathbf{u}/|\mathbf{u}| = (8,\ 4)/\sqrt{80} = (2,\ 1)/\sqrt{5}$</td></tr>
+              <tr class="fragment"><td>the matrix</td>
+                <td>$\mathbf{v}\mathbf{v}^T = \tfrac{1}{5}\begin{pmatrix} 4 &amp; 2 \\ 2 &amp; 1 \end{pmatrix}$, $\quad
+                    \mathbf{P} = \mathbf{I} - 2\,\mathbf{v}\mathbf{v}^T
+                    = \begin{pmatrix} 1 - \tfrac{8}{5} &amp; -\tfrac{4}{5} \\ -\tfrac{4}{5} &amp; 1 - \tfrac{2}{5} \end{pmatrix}
+                    = \begin{pmatrix} -0.6 &amp; -0.8 \\ -0.8 &amp; 0.6 \end{pmatrix}$</td></tr>
+              <tr class="fragment"><td>apply it</td>
+                <td>$\mathbf{P}\mathbf{a} = (-0.6 \cdot 3 - 0.8 \cdot 4,\ \ -0.8 \cdot 3 + 0.6 \cdot 4) = (-5,\ 0)$</td></tr>
+              <tr class="fragment"><td>check</td>
+                <td>$\mathbf{P}^T\mathbf{P} = \mathbf{I}$ and $\mathbf{P}\mathbf{P} = \mathbf{I}$: orthogonal, and its own inverse</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment why">The rows of $\mathbf{P}$ are the
+            Gram-Schmidt directions $\mathbf{e}_1$ and $\mathbf{e}_2$, up to
+            sign. One reflection found both at once.</p>
+        </section>
+
+        <section>
+          <h2>Which sign for $\alpha$?</h2>
+          <ul style="font-size: 0.78em;">
+            <li>Both $\alpha = +|\mathbf{a}|$ and $-|\mathbf{a}|$ work on paper:
+              there are two mirrors.</li>
+            <li class="fragment">But $u_1 = a_1 - \alpha$. If $\mathbf{a}$
+              already points almost along $\mathbf{e}_1$ and $\alpha$ has the
+              same sign as $a_1$, this subtracts two nearly equal numbers:
+              catastrophic cancellation (Lecture 1).</li>
+            <li class="fragment">$\mathbf{a} = (1, 10^{-9})$:
+              $a_1 - |\mathbf{a}|$ computes to $0$ (exact:
+              $-5 \times 10^{-19}$), and $\mathbf{u}$ points the wrong way.
+              $a_1 + |\mathbf{a}| = 2$ is computed exactly.</li>
+          </ul>
+          <p class="fragment why">Always choose $\alpha$ with the opposite
+            sign to $a_1$, so that $u_1 = a_1 + \operatorname{sign}(a_1)\,|\mathbf{a}|$ adds.</p>
+        </section>
+
+        <section>
+          <h2>Column by column</h2>
+          <p style="font-size: 0.76em;">Each reflection works on the rows not yet
+            finished, and leaves the earlier rows and columns alone:</p>
+          <div style="font-size: 0.78em;">
+          $$
+          \begin{pmatrix} \times & \times & \times \\ \times & \times & \times \\ \times & \times & \times \\ \times & \times & \times \end{pmatrix}
+          \xrightarrow{\ \mathbf{P}_1\ }
+          \begin{pmatrix} \times & \times & \times \\ 0 & \times & \times \\ 0 & \times & \times \\ 0 & \times & \times \end{pmatrix}
+          \xrightarrow{\ \mathbf{P}_2\ }
+          \begin{pmatrix} \times & \times & \times \\ 0 & \times & \times \\ 0 & 0 & \times \\ 0 & 0 & \times \end{pmatrix}
+          \xrightarrow{\ \mathbf{P}_3\ }
+          \begin{pmatrix} \times & \times & \times \\ 0 & \times & \times \\ 0 & 0 & \times \\ 0 & 0 & 0 \end{pmatrix}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.76em;">So
+            $\mathbf{P}_3\mathbf{P}_2\mathbf{P}_1\mathbf{A} = \mathbf{R}$. Each
+            $\mathbf{P}_i$ is its own inverse, so
+            $\mathbf{A} = (\mathbf{P}_1\mathbf{P}_2\mathbf{P}_3)\,\mathbf{R} = \mathbf{Q}\mathbf{R}$.</p>
+        <!-- OLD (2026-10-18): replaced by the step-by-step version below.
+          <p class="fragment" style="font-size: 0.76em;">Our $2 \times 2$
+            example needs one reflection:
+            $\mathbf{P}\mathbf{a}_1 = (-5, 0)$, $\mathbf{P}\mathbf{a}_2 = (-1.8, 2.6)$,
+            so $\mathbf{R} = \begin{pmatrix} -5 &amp; -1.8 \\ 0 &amp; 2.6 \end{pmatrix}$:
+            Gram-Schmidt's answer, up to signs.</p>
+        -->
+          <p class="fragment" style="font-size: 0.76em;">Our $2 \times 2$
+            example needs one reflection. Apply the $\mathbf{P}$ we built to
+            both columns: $\mathbf{P}\mathbf{a}_1 = (-5,\ 0)$ and
+            $\mathbf{P}\mathbf{a}_2 = (-0.6 \cdot (-1) - 0.8 \cdot 3,\ \ -0.8 \cdot (-1) + 0.6 \cdot 3) = (-1.8,\ 2.6)$,
+            so $\mathbf{R} = \begin{pmatrix} -5 &amp; -1.8 \\ 0 &amp; 2.6 \end{pmatrix}$:
+            Gram-Schmidt's answer, up to signs.</p>
+        </section>
+
+        <section>
+          <h2>Why libraries use Householder</h2>
+          <ul style="font-size: 0.78em;">
+            <li><strong>Accurate:</strong> $\mathbf{Q}$ is orthogonal to
+              rounding precision, for any $\mathbf{A}$.</li>
+            <li class="fragment"><strong>Cheap:</strong> about
+              $\tfrac{4}{3}n^3$ operations for a square matrix, and
+              $\mathbf{Q}$ is never formed: only the vectors $\mathbf{v}_i$ are
+              stored, and the reflections applied when needed.</li>
+            <li class="fragment"><code>numpy.linalg.qr</code> (LAPACK's
+              <code>geqrf</code>) and Eigen's <code>HouseholderQR</code> both
+              use it.</li>
+            <li class="fragment">Applied from both sides,
+              $\mathbf{P}\mathbf{A}\mathbf{P}$, the same reflections bring a
+              symmetric matrix to tridiagonal form: the first step of the
+              eigenvalue solvers of Lecture 14.</li>
+          </ul>
+          <aside class="notes">
+            Applying P = I - 2 v v^T to a vector x costs only a dot product
+            and an update: P x = x - 2 v (v . x), about 4n operations, never
+            an n x n matrix. For m x n, Householder QR costs about
+            2 m n^2 - 2 n^3/3.
+          </aside>
+        </section>
+
+        <!-- ============ Part III: SVD ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; The singular value decomposition</h2>
+          <p>Rotate, stretch, rotate</p>
+        </section>
+
+        <section>
+          <h2>Every matrix has an SVD</h2>
+          <p style="font-size: 0.78em;">Any real $m \times n$ matrix, of any
+            shape and any rank, can be written</p>
+          $$\mathbf{A} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">$\mathbf{U}$ ($m \times m$) and $\mathbf{V}$
+              ($n \times n$) are orthogonal.</li>
+            <li class="fragment">$\boldsymbol{\Sigma}$ ($m \times n$) is
+              diagonal, with the <em>singular values</em>
+              $\sigma_1 \ge \sigma_2 \ge \dots \ge 0$.</li>
+            <li class="fragment">No conditions at all: unlike LU (square,
+              pivoting), Cholesky (positive definite), or eigenvectors (which
+              may not exist, or may not be orthogonal).</li>
+          </ul>
+          <aside class="notes">
+            For complex A, U and V are unitary and the singular values are
+            still real and non-negative.
+          </aside>
+        </section>
+
+        <section>
+          <h2>What it means</h2>
+          <img src="figures/svd_geometry.png" style="width: 96%; margin: 0 auto; display: block;"
+            alt="A unit circle, colored by angle, is rotated by V transpose, stretched along the axes by Sigma into an ellipse, and rotated by U into the tilted ellipse A x. The vectors v1 and v2 on the circle end up as sigma1 u1 and sigma2 u2, the semi-axes of the ellipse.">
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">$\mathbf{V}^T$ rotates the special input
+              directions $\mathbf{v}_i$ onto the axes; $\boldsymbol{\Sigma}$
+              stretches axis $i$ by $\sigma_i$; $\mathbf{U}$ rotates the
+              result to the output directions $\mathbf{u}_i$.</li>
+            <li class="fragment">In one line:
+              $\mathbf{A}\mathbf{v}_i = \sigma_i\,\mathbf{u}_i$. The unit
+              circle becomes an ellipse with semi-axes $\sigma_1$ and
+              $\sigma_2$.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: A v_i = U Sigma V^T v_i = U Sigma e_i = sigma_i U e_i
+            = sigma_i u_i. The matrix in the figure is [[1.8, 1.2], [0.2,
+            1.0]], with singular values 2.29 and 0.68.
+          </aside>
+        </section>
+
+        <!-- OLD (2026-10-18): replaced by the step-by-step version below.
+        <section>
+          <h2>An example</h2>
+          <div style="font-size: 0.72em;">
+          $$
+          \mathbf{A} = \begin{pmatrix} 1 & 0 & 0 & 0 & 2 \\ 0 & 0 & 3 & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \\ 0 & 4 & 0 & 0 & 0 \end{pmatrix}
+          $$
+          </div>
+          <div class="fragment" style="font-size: 0.66em;">
+          $$
+          \mathbf{U} = \begin{pmatrix} 0 & 0 & -1 & 0 \\ 0 & 1 & 0 & 0 \\ 0 & 0 & 0 & 1 \\ -1 & 0 & 0 & 0 \end{pmatrix},\quad
+          \boldsymbol{\Sigma} = \begin{pmatrix} 4 & 0 & 0 & 0 & 0 \\ 0 & 3 & 0 & 0 & 0 \\ 0 & 0 & \sqrt{5} & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \end{pmatrix},\quad
+          \mathbf{V} = \begin{pmatrix}
+            0 & 0 & -\tfrac{1}{\sqrt{5}} & -\tfrac{2}{\sqrt{5}} & 0 \\
+            -1 & 0 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 & 0 \\
+            0 & 0 & 0 & 0 & 1 \\
+            0 & 0 & -\tfrac{2}{\sqrt{5}} & \tfrac{1}{\sqrt{5}} & 0
+          \end{pmatrix}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.74em;">Singular values $4$,
+            $3$, $\sqrt{5}$, $0$. Check one: $\mathbf{v}_1 = (0, -1, 0, 0, 0)$
+            gives $\mathbf{A}\mathbf{v}_1 = (0, 0, 0, -4) = 4\,\mathbf{u}_1$.</p>
+        </section>
+        -->
+
+
+        <section>
+          <h2>An example</h2>
+          <div style="font-size: 0.62em; margin: -0.3em 0;">
+          $$
+          \mathbf{A} = \begin{pmatrix} 1 & 0 & 0 & 0 & 2 \\ 0 & 0 & 3 & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \\ 0 & 4 & 0 & 0 & 0 \end{pmatrix}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.72em; margin: 0.3em 0;">Singular values $4$,
+            $3$, $\sqrt{5}$, $0$, each with a pair
+            $\mathbf{A}\mathbf{v}_i = \sigma_i\,\mathbf{u}_i$. Every row is one
+            multiplication by $\mathbf{A}$:</p>
+          <table class="fragment" style="font-size: 0.55em; margin: 0.1em auto;">
+            <thead><tr><th>$\sigma_i$</th><th>input $\mathbf{v}_i$</th><th>$\mathbf{A}\mathbf{v}_i$</th><th>output $\mathbf{u}_i$</th></tr></thead>
+            <tbody>
+              <tr><td>$4$</td><td>$(0,\ -1,\ 0,\ 0,\ 0)$</td><td>$-1 \times$ column 2 $= (0,\ 0,\ 0,\ -4)$</td><td>$(0,\ 0,\ 0,\ -1)$</td></tr>
+              <tr class="fragment"><td>$3$</td><td>$(0,\ 0,\ 1,\ 0,\ 0)$</td><td>column 3 $= (0,\ 3,\ 0,\ 0)$</td><td>$(0,\ 1,\ 0,\ 0)$</td></tr>
+              <tr class="fragment"><td>$\sqrt{5}$</td><td>$(-1,\ 0,\ 0,\ 0,\ -2)/\sqrt{5}$</td><td>$(-1 - 4,\ 0,\ 0,\ 0)/\sqrt{5} = (-\sqrt{5},\ 0,\ 0,\ 0)$</td><td>$(-1,\ 0,\ 0,\ 0)$</td></tr>
+              <tr class="fragment"><td>$0$</td><td>$(-2,\ 0,\ 0,\ 0,\ 1)/\sqrt{5}$</td><td>$(-2 + 2,\ 0,\ 0,\ 0)/\sqrt{5} = \mathbf{0}$</td><td class="muted">none</td></tr>
+              <tr class="fragment"><td>$0$</td><td>$(0,\ 0,\ 0,\ 1,\ 0)$</td><td>$\mathbf{0}$: column 4 of $\mathbf{A}$ is zero</td><td class="muted">none</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h2>The same thing as matrices</h2>
+          <p style="font-size: 0.74em;">Stack the $\mathbf{u}_i$ as the columns
+            of $\mathbf{U}$, the $\mathbf{v}_i$ as the columns of $\mathbf{V}$,
+            and the $\sigma_i$ on the diagonal of $\boldsymbol{\Sigma}$:</p>
+          <div style="font-size: 0.66em;">
+          $$
+          \mathbf{U} = \begin{pmatrix} 0 & 0 & -1 & 0 \\ 0 & 1 & 0 & 0 \\ 0 & 0 & 0 & 1 \\ -1 & 0 & 0 & 0 \end{pmatrix},\quad
+          \boldsymbol{\Sigma} = \begin{pmatrix} 4 & 0 & 0 & 0 & 0 \\ 0 & 3 & 0 & 0 & 0 \\ 0 & 0 & \sqrt{5} & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \end{pmatrix},\quad
+          \mathbf{V} = \begin{pmatrix}
+            0 & 0 & -\tfrac{1}{\sqrt{5}} & -\tfrac{2}{\sqrt{5}} & 0 \\
+            -1 & 0 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 & 0 \\
+            0 & 0 & 0 & 0 & 1 \\
+            0 & 0 & -\tfrac{2}{\sqrt{5}} & \tfrac{1}{\sqrt{5}} & 0
+          \end{pmatrix}
+          $$
+          </div>
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">$\mathbf{U}$ is $4 \times 4$, so it has one
+              more column than there are nonzero $\sigma_i$: $(0, 0, 1, 0)$,
+              an output direction nothing maps to. $\mathbf{V}$ is
+              $5 \times 5$: its last two columns are the inputs that map to
+              zero.</li>
+            <li class="fragment">Multiply $\mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T$
+              out and $\mathbf{A}$ comes back.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>What the SVD reveals</h2>
+          <ul style="font-size: 0.78em;">
+            <li><strong>Rank:</strong> the number of nonzero singular
+              values. The number of independent directions $\mathbf{A}$ can
+              produce.</li>
+            <li class="fragment"><strong>Range:</strong> all the outputs
+              $\mathbf{A}\mathbf{x}$ can reach. Spanned by the columns of
+              $\mathbf{U}$ with $\sigma_i &gt; 0$. A right-hand side
+              $\mathbf{b}$ outside it has no solution.</li>
+            <li class="fragment"><strong>Nullspace:</strong> all inputs that
+              $\mathbf{A}$ sends to zero. Spanned by the columns of
+              $\mathbf{V}$ with $\sigma_i = 0$ (and any columns beyond $m$).
+              Adding one to a solution gives another solution.</li>
+          </ul>
+          <p class="fragment" style="font-size: 0.76em;">Rank plus nullspace
+            dimension equals $n$, the number of unknowns. And the longest and
+            shortest $|\mathbf{A}\mathbf{x}|$ over unit $\mathbf{x}$ are
+            $\sigma_1$ and $\sigma_n$: the $\kappa$ of the Gram-Schmidt plot
+            is $\sigma_1/\sigma_n$, the <em>condition number</em>.</p>
+        </section>
+
+        <section>
+          <h2>Reading the example</h2>
+          <ul style="font-size: 0.78em;">
+            <li>Three nonzero singular values: rank 3.</li>
+            <li class="fragment">Range: the first three columns of
+              $\mathbf{U}$. The fourth, $(0, 0, 1, 0)$, is out of reach: row 3
+              of $\mathbf{A}$ is zero, so no $\mathbf{x}$ gives $b_3 \ne 0$.</li>
+            <li class="fragment">Nullspace: the last two columns of
+              $\mathbf{V}$, $(-2, 0, 0, 0, 1)/\sqrt{5}$ and
+              $(0, 0, 0, 1, 0)$. Check: $\mathbf{A}\,(-2, 0, 0, 0, 1)^T$ has
+              first entry $-2 + 2 = 0$, and $x_4$ appears nowhere in
+              $\mathbf{A}$.</li>
+          </ul>
+          <p class="fragment why">Here we can see it by eye. For a
+            $1000 \times 1000$ matrix, the SVD finds it for us, and tells us
+            how close to zero each $\sigma_i$ is.</p>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Gram-Schmidt builds $\mathbf{Q}$ by subtracting projections.
+              Clear, but it loses orthogonality when columns are nearly
+              dependent.</li>
+            <li class="fragment">Householder reflections zero a whole column
+              at once and stay orthogonal to rounding precision. That is what
+              libraries use.</li>
+            <li class="fragment">The SVD, $\mathbf{A} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T$:
+              rotate, stretch, rotate. It exists for every matrix and reveals
+              rank, range, and nullspace.</li>
+          </ul>
+          <p class="fragment why">Next time: the SVD at work. Least squares,
+            low-rank approximation, and principal component analysis.</p>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 15</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

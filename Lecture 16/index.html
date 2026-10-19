@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 16</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 16</p>
+          <h1>The singular value decomposition</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            Part I is the SVD introduction moved here from Lecture 15 (there
+            was no time for it). Parts II to IV follow the 2025 Lecture 17
+            (pseudoinverse, least squares, matrix approximation, PCA), with
+            worked numbers: a thrown ball fit, the normal-equations table, the
+            Project 1 black hole image at low rank, and a synthetic set of
+            spectra. Every number is printed by make_figures.py.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Two ways to compute $\mathbf{A} = \mathbf{Q}\mathbf{R}$:
+              Gram-Schmidt, which loses orthogonality, and Householder
+              reflections, which do not.</li>
+            <li class="fragment">How close the columns of $\mathbf{A}$ are to
+              dependent: $\kappa$, the longest unit combination of the columns
+              over the shortest.</li>
+            <li class="fragment">LU, Cholesky, QR each need something of
+              $\mathbf{A}$: square, positive definite, full column rank.</li>
+          </ul>
+          <p class="fragment why">Today: the decomposition that exists for
+            every matrix, and gives $\kappa$ its name. Then three things it is
+            for: the closest solution, keeping only what matters, and finding
+            the directions in data.</p>
+        </section>
+
+        <!-- ============ Part I: what it is ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; What the SVD is</h2>
+          <p>Rotate, stretch, rotate</p>
+        </section>
+
+        <section>
+          <h2>Every matrix has an SVD</h2>
+          <p style="font-size: 0.78em;">Any real $m \times n$ matrix, of any
+            shape and any rank, can be written</p>
+          $$\mathbf{A} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">$\mathbf{U}$ ($m \times m$) and $\mathbf{V}$
+              ($n \times n$) are orthogonal.</li>
+            <li class="fragment">$\boldsymbol{\Sigma}$ ($m \times n$) is
+              diagonal, with the <em>singular values</em>
+              $\sigma_1 \ge \sigma_2 \ge \dots \ge 0$.</li>
+            <li class="fragment">No conditions at all: unlike LU (square,
+              pivoting), Cholesky (positive definite), or eigenvectors (which
+              may not exist, or may not be orthogonal).</li>
+          </ul>
+          <aside class="notes">
+            For complex A, U and V are unitary and the singular values are
+            still real and non-negative. Existence: see the "SVD and
+            eigenvalues" slide; A^T A is symmetric and positive semidefinite,
+            so it always has an orthonormal eigenbasis.
+          </aside>
+        </section>
+
+        <section>
+          <h2>What it means</h2>
+          <img src="figures/svd_geometry.png" style="width: 96%; margin: 0 auto; display: block;"
+            alt="A unit circle, colored by angle, is rotated by V transpose, stretched along the axes by Sigma into an ellipse, and rotated by U into the tilted ellipse A x. The vectors v1 and v2 on the circle end up as sigma1 u1 and sigma2 u2, the semi-axes of the ellipse.">
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">$\mathbf{V}^T$ rotates the special input
+              directions $\mathbf{v}_i$ onto the axes; $\boldsymbol{\Sigma}$
+              stretches axis $i$ by $\sigma_i$; $\mathbf{U}$ rotates the
+              result to the output directions $\mathbf{u}_i$.</li>
+            <li class="fragment">In one line:
+              $\mathbf{A}\mathbf{v}_i = \sigma_i\,\mathbf{u}_i$. The unit
+              circle becomes an ellipse with semi-axes $\sigma_1$ and
+              $\sigma_2$.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: A v_i = U Sigma V^T v_i = U Sigma e_i = sigma_i U e_i
+            = sigma_i u_i. The matrix in the figure is [[1.8, 1.2], [0.2,
+            1.0]], with singular values 2.29 and 0.68.
+          </aside>
+        </section>
+
+        <section>
+          <h2>An example</h2>
+          <div style="font-size: 0.62em; margin: -0.3em 0;">
+          $$
+          \mathbf{A} = \begin{pmatrix} 1 & 0 & 0 & 0 & 2 \\ 0 & 0 & 3 & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \\ 0 & 4 & 0 & 0 & 0 \end{pmatrix}
+          $$
+          </div>
+          <p class="fragment" style="font-size: 0.72em; margin: 0.3em 0;">Singular values $4$,
+            $3$, $\sqrt{5}$, $0$, each with a pair
+            $\mathbf{A}\mathbf{v}_i = \sigma_i\,\mathbf{u}_i$. Every row is one
+            multiplication by $\mathbf{A}$:</p>
+          <table class="fragment" style="font-size: 0.55em; margin: 0.1em auto;">
+            <thead><tr><th>$\sigma_i$</th><th>input $\mathbf{v}_i$</th><th>$\mathbf{A}\mathbf{v}_i$</th><th>output $\mathbf{u}_i$</th></tr></thead>
+            <tbody>
+              <tr><td>$4$</td><td>$(0,\ -1,\ 0,\ 0,\ 0)$</td><td>$-1 \times$ column 2 $= (0,\ 0,\ 0,\ -4)$</td><td>$(0,\ 0,\ 0,\ -1)$</td></tr>
+              <tr class="fragment"><td>$3$</td><td>$(0,\ 0,\ 1,\ 0,\ 0)$</td><td>column 3 $= (0,\ 3,\ 0,\ 0)$</td><td>$(0,\ 1,\ 0,\ 0)$</td></tr>
+              <tr class="fragment"><td>$\sqrt{5}$</td><td>$(-1,\ 0,\ 0,\ 0,\ -2)/\sqrt{5}$</td><td>$(-1 - 4,\ 0,\ 0,\ 0)/\sqrt{5} = (-\sqrt{5},\ 0,\ 0,\ 0)$</td><td>$(-1,\ 0,\ 0,\ 0)$</td></tr>
+              <tr class="fragment"><td>$0$</td><td>$(-2,\ 0,\ 0,\ 0,\ 1)/\sqrt{5}$</td><td>$(-2 + 2,\ 0,\ 0,\ 0)/\sqrt{5} = \mathbf{0}$</td><td class="muted">none</td></tr>
+              <tr class="fragment"><td>$0$</td><td>$(0,\ 0,\ 0,\ 1,\ 0)$</td><td>$\mathbf{0}$: column 4 of $\mathbf{A}$ is zero</td><td class="muted">none</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h2>The same thing as matrices</h2>
+          <p style="font-size: 0.74em;">Stack the $\mathbf{u}_i$ as the columns
+            of $\mathbf{U}$, the $\mathbf{v}_i$ as the columns of $\mathbf{V}$,
+            and the $\sigma_i$ on the diagonal of $\boldsymbol{\Sigma}$:</p>
+          <div style="font-size: 0.66em;">
+          $$
+          \mathbf{U} = \begin{pmatrix} 0 & 0 & -1 & 0 \\ 0 & 1 & 0 & 0 \\ 0 & 0 & 0 & 1 \\ -1 & 0 & 0 & 0 \end{pmatrix},\quad
+          \boldsymbol{\Sigma} = \begin{pmatrix} 4 & 0 & 0 & 0 & 0 \\ 0 & 3 & 0 & 0 & 0 \\ 0 & 0 & \sqrt{5} & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \end{pmatrix},\quad
+          \mathbf{V} = \begin{pmatrix}
+            0 & 0 & -\tfrac{1}{\sqrt{5}} & -\tfrac{2}{\sqrt{5}} & 0 \\
+            -1 & 0 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 & 0 \\
+            0 & 0 & 0 & 0 & 1 \\
+            0 & 0 & -\tfrac{2}{\sqrt{5}} & \tfrac{1}{\sqrt{5}} & 0
+          \end{pmatrix}
+          $$
+          </div>
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">$\mathbf{U}$ is $4 \times 4$, so it has one
+              more column than there are nonzero $\sigma_i$: $(0, 0, 1, 0)$,
+              an output direction nothing maps to. $\mathbf{V}$ is
+              $5 \times 5$: its last two columns are the inputs that map to
+              zero.</li>
+            <li class="fragment">Multiply $\mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T$
+              out and $\mathbf{A}$ comes back.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>What the SVD reveals</h2>
+          <ul style="font-size: 0.78em;">
+            <li><strong>Rank:</strong> the number of nonzero singular
+              values. The number of independent directions $\mathbf{A}$ can
+              produce.</li>
+            <li class="fragment"><strong>Range:</strong> all the outputs
+              $\mathbf{A}\mathbf{x}$ can reach. Spanned by the columns of
+              $\mathbf{U}$ with $\sigma_i &gt; 0$. A right-hand side
+              $\mathbf{b}$ outside it has no solution.</li>
+            <li class="fragment"><strong>Nullspace:</strong> all inputs that
+              $\mathbf{A}$ sends to zero. Spanned by the columns of
+              $\mathbf{V}$ with $\sigma_i = 0$ (and any columns beyond $m$).
+              Adding one to a solution gives another solution.</li>
+            <li class="fragment"><strong>Conditioning:</strong> the longest and
+              shortest $|\mathbf{A}\mathbf{x}|$ over unit $\mathbf{x}$ are
+              $\sigma_1$ and $\sigma_n$. Last lecture's $\kappa$ is
+              $\sigma_1/\sigma_n$: the <em>condition number</em>.</li>
+          </ul>
+          <p class="fragment why">Rank plus nullspace dimension equals $n$,
+            the number of unknowns.</p>
+        </section>
+
+        <section>
+          <h2>Reading the example</h2>
+          <ul style="font-size: 0.78em;">
+            <li>Three nonzero singular values: rank 3.</li>
+            <li class="fragment">Range: the first three columns of
+              $\mathbf{U}$. The fourth, $(0, 0, 1, 0)$, is out of reach: row 3
+              of $\mathbf{A}$ is zero, so no $\mathbf{x}$ gives $b_3 \ne 0$.</li>
+            <li class="fragment">Nullspace: the last two columns of
+              $\mathbf{V}$, $(-2, 0, 0, 0, 1)/\sqrt{5}$ and
+              $(0, 0, 0, 1, 0)$. Check: $\mathbf{A}\,(-2, 0, 0, 0, 1)^T$ has
+              first entry $-2 + 2 = 0$, and $x_4$ appears nowhere in
+              $\mathbf{A}$.</li>
+            <li class="fragment">$\sigma_n = 0$, so $\kappa = \infty$: the
+              columns are dependent (column 5 is twice column 1).</li>
+          </ul>
+          <p class="fragment why">Here we can see it by eye. For a
+            $1000 \times 1000$ matrix, the SVD finds it for us, and tells us
+            how close to zero each $\sigma_i$ is.</p>
+        </section>
+
+        <section>
+          <h2>SVD and eigenvalues</h2>
+          <p style="font-size: 0.78em;">$\mathbf{A}$ need not be square, but
+            $\mathbf{A}^T\mathbf{A}$ always is, and symmetric. Substitute the
+            SVD:</p>
+          $$\mathbf{A}^T\mathbf{A} = \mathbf{V}\boldsymbol{\Sigma}^T\mathbf{U}^T\,\mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T
+            = \mathbf{V}\,(\boldsymbol{\Sigma}^T\boldsymbol{\Sigma})\,\mathbf{V}^T$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">That is an eigen-decomposition: the columns of
+              $\mathbf{V}$ are the eigenvectors of $\mathbf{A}^T\mathbf{A}$,
+              with eigenvalues $\sigma_i^2$. For our example, $16, 9, 5, 0, 0$.</li>
+            <li class="fragment">Likewise $\mathbf{A}\mathbf{A}^T = \mathbf{U}\,(\boldsymbol{\Sigma}\boldsymbol{\Sigma}^T)\,\mathbf{U}^T$:
+              the columns of $\mathbf{U}$ are its eigenvectors.</li>
+            <li class="fragment">If $\mathbf{A}$ is itself symmetric, its
+              singular values are $|\lambda_i|$, the absolute values of its
+              eigenvalues.</li>
+          </ul>
+          <p class="fragment why">This is why the SVD always exists: a
+            symmetric matrix always has an orthonormal set of eigenvectors.
+            It is not how the SVD is computed; that comes at the end.</p>
+          <aside class="notes">
+            DERIVATION: U^T U = I kills the middle; Sigma^T Sigma is n x n
+            diagonal with sigma_i^2 (and zeros beyond rank). For symmetric A =
+            Q Lambda Q^T, A^T A = Q Lambda^2 Q^T, so sigma_i^2 = lambda_i^2.
+            The eigenvalues of A^T A for the 4x5 example are printed by
+            make_figures.py: 16, 9, 5, 0, 0.
+          </aside>
+        </section>
+
+        <!-- ============ Part II: the closest solution ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; The closest solution</h2>
+          <p>When $\mathbf{A}\mathbf{x} = \mathbf{b}$ has no solution</p>
+        </section>
+
+        <section>
+          <h2>Solving with the SVD</h2>
+          <p style="font-size: 0.78em;">If $\mathbf{A}$ is square with all
+            $\sigma_i &gt; 0$, the inverse is three easy moves, because
+            orthogonal matrices are inverted by transposing and a diagonal one
+            by reciprocals:</p>
+          $$\mathbf{A}^{-1} = (\mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T)^{-1}
+            = \mathbf{V}\,\boldsymbol{\Sigma}^{-1}\mathbf{U}^T, \qquad
+            \boldsymbol{\Sigma}^{-1} = \operatorname{diag}(1/\sigma_i)$$
+          <table class="fragment" style="font-size: 0.62em; margin: 0.4em auto;">
+            <tbody>
+              <tr><td>rotate $\mathbf{b}$ into the output directions</td><td>$\mathbf{c} = \mathbf{U}^T\mathbf{b}$, $\quad c_i = \mathbf{u}_i \cdot \mathbf{b}$</td></tr>
+              <tr><td>undo each stretch</td><td>$y_i = c_i / \sigma_i$</td></tr>
+              <tr><td>rotate back to the input directions</td><td>$\mathbf{x} = \mathbf{V}\mathbf{y} = \sum_i y_i\,\mathbf{v}_i$</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment why">Each move is exact up to rounding. Nothing
+            is divided by a small pivot; the only divisions are by the
+            $\sigma_i$, and we can see them.</p>
+        </section>
+
+        <section>
+          <h2>When some $\sigma_i$ are zero</h2>
+          <ul style="font-size: 0.76em;">
+            <li>Step two divides $c_i$ by $\sigma_i$. If $\sigma_i = 0$,
+              the direction $\mathbf{u}_i$ is outside the range: no
+              $\mathbf{x}$ can produce that part of $\mathbf{b}$. The best we
+              can do is leave it, and set $y_i = 0$.</li>
+            <li class="fragment">That defines the <em>pseudoinverse</em>:
+              $$\mathbf{A}^{+} = \mathbf{V}\,\boldsymbol{\Sigma}^{+}\mathbf{U}^T, \qquad
+                \boldsymbol{\Sigma}^{+} = \operatorname{diag}\!\big(1/\sigma_i \text{ if } \sigma_i &gt; 0,\ \text{else } 0\big)$$
+              It exists for every matrix, square or not.</li>
+            <li class="fragment">$\mathbf{x} = \mathbf{A}^{+}\mathbf{b}$
+              <strong>minimizes $|\mathbf{A}\mathbf{x} - \mathbf{b}|$</strong>.
+              If several $\mathbf{x}$ tie (a nullspace), it is the shortest of
+              them.</li>
+          </ul>
+          <p class="fragment why">In practice "zero" means "below a cutoff":
+            a $\sigma_i$ of $10^{-15}\sigma_1$ is rounding noise, and dividing
+            by it would amplify noise by $10^{15}$.</p>
+          <aside class="notes">
+            DERIVATION: orthogonal matrices keep lengths, so |A x - b| = |U^T
+            (U Sigma V^T x - b)| = |Sigma y - c| with y = V^T x, c = U^T b.
+            Squared, that is sum over i with sigma_i > 0 of (sigma_i y_i -
+            c_i)^2 plus sum over i with sigma_i = 0 of c_i^2. The first sum is
+            zero for y_i = c_i / sigma_i; the second cannot be changed by any
+            x. The y_i with sigma_i = 0 are free (nullspace); choosing them 0
+            minimizes |y| = |x|.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Least squares fitting</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="font-size: 0.7em;">
+              <p>15 measurements of a thrown ball's height. The model is a
+                parabola with three unknown coefficients:</p>
+              $$y(t) = a_0 + a_1 t + a_2 t^2$$
+              <p class="fragment">One equation per measurement,
+                $a_0 + a_1 t_i + a_2 t_i^2 = y_i$. That is
+                $\mathbf{A}\mathbf{a} = \mathbf{y}$ with $\mathbf{A}$
+                $15 \times 3$: the rows are $(1,\ t_i,\ t_i^2)$.</p>
+              <p class="fragment">Fifteen equations, three unknowns, noisy
+                data: no exact solution. So take the closest one,
+                $\mathbf{a} = \mathbf{A}^{+}\mathbf{y}$. It minimizes
+                $|\mathbf{A}\mathbf{a} - \mathbf{y}|^2 = \sum_i \big(y(t_i) - y_i\big)^2$.</p>
+            </div>
+            <div class="col" style="flex: 1.15;">
+              <img src="figures/lstsq_fit.png" style="width: 100%; display: block;"
+                alt="Fifteen noisy height measurements against time with error bars, the fitted parabola through them, and the true path as a dashed line; the fit gives g = 9.90.">
+            </div>
+          </div>
+          <aside class="notes">
+            Data generated with y0 = 1.2 m, v0 = 9.0 m/s, g = 9.81, noise
+            0.15 m, seed 1. Any model linear in its parameters works the same
+            way: A_ij = f_j(x_i) for basis functions f_j (powers, sines,
+            Legendre polynomials). Only the parameters must enter linearly;
+            the basis functions can be anything.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The fit, by the numbers</h2>
+          <table style="font-size: 0.6em; margin: 0.2em auto;">
+            <tbody>
+              <tr><td>the matrix</td>
+                <td>$\mathbf{A}$ is $15 \times 3$, rows $(1,\ t_i,\ t_i^2)$; singular values $7.81,\ 2.33,\ 0.486$; $\ \kappa = 16$</td></tr>
+              <tr class="fragment"><td>rotate</td>
+                <td>$\mathbf{c} = \mathbf{U}^T\mathbf{y} = (-12.26,\ 8.70,\ -4.64)$: the data expressed in the three output directions</td></tr>
+              <tr class="fragment"><td>undo the stretch</td>
+                <td>$y_i = c_i/\sigma_i = (-1.57,\ 3.73,\ -9.56)$</td></tr>
+              <tr class="fragment"><td>rotate back</td>
+                <td>$\mathbf{a} = \mathbf{V}\mathbf{y} = (1.235,\ 9.034,\ -4.951)$, so $g = -2a_2 = 9.90$ (true $9.81$, $v_0 = 9.03$, $y_0 = 1.24$)</td></tr>
+              <tr class="fragment"><td>check</td>
+                <td>$|\mathbf{A}\mathbf{a} - \mathbf{y}| = 0.33$, and $\mathbf{A}^T(\mathbf{A}\mathbf{a} - \mathbf{y}) = \mathbf{0}$ to rounding</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment why">The last line is the geometry of least
+            squares: the leftover $\mathbf{A}\mathbf{a} - \mathbf{y}$ is
+            perpendicular to every column of $\mathbf{A}$. Nothing the model
+            can do would reduce it further.</p>
+          <aside class="notes">
+            The 15 x 3 U^T y uses the thin SVD (U is 15 x 3): the other 12
+            output directions hold the part of y that no parabola can
+            reproduce, and |that part| is the residual 0.33. The check A^T r
+            = 0 is exactly the normal equations A^T A a = A^T y; next slide
+            says why not to solve them in that form.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Why not the normal equations?</h2>
+          <p style="font-size: 0.76em;">$\mathbf{A}^T(\mathbf{A}\mathbf{a} - \mathbf{y}) = \mathbf{0}$
+            is a square system, $(\mathbf{A}^T\mathbf{A})\,\mathbf{a} = \mathbf{A}^T\mathbf{y}$,
+            and LU solves it. The catch: the singular values of
+            $\mathbf{A}^T\mathbf{A}$ are $\sigma_i^2$, so its condition number
+            is $\kappa^2$.</p>
+          <table class="fragment" style="font-size: 0.6em; margin: 0.3em auto;">
+            <thead><tr><th>polynomial degree</th><th>$\kappa(\mathbf{A})$</th><th>$\kappa^2$</th><th>residual, SVD</th><th>residual, normal equations</th></tr></thead>
+            <tbody>
+              <tr><td>4</td><td>$7 \times 10^{2}$</td><td>$4 \times 10^{5}$</td><td>$1.8 \times 10^{-2}$</td><td>$1.8 \times 10^{-2}$</td></tr>
+              <tr><td>8</td><td>$6 \times 10^{5}$</td><td>$4 \times 10^{11}$</td><td>$2.1 \times 10^{-6}$</td><td>$2.1 \times 10^{-6}$</td></tr>
+              <tr><td>12</td><td>$7 \times 10^{8}$</td><td>$5 \times 10^{17}$</td><td>$3.9 \times 10^{-11}$</td><td>$4.7 \times 10^{-8}$</td></tr>
+              <tr><td>16</td><td>$8 \times 10^{11}$</td><td>$6 \times 10^{23}$</td><td>$9.8 \times 10^{-15}$</td><td>$2.7 \times 10^{-6}$</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment" style="font-size: 0.72em;">Fitting a smooth
+            function on $[0, 1]$ with 60 points. Once $\kappa^2$ passes
+            $10^{16}$, the normal equations return coefficients that are
+            wrong by a factor of order one; the SVD keeps improving.</p>
+          <p class="fragment why">Same lesson as Gram-Schmidt against
+            Householder: work on $\mathbf{A}$ itself, never on a product that
+            squares its conditioning.</p>
+          <aside class="notes">
+            Measured by make_figures.py: f(x) = cos 3x + 0.2 e^x, Vandermonde
+            matrix with columns 1, x, ..., x^deg. Relative coefficient error
+            of the normal equations: 5e-13 (deg 4), 5e-7 (8), 0.5 (12), 50
+            (16). QR on A gives the same accuracy as the SVD here; the SVD
+            adds the ability to see and cut small sigma_i.
+          </aside>
+        </section>
+
+        <section>
+          <h2>In practice</h2>
+          <div class="cols">
+            <div class="col" style="font-size: 0.7em;">
+              <p>Python: <code>lstsq</code> is the SVD route, and
+                <code>rcond</code> is the cutoff for small $\sigma_i$:</p>
+              <pre><code class="language-python" data-trim>
+A = np.vstack([np.ones_like(t), t, t**2]).T
+a, res, rank, sv = np.linalg.lstsq(A, y, rcond=None)
+
+U, s, Vt = np.linalg.svd(A, full_matrices=False)
+              </code></pre>
+            </div>
+            <div class="col" style="font-size: 0.7em;">
+              <p>C++ with Eigen: build the thin SVD and ask it to solve.</p>
+              <pre><code class="language-cpp" data-trim>
+Eigen::MatrixXd A(15, 3);
+Eigen::VectorXd y(15);      // fill both
+auto svd = A.bdcSvd(Eigen::ComputeThinU
+                  | Eigen::ComputeThinV);
+Eigen::VectorXd a = svd.solve(y);
+              </code></pre>
+            </div>
+          </div>
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">For a well-conditioned $\mathbf{A}$, QR
+              (<code>colPivHouseholderQr().solve</code>) does the same job
+              faster. The SVD is for when you want to see the $\sigma_i$.</li>
+            <li class="fragment">Parameters that enter non-linearly
+              ($e^{-t/\tau}$, $\sin\omega t$) need an iterative fit
+              (<code>scipy.optimize.curve_fit</code>), which solves a linear
+              least-squares problem like this one at every step.</li>
+          </ul>
+        </section>
+
+        <!-- ============ Part III: low rank ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; Keeping only what matters</h2>
+          <p>Low-rank approximation</p>
+        </section>
+
+        <section>
+          <h2>A matrix as a sum of layers</h2>
+          <p style="font-size: 0.78em;">Written out column by column, the SVD
+            is a sum of rank-one pieces, one per singular value:</p>
+          $$\mathbf{A} = \sum_{i=1}^{r} \sigma_i\,\mathbf{u}_i\mathbf{v}_i^T
+            = \sigma_1\mathbf{u}_1\mathbf{v}_1^T + \sigma_2\mathbf{u}_2\mathbf{v}_2^T + \dots$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">The $\sigma_i$ are sorted, so the terms come
+              in order of importance. Keep the first $k$:
+              $\mathbf{A}_k = \sum_{i \le k} \sigma_i\mathbf{u}_i\mathbf{v}_i^T$.</li>
+            <li class="fragment">$\mathbf{A}_k$ is the <em>closest</em> matrix
+              of rank $k$ to $\mathbf{A}$, and the error is the first thing
+              dropped: $\max_{|\mathbf{x}|=1}|(\mathbf{A} - \mathbf{A}_k)\mathbf{x}| = \sigma_{k+1}$.</li>
+            <li class="fragment">Storage: $k$ vectors of length $m$, $k$ of
+              length $n$, and $k$ numbers. $k(m + n + 1)$ instead of $mn$.</li>
+          </ul>
+          <aside class="notes">
+            The closeness statement is the Eckart-Young theorem (1936); it
+            holds for the 2-norm quoted and for the Frobenius norm, where the
+            error is sqrt(sum of the dropped sigma_i^2). DERIVATION of the
+            sum form: U Sigma V^T = sum_i (column i of U) sigma_i (row i of
+            V^T), the usual outer-product expansion of a matrix product with
+            a diagonal matrix in the middle.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The Project 1 image at low rank</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="flex: 1.45;">
+              <img src="figures/svd_image.png" style="width: 100%; display: block;"
+                alt="The red channel of the ray-traced black hole image, 566 by 996 pixels, next to its rank 5, 20 and 60 approximations. Rank 5 shows the disk as horizontal smears; rank 20 shows the shadow and the lensed arcs; rank 60 is hard to tell from the original.">
+            </div>
+            <div class="col" style="font-size: 0.68em;">
+              <p>One color channel of the Project 1 image:
+                $566 \times 996$ pixels, $563{,}736$ numbers. Treat it as a
+                matrix and keep the first $k$ layers.</p>
+              <p class="fragment">Rank 5 stores $1.4\%$ of the numbers and
+                is a smear.</p>
+              <p class="fragment">Rank 20 stores $5.5\%$ and shows the
+                shadow and the lensed arcs.</p>
+              <p class="fragment">Rank 60 stores $17\%$ and is hard to tell
+                from the original.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Where the information is</h2>
+          <img src="figures/svd_spectrum.png" style="width: 92%; margin: 0 auto; display: block;"
+            alt="Left: the 566 singular values of the image on a log scale, falling steeply at first and then slowly. Right: the fraction of the sum of squared singular values kept as a function of rank, 92% at rank 5, 97.6% at rank 20, 99.1% at rank 60.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">$\sigma_1 = 215$; the error at rank 5 is
+              $\sigma_6 = 31$, at rank 20 it is $\sigma_{21} = 8.5$, at
+              rank 60 it is $3.4$. Rank 20 keeps $97.6\%$ of
+              $\sum\sigma_i^2$.</li>
+            <li class="fragment">A picture with structure has a few large
+              $\sigma_i$ and a long tail. Pure noise has a flat spectrum. So
+              truncation keeps the structure and drops most of the noise.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Beyond pictures</h2>
+          <p style="font-size: 0.78em;">Anything that is a matrix can be
+            truncated the same way, and the $\sigma_i$ tell you how much you
+            lose:</p>
+          <ul style="font-size: 0.74em;">
+            <li class="fragment"><strong>Simulation snapshots</strong> as
+              columns: the first few $\mathbf{u}_i$ are the dominant modes of
+              the flow or field, and a model built on them runs in a fraction
+              of the time (reduced-order modelling).</li>
+            <li class="fragment"><strong>A measured response matrix</strong>
+              (detector, instrument, linear inverse problem): small
+              $\sigma_i$ are the directions the measurement barely sees.
+              Cutting them is regularization.</li>
+            <li class="fragment"><strong>A two-particle wavefunction</strong>
+              $\psi_{ij}$, particle 1 in state $i$ and particle 2 in state
+              $j$: its SVD is the Schmidt decomposition, and the number of
+              nonzero $\sigma_i$ measures the entanglement.</li>
+          </ul>
+        </section>
+
+        <!-- ============ Part IV: PCA ============ -->
+
+        <section class="divider">
+          <h2>Part IV &middot; Finding the directions in data</h2>
+          <p>Principal component analysis</p>
+        </section>
+
+        <section>
+          <h2>The data matrix</h2>
+          <div class="cols" style="align-items: center;">
+            <div class="col" style="font-size: 0.7em;">
+              <p>$n$ measurements of $p$ quantities: an $n \times p$ matrix
+                $\mathbf{X}$, one row per measurement. Subtract the mean of
+                each column.</p>
+              <p class="fragment">SVD: $\mathbf{X} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T$.
+                The $\mathbf{v}_i$ are the <em>principal directions</em>, and
+                the spread of the data along $\mathbf{v}_i$ is
+                $s_i = \sigma_i/\sqrt{n - 1}$.</p>
+              <p class="fragment">Here: 300 points. Along $\mathbf{v}_1$ the
+                spread is $3.04$, along $\mathbf{v}_2$ it is $0.68$; $95\%$
+                of the variance is along $\mathbf{v}_1$. (Generated with
+                $3.0$ and $0.7$ at $30°$; the SVD found $30.4°$.)</p>
+            </div>
+            <div class="col" style="flex: 0.95;">
+              <img src="figures/pca_2d.png" style="width: 100%; display: block;"
+                alt="A cloud of 300 points elongated along a direction 30 degrees from the horizontal, with two arrows from its center: a long one along the cloud (2 s1 v1) and a short one perpendicular to it (2 s2 v2).">
+            </div>
+          </div>
+          <aside class="notes">
+            DERIVATION: the variance of the data along a unit direction w is
+            |X w|^2 / (n - 1). The largest value of |X w| over unit w is
+            sigma_1, at w = v_1 (this is the same statement as the condition
+            number slide); the next largest, perpendicular to v_1, is sigma_2
+            at v_2. The coordinates of the points along the principal
+            directions, X V = U Sigma, are the "scores" or principal
+            components.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Example: 200 spectra, 300 wavelengths</h2>
+          <img src="figures/pca_spectra.png" style="width: 100%; margin: 0 auto; display: block;"
+            alt="Left: four noisy spectra with several emission lines of varying strength. Middle: the singular values of the 200 by 300 data matrix, three large ones (20, 17, 13) and then a flat floor near 1.5. Right: the first three principal directions, each a pattern of lines.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">Each spectrum is a mix of three emitting
+              species in different amounts, plus noise. Nobody told the SVD
+              that.</li>
+            <li class="fragment">Three singular values stand out ($20.2$,
+              $16.7$, $13.3$), then a flat noise floor near $1.5$. The data
+              live in a 3-dimensional subspace of the 300-dimensional
+              wavelength space, and $\mathbf{v}_1, \mathbf{v}_2, \mathbf{v}_3$
+              span it.</li>
+          </ul>
+          <aside class="notes">
+            The three v_i are not the three species' spectra: they are
+            orthonormal combinations of them (species spectra overlap, so
+            they are not orthogonal). PCA finds the subspace, not the
+            physically meaningful basis inside it; that needs extra
+            information (non-negativity, known line positions). Projecting
+            each spectrum onto the three v_i compresses 300 numbers to 3 and
+            removes most of the noise.
+          </aside>
+        </section>
+
+        <section>
+          <h2>PCA and the covariance matrix</h2>
+          <p style="font-size: 0.78em;">The covariance of the $p$ quantities
+            is the $p \times p$ matrix
+            $\mathbf{C} = \mathbf{X}^T\mathbf{X}/(n - 1)$. With the SVD of
+            $\mathbf{X}$:</p>
+          $$\mathbf{C} = \mathbf{V}\,\frac{\boldsymbol{\Sigma}^T\boldsymbol{\Sigma}}{n - 1}\,\mathbf{V}^T$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">So the principal directions are the
+              eigenvectors of the covariance matrix, and the variances along
+              them, $s_i^2$, are its eigenvalues. That is how PCA is usually
+              introduced.</li>
+            <li class="fragment">Lecture 14 went the other way: from a
+              covariance matrix, Cholesky built correlated random numbers.
+              PCA reads the covariance's axes back out of the data.</li>
+            <li class="fragment">Computing $\mathbf{C}$ first squares the
+              conditioning, exactly as the normal equations did. Take the SVD
+              of $\mathbf{X}$ directly.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>How the SVD is computed</h2>
+          <ul style="font-size: 0.76em;">
+            <li>Not from $\mathbf{A}^T\mathbf{A}$: that squares $\kappa$ and
+              loses the small $\sigma_i$, which are often the point.</li>
+            <li class="fragment">Householder reflections from both sides bring
+              $\mathbf{A}$ to <em>bidiagonal</em> form (two diagonals), the
+              way they brought a symmetric matrix to tridiagonal form for
+              eigenvalues.</li>
+            <li class="fragment">Then an iteration in the family of the QR
+              iteration drives the off-diagonal to zero. The diagonal that
+              remains holds the $\sigma_i$; the accumulated reflections and
+              rotations are $\mathbf{U}$ and $\mathbf{V}$.</li>
+            <li class="fragment">Cost: a small multiple of QR's, about
+              $4mn^2$ for a tall matrix.
+              <code>numpy.linalg.svd</code> calls LAPACK's <code>gesdd</code>;
+              Eigen has <code>BDCSVD</code> (large) and
+              <code>JacobiSVD</code> (small, most accurate).</li>
+          </ul>
+          <p class="fragment why">Golub and Kahan, 1965. You will never write
+            it; you should know it is a factorization of $\mathbf{A}$ itself,
+            with orthogonal transformations only, which is why it is
+            accurate.</p>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.78em;">
+            <li>$\mathbf{A} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T$ exists
+              for every matrix: rotate, stretch, rotate. It reveals rank,
+              range, nullspace, and the condition number $\sigma_1/\sigma_n$.</li>
+            <li class="fragment"><strong>Closest solution:</strong>
+              $\mathbf{x} = \mathbf{V}\boldsymbol{\Sigma}^{+}\mathbf{U}^T\mathbf{b}$
+              minimizes $|\mathbf{A}\mathbf{x} - \mathbf{b}|$. Least-squares
+              fitting is this with $A_{ij} = f_j(x_i)$. Never form
+              $\mathbf{A}^T\mathbf{A}$.</li>
+            <li class="fragment"><strong>Low rank:</strong> keep the first
+              $k$ terms of $\sum \sigma_i\mathbf{u}_i\mathbf{v}_i^T$; the error
+              is $\sigma_{k+1}$.</li>
+            <li class="fragment"><strong>PCA:</strong> the SVD of the
+              centered data matrix. The $\mathbf{v}_i$ are the directions of
+              largest spread, $\sigma_i^2/(n-1)$ the variances.</li>
+          </ul>
+          <p class="fragment why">Next time: partial differential equations.
+            The advection equation, and why the obvious scheme blows up.</p>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 16</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

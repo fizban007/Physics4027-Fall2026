@@ -191,33 +191,33 @@
         </section>
 -->
 
-        <section>
-          <h2>What $\mathbf{U}$ and $\mathbf{V}$ are doing here</h2>
-          <p style="font-size: 0.78em;">Read the columns of $\mathbf{V}$ and
-            $\mathbf{U}$ as directions. Each row below is one
-            $\mathbf{A}\mathbf{v}_i = \sigma_i\,\mathbf{u}_i$:</p>
-          <table style="font-size: 0.68em; margin: 0.2em auto;">
-            <thead><tr><th>$\mathbf{v}_i$ points along</th><th>$\sigma_i$</th><th>$\mathbf{u}_i$ points along</th></tr></thead>
-            <tbody>
-              <tr><td>input axis 2</td><td>$4$</td><td>output axis 4</td></tr>
-              <tr class="fragment"><td>input axis 3</td><td>$3$</td><td>output axis 2</td></tr>
-              <tr class="fragment"><td>input axes 1 and 5, mixed $1 : 2$</td><td>$\sqrt{5}$</td><td>output axis 1</td></tr>
-              <tr class="fragment"><td>input axes 1 and 5, mixed $2 : -1$</td><td>$0$</td><td class="muted">flattened to zero</td></tr>
-              <tr class="fragment"><td>input axis 4</td><td>$0$</td><td class="muted">flattened to zero</td></tr>
-            </tbody>
-          </table>
-          <p class="fragment" style="font-size: 0.76em;">$\mathbf{u}_4$,
-            output axis 3, is left over: nothing lands on it, because row 3
-            of $\mathbf{A}$ is zero.</p>
-          <aside class="notes">
-            Signs in U and V are a convention: v_1 = (0, -1, 0, 0, 0) points
-            along input axis 2 up to sign, u_1 = (0, 0, 0, -1) along output
-            axis 4. Row 1 of A is x_1 + 2 x_5: the (1, 2) mix is stretched
-            to sqrt(5) and the perpendicular (2, -1) mix cancels. Column 4 of
-            A is zero, so x_4 is never used. Keep this in words; the previous
-            slide is the same facts as matrices.
-          </aside>
-        </section>
+        <!-- <section> -->
+        <!--   <h2>What $\mathbf{U}$ and $\mathbf{V}$ are doing here</h2> -->
+        <!--   <p style="font-size: 0.78em;">Read the columns of $\mathbf{V}$ and -->
+        <!--     $\mathbf{U}$ as directions. Each row below is one -->
+        <!--     $\mathbf{A}\mathbf{v}_i = \sigma_i\,\mathbf{u}_i$:</p> -->
+        <!--   <table style="font-size: 0.68em; margin: 0.2em auto;"> -->
+        <!--     <thead><tr><th>$\mathbf{v}_i$ points along</th><th>$\sigma_i$</th><th>$\mathbf{u}_i$ points along</th></tr></thead> -->
+        <!--     <tbody> -->
+        <!--       <tr><td>input axis 2</td><td>$4$</td><td>output axis 4</td></tr> -->
+        <!--       <tr class="fragment"><td>input axis 3</td><td>$3$</td><td>output axis 2</td></tr> -->
+        <!--       <tr class="fragment"><td>input axes 1 and 5, mixed $1 : 2$</td><td>$\sqrt{5}$</td><td>output axis 1</td></tr> -->
+        <!--       <tr class="fragment"><td>input axes 1 and 5, mixed $2 : -1$</td><td>$0$</td><td class="muted">flattened to zero</td></tr> -->
+        <!--       <tr class="fragment"><td>input axis 4</td><td>$0$</td><td class="muted">flattened to zero</td></tr> -->
+        <!--     </tbody> -->
+        <!--   </table> -->
+        <!--   <p class="fragment" style="font-size: 0.76em;">$\mathbf{u}_4$, -->
+        <!--     output axis 3, is left over: nothing lands on it, because row 3 -->
+        <!--     of $\mathbf{A}$ is zero.</p> -->
+        <!--   <aside class="notes"> -->
+        <!--     Signs in U and V are a convention: v_1 = (0, -1, 0, 0, 0) points -->
+        <!--     along input axis 2 up to sign, u_1 = (0, 0, 0, -1) along output -->
+        <!--     axis 4. Row 1 of A is x_1 + 2 x_5: the (1, 2) mix is stretched -->
+        <!--     to sqrt(5) and the perpendicular (2, -1) mix cancels. Column 4 of -->
+        <!--     A is zero, so x_4 is never used. Keep this in words; the previous -->
+        <!--     slide is the same facts as matrices. -->
+        <!--   </aside> -->
+        <!-- </section> -->
 
         <section>
           <h2>What the SVD reveals</h2>
@@ -255,8 +255,10 @@
             <li class="fragment">$\sigma_n = 0$, so $\kappa = \infty$: the
               columns of $\mathbf{A}$ are dependent.</li>
           </ul>
-          <p class="fragment why">Here we can see all this by eye. For a
-            $1000 \times 1000$ matrix, the SVD finds it for us.</p>
+          <p class="fragment why">This matrix gives all of it away by
+            inspection: row 3 is zero, column 4 is zero, column 5 is twice
+            column 1. A $1000 \times 1000$ matrix hides the same facts; the
+            SVD digs them out.</p>
         </section>
         <!-- OLD (2026-10-20): longer version with the checks written out.
 <section>
@@ -333,8 +335,9 @@
             </tbody>
           </table>
           <p class="fragment why">Each move is exact up to rounding. Nothing
-            is divided by a small pivot; the only divisions are by the
-            $\sigma_i$, and we can see them.</p>
+            is divided by a pivot that elimination happened to produce; the
+            only divisions are by the $\sigma_i$, which are all known before
+            the first division is done.</p>
         </section>
 
         <section>

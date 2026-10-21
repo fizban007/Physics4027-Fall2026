@@ -422,9 +422,9 @@
               $|\mathbf{A}\mathbf{a} - \mathbf{y}|^2 = \sum_i (a_0 + a_1 t_i + a_2 t_i^2 - y_i)^2$.
               That is <em>least squares</em>.</li>
           </ul>
-          <p class="fragment why">The pseudoinverse does exactly this:
-            $\mathbf{a} = \mathbf{A}^{+}\mathbf{y}$ gives
-            $(1.235,\ 9.034,\ -4.951)$, so $g = -2a_2 = 9.90$ (true $9.81$).</p>
+          <p class="fragment why" style="font-size: 0.72em;">The pseudoinverse does exactly this:
+            $\mathbf{a} = \mathbf{A}^{+}\mathbf{y} = (1.235,\ 9.034,\ -4.951)$,
+            so $g = -2a_2 = 9.90$; true $9.81$.</p>
           <aside class="notes">
             Numbers printed by make_figures.py: t runs from 0 to 1.8 s in 15
             steps, rows 1 to 3 and 15 of A and y are quoted. The columns of A

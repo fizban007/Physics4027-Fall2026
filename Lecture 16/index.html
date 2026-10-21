@@ -255,9 +255,7 @@
             <li class="fragment">$\sigma_n = 0$, so $\kappa = \infty$: the
               columns of $\mathbf{A}$ are dependent.</li>
           </ul>
-          <p class="fragment why">This matrix gives all of it away by
-            inspection: row 3 is zero, column 4 is zero, column 5 is twice
-            column 1. A $1000 \times 1000$ matrix hides the same facts; the
+          <p class="fragment why">A $1000 \times 1000$ matrix hides the same facts; the
             SVD digs them out.</p>
         </section>
         <!-- OLD (2026-10-20): longer version with the checks written out.
@@ -373,6 +371,135 @@
         <section>
           <h2>Least squares fitting</h2>
           <div class="cols" style="align-items: center;">
+            <div class="col" style="font-size: 0.74em;">
+              <p>A ball is thrown up. Its height is measured 15 times,
+                each with some error.</p>
+              <p class="fragment">The model is a parabola with three unknown
+                coefficients:</p>
+              <p class="fragment">$$y(t) = a_0 + a_1 t + a_2 t^2$$</p>
+              <p class="fragment">Each measurement $(t_i, y_i)$ is one
+                equation in the three unknowns:
+                $$a_0 + a_1 t_i + a_2 t_i^2 = y_i$$</p>
+            </div>
+            <div class="col" style="flex: 1.15;">
+              <img src="figures/lstsq_fit.png" style="width: 100%; display: block;"
+                alt="Fifteen noisy height measurements against time with error bars, the fitted parabola through them, and the true path as a dashed line; the fit gives g = 9.90.">
+            </div>
+          </div>
+          <aside class="notes">
+            Data generated with y0 = 1.2 m, v0 = 9.0 m/s, g = 9.81, noise
+            0.15 m, seed 1, by make_figures.py. Any model linear in its
+            parameters works the same way: A_ij = f_j(x_i) for basis
+            functions f_j (powers, sines, Legendre polynomials). Only the
+            parameters must enter linearly; the basis functions can be
+            anything.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The matrix $\mathbf{A}$</h2>
+          <p style="font-size: 0.76em;">Stack the 15 equations. Row $i$ is
+            $(1,\ t_i,\ t_i^2)$; the right-hand side is the data:</p>
+          <div style="font-size: 0.68em;">
+          $$
+          \underbrace{\begin{pmatrix}
+            1 & 0 & 0 \\
+            1 & 0.129 & 0.017 \\
+            1 & 0.257 & 0.066 \\
+            \vdots & \vdots & \vdots \\
+            1 & 1.800 & 3.240
+          \end{pmatrix}}_{\mathbf{A}:\ 15 \times 3}
+          \begin{pmatrix} a_0 \\ a_1 \\ a_2 \end{pmatrix}
+          =
+          \underbrace{\begin{pmatrix} 1.252 \\ 2.399 \\ 3.240 \\ \vdots \\ 1.435 \end{pmatrix}}_{\mathbf{y}}
+          $$
+          </div>
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">15 equations, 3 unknowns, noisy data: no
+              $\mathbf{a}$ satisfies all 15.</li>
+            <li class="fragment">Ask instead for the $\mathbf{a}$ that
+              minimizes the total squared misfit,
+              $|\mathbf{A}\mathbf{a} - \mathbf{y}|^2 = \sum_i (a_0 + a_1 t_i + a_2 t_i^2 - y_i)^2$.
+              That is <em>least squares</em>.</li>
+          </ul>
+          <p class="fragment why">The pseudoinverse does exactly this:
+            $\mathbf{a} = \mathbf{A}^{+}\mathbf{y}$ gives
+            $(1.235,\ 9.034,\ -4.951)$, so $g = -2a_2 = 9.90$ (true $9.81$).</p>
+          <aside class="notes">
+            Numbers printed by make_figures.py: t runs from 0 to 1.8 s in 15
+            steps, rows 1 to 3 and 15 of A and y are quoted. The columns of A
+            are the three basis functions 1, t, t^2 sampled at the
+            measurement times. Singular values 7.81, 2.33, 0.486, kappa = 16:
+            well conditioned, nothing to cut.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The normal equations</h2>
+          <p style="font-size: 0.76em;">There is an older route to the same
+            $\mathbf{a}$. At the minimum, the leftover misfit
+            $\mathbf{r} = \mathbf{A}\mathbf{a} - \mathbf{y}$ is perpendicular
+            to every column of $\mathbf{A}$: otherwise sliding $\mathbf{a}$
+            along that column would shrink it.</p>
+          <p class="fragment" style="font-size: 0.76em;">Perpendicular to
+            every column means $\mathbf{A}^T\mathbf{r} = \mathbf{0}$, so</p>
+          $$(\mathbf{A}^T\mathbf{A})\,\mathbf{a} = \mathbf{A}^T\mathbf{y}$$
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">These are the <em>normal equations</em>:
+              $3 \times 3$, square, symmetric. LU or Cholesky solves them.
+              This is how least squares is usually taught and often coded.</li>
+            <li class="fragment">For the ball they give the same
+              $\mathbf{a}$ to all printed digits, and
+              $|\mathbf{r}| = 0.33$, about the measurement noise.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: the gradient of |A a - y|^2 with respect to a is 2
+            A^T (A a - y); setting it to zero gives the normal equations. The
+            geometric statement is the same thing: A^T r = 0 says r dot
+            (each column of A) = 0. The residual 0.33 against sqrt(15) x 0.15
+            = 0.58 expected for 15 points of noise 0.15: the fit absorbed
+            some noise, as 3 parameters on 15 points will.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Why not the normal equations?</h2>
+          <p style="font-size: 0.76em;">Because $\mathbf{A}^T\mathbf{A}$ is
+            worse conditioned than $\mathbf{A}$. Its singular values are
+            $\sigma_i^2$ (the "SVD and eigenvalues" slide), so its condition
+            number is $\kappa^2$.</p>
+          <table class="fragment" style="font-size: 0.6em; margin: 0.3em auto;">
+            <thead><tr><th>polynomial degree</th><th>$\kappa(\mathbf{A})$</th><th>$\kappa^2$</th><th>residual, SVD</th><th>residual, normal equations</th></tr></thead>
+            <tbody>
+              <tr><td>4</td><td>$7 \times 10^{2}$</td><td>$4 \times 10^{5}$</td><td>$1.8 \times 10^{-2}$</td><td>$1.8 \times 10^{-2}$</td></tr>
+              <tr><td>8</td><td>$6 \times 10^{5}$</td><td>$4 \times 10^{11}$</td><td>$2.1 \times 10^{-6}$</td><td>$2.1 \times 10^{-6}$</td></tr>
+              <tr><td>12</td><td>$7 \times 10^{8}$</td><td>$5 \times 10^{17}$</td><td>$3.9 \times 10^{-11}$</td><td>$4.7 \times 10^{-8}$</td></tr>
+              <tr><td>16</td><td>$8 \times 10^{11}$</td><td>$6 \times 10^{23}$</td><td>$9.8 \times 10^{-15}$</td><td>$2.7 \times 10^{-6}$</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment" style="font-size: 0.72em;">Fitting a smooth
+            function on $[0, 1]$ with 60 points. Once $\kappa^2$ passes
+            $10^{16}$, the normal equations return coefficients that are
+            wrong by a factor of order one; the SVD keeps improving.</p>
+          <p class="fragment why">Same lesson as Gram-Schmidt against
+            Householder: work on $\mathbf{A}$ itself, never on a product that
+            squares its conditioning.</p>
+          <aside class="notes">
+            Measured by make_figures.py: f(x) = cos 3x + 0.2 e^x, Vandermonde
+            matrix with columns 1, x, ..., x^deg. Relative coefficient error
+            of the normal equations: 5e-13 (deg 4), 5e-7 (8), 0.5 (12), 50
+            (16). QR on A gives the same accuracy as the SVD here; the SVD
+            adds the ability to see and cut small sigma_i. For the ball, kappa
+            = 16 and kappa^2 = 260: both routes are fine, which is why the
+            previous slide could say they agree.
+          </aside>
+        </section>
+
+        <!-- OLD (2026-10-20): three slides, with A described in prose, a step-by-step
+             numbers table, and the normal equations assumed known.
+<section>
+          <h2>Least squares fitting</h2>
+          <div class="cols" style="align-items: center;">
             <div class="col" style="font-size: 0.7em;">
               <p>15 measurements of a thrown ball's height. The model is a
                 parabola with three unknown coefficients:</p>
@@ -460,6 +587,7 @@
             adds the ability to see and cut small sigma_i.
           </aside>
         </section>
+        -->
 
         <section>
           <h2>In practice</h2>

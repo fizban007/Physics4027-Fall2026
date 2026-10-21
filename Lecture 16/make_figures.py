@@ -100,6 +100,8 @@ print(f"[ball] g from fit = {-2*a[2]:.3f}  v0 = {a[1]:.3f}  y0 = {a[0]:.3f}   tr
 print(f"[ball] |A a - y| = {np.linalg.norm(resid):.4f}  (sqrt(15) sigma = {np.sqrt(15)*sigma_meas:.3f});"
       f"  A^T (A a - y) = {(A.T @ resid).round(12).tolist()}")
 # the slide quotes the first rows of A and the three steps of the solve
+for i in [0, 1, 2, 14]:
+    print(f"[ball] row {i+1:2d} of A = (1, {t[i]:.3f}, {t[i]**2:.3f})   y_{i+1} = {y[i]:.3f}")
 U_b, s_b, Vt_b = np.linalg.svd(A, full_matrices=False)
 c = U_b.T @ y
 print("[ball] U^T y =", c.round(4).tolist(), " divided by sigma:", (c / s_b).round(4).tolist(),

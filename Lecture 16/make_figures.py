@@ -210,42 +210,45 @@ ax.set_xlabel("quantity 1"); ax.set_ylabel("quantity 2")
 fig.tight_layout()
 save(fig, "pca_2d")
 
-# ------------------------------------------- 6. PCA on Fisher's irises: 150 flowers, 4 lengths each
-# data/iris.csv is the copy shipped with scikit-learn (header: n, p, species names;
-# columns: sepal length, sepal width, petal length, petal width in cm, species 0/1/2).
-raw = np.loadtxt("data/iris.csv", delimiter=",", skiprows=1)
-Xi = raw[:, :4]
-species = raw[:, 4].astype(int)
-species_names = ["setosa", "versicolor", "virginica"]
-measure_names = ["sepal\nlength", "sepal\nwidth", "petal\nlength", "petal\nwidth"]
-n_fl = Xi.shape[0]
-mean_i = Xi.mean(axis=0)
-Xic = Xi - mean_i
-Ui, si, Vti = np.linalg.svd(Xic, full_matrices=False)
-if Vti[0, 2] < 0:                                   # sign convention: v1 points toward larger petals
-    Vti[0] *= -1; Ui[:, 0] *= -1
-if Vti[1, 0] > 0:
-    Vti[1] *= -1; Ui[:, 1] *= -1
-scores = Xic @ Vti.T                                # = U Sigma: each flower's coordinates along v1, v2, ...
-var_i = si**2
-print(f"[iris] X is {n_fl} x 4; first rows {Xi[0].tolist()}, {Xi[1].tolist()}; column means {mean_i.round(2).tolist()}")
-print(f"[iris] singular values {si.round(2).tolist()}; variance fractions {(var_i/var_i.sum()).round(3).tolist()};"
-      f" first two together {np.sum(var_i[:2])/var_i.sum():.3f}")
-print(f"[iris] v1 = {Vti[0].round(2).tolist()}  v2 = {Vti[1].round(2).tolist()}")
-for k in range(3):
-    print(f"[iris] {species_names[k]:10s} along v1 from {scores[species==k, 0].min():5.2f} to {scores[species==k, 0].max():5.2f}")
-fig, (b1, b2) = plt.subplots(1, 2, figsize=(11.5, 4.3), gridspec_kw={"width_ratios": [1.35, 1]})
-for k, col in enumerate([V[0], V[2], ACCENT]):
-    b1.scatter(scores[species == k, 0], scores[species == k, 1], s=22, color=col, alpha=0.8, label=species_names[k])
-b1.axhline(0, color=MUTED, lw=0.6); b1.axvline(0, color=MUTED, lw=0.6)
-b1.set_xlabel(r"coordinate along $\mathbf{v}_1$ (cm)"); b1.set_ylabel(r"along $\mathbf{v}_2$ (cm)")
-b1.legend(frameon=False, fontsize=13, loc="upper right")
-b1.set_title("each flower by its first two coordinates", fontsize=14)
-b2.bar(range(4), Vti[0], color=V[1], width=0.6)
-b2.axhline(0, color=MUTED, lw=0.6)
-b2.set_xticks(range(4)); b2.set_xticklabels(measure_names, fontsize=12)
-b2.set_ylim(-0.3, 1.0)
-b2.set_title(r"the components of $\mathbf{v}_1$", fontsize=14)
+# ------------------------------------------- 6. PCA on a vibrating string: snapshots of y(x, t)
+# A string of length 1 and wave speed 1, modes 1 to 3 excited, recorded at nx points
+# and nt times (one row per snapshot), with measurement noise.
+rng = np.random.default_rng(7)
+nx, nt = 100, 200
+x_str = np.linspace(0, 1, nx + 2)[1:-1]                 # interior points
+t_str = np.linspace(0, 4.0, nt, endpoint=False)         # 4 periods of mode 1 (T_1 = 2)
+mode_amps, mode_phases = [1.0, 0.6, 0.35], [0.3, 1.1, 2.0]
+Y_str = sum(a * np.outer(np.cos(k * np.pi * t_str + ph), np.sin(k * np.pi * x_str))
+            for k, (a, ph) in enumerate(zip(mode_amps, mode_phases), start=1))
+noise_str = 0.03
+X_str = Y_str + noise_str * rng.standard_normal(Y_str.shape)
+Xsc = X_str - X_str.mean(axis=0)
+Ust, sst, Vtst = np.linalg.svd(Xsc, full_matrices=False)
+for i in range(3):                                      # sign convention: positive near x = 0
+    if Vtst[i, 5] < 0:
+        Vtst[i] *= -1; Ust[:, i] *= -1
+print(f"[string] X is {nt} x {nx}; modes 1-3 with amplitudes {mode_amps}, noise {noise_str}")
+print(f"[string] singular values {sst[:5].round(1).tolist()} ..., median of the rest {np.median(sst[3:]):.2f};"
+      f" variance fraction of first 3: {np.sum(sst[:3]**2)/np.sum(sst**2):.4f}")
+for i in range(3):
+    mode = np.sin((i + 1) * np.pi * x_str); mode /= np.linalg.norm(mode)
+    print(f"[string] |v{i+1} . sin({i+1} pi x)| = {abs(Vtst[i] @ mode):.4f}")
+fig, axs = plt.subplots(1, 3, figsize=(14, 3.9))
+cmap = plt.get_cmap("viridis")
+for n, i in enumerate(range(0, 25, 6)):
+    axs[0].plot(x_str, X_str[i], lw=1.3, color=cmap(0.1 + 0.2 * n))
+axs[0].set_title("five of the 200 snapshots", fontsize=14)
+axs[0].set_xlabel("$x$"); axs[0].set_ylabel("$y$")
+axs[1].semilogy(np.arange(1, 21), sst[:20], "o", ms=5, color=V[0])
+axs[1].set_title("singular values of the data matrix", fontsize=14)
+axs[1].set_xlabel("$i$"); axs[1].set_ylabel(r"$\sigma_i$")
+axs[1].set_xticks([1, 3, 5, 10, 15, 20])
+axs[1].set_yticks([0.3, 1, 3, 10, 30, 100]); axs[1].set_yticklabels(["0.3", "1", "3", "10", "30", "100"]); axs[1].minorticks_off()
+for i, col in enumerate([ACCENT, V[2], V[1]]):
+    axs[2].plot(x_str, Vtst[i], lw=1.6, color=col, label=r"$\mathbf{v}_%d$" % (i + 1))
+axs[2].set_title(r"$\mathbf{v}_1, \mathbf{v}_2, \mathbf{v}_3$", fontsize=14)
+axs[2].set_xlabel("$x$"); axs[2].set_yticks([0])
+axs[2].legend(frameon=False, fontsize=12, loc="upper right")
 fig.tight_layout()
-save(fig, "pca_iris")
+save(fig, "pca_string")
 print("done")

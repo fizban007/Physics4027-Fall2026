@@ -442,8 +442,8 @@
             to every column of $\mathbf{A}$: otherwise sliding $\mathbf{a}$
             along that column would shrink it.</p>
           <p class="fragment" style="font-size: 0.76em;">Perpendicular to
-            every column means $\mathbf{A}^T\mathbf{r} = \mathbf{0}$, so</p>
-          $$(\mathbf{A}^T\mathbf{A})\,\mathbf{a} = \mathbf{A}^T\mathbf{y}$$
+            every column means $\mathbf{A}^T\mathbf{r} = \mathbf{0}$, so
+          $$(\mathbf{A}^T\mathbf{A})\,\mathbf{a} = \mathbf{A}^T\mathbf{y}$$</p>
           <ul style="font-size: 0.74em;">
             <li class="fragment">These are the <em>normal equations</em>:
               $3 \times 3$, square, symmetric. LU or Cholesky solves them.
@@ -693,26 +693,26 @@ Eigen::VectorXd a = svd.solve(y);
           </ul>
         </section>
 
-        <section>
-          <h2>Beyond pictures</h2>
-          <p style="font-size: 0.78em;">Anything that is a matrix can be
-            truncated the same way, and the $\sigma_i$ tell you how much you
-            lose:</p>
-          <ul style="font-size: 0.74em;">
-            <li class="fragment"><strong>Simulation snapshots</strong> as
-              columns: the first few $\mathbf{u}_i$ are the dominant modes of
-              the flow or field, and a model built on them runs in a fraction
-              of the time (reduced-order modelling).</li>
-            <li class="fragment"><strong>A measured response matrix</strong>
-              (detector, instrument, linear inverse problem): small
-              $\sigma_i$ are the directions the measurement barely sees.
-              Cutting them is regularization.</li>
-            <li class="fragment"><strong>A two-particle wavefunction</strong>
-              $\psi_{ij}$, particle 1 in state $i$ and particle 2 in state
-              $j$: its SVD is the Schmidt decomposition, and the number of
-              nonzero $\sigma_i$ measures the entanglement.</li>
-          </ul>
-        </section>
+        <!-- <section> -->
+        <!--   <h2>Beyond pictures</h2> -->
+        <!--   <p style="font-size: 0.78em;">Anything that is a matrix can be -->
+        <!--     truncated the same way, and the $\sigma_i$ tell you how much you -->
+        <!--     lose:</p> -->
+        <!--   <ul style="font-size: 0.74em;"> -->
+        <!--     <li class="fragment"><strong>Simulation snapshots</strong> as -->
+        <!--       columns: the first few $\mathbf{u}_i$ are the dominant modes of -->
+        <!--       the flow or field, and a model built on them runs in a fraction -->
+        <!--       of the time (reduced-order modelling).</li> -->
+        <!--     <li class="fragment"><strong>A measured response matrix</strong> -->
+        <!--       (detector, instrument, linear inverse problem): small -->
+        <!--       $\sigma_i$ are the directions the measurement barely sees. -->
+        <!--       Cutting them is regularization.</li> -->
+        <!--     <li class="fragment"><strong>A two-particle wavefunction</strong> -->
+        <!--       $\psi_{ij}$, particle 1 in state $i$ and particle 2 in state -->
+        <!--       $j$: its SVD is the Schmidt decomposition, and the number of -->
+        <!--       nonzero $\sigma_i$ measures the entanglement.</li> -->
+        <!--   </ul> -->
+        <!-- </section> -->
 
         <!-- ============ Part IV: PCA ============ -->
 
@@ -835,7 +835,7 @@ Eigen::VectorXd a = svd.solve(y);
               minimizes $|\mathbf{A}\mathbf{x} - \mathbf{b}|$. Least-squares
               fitting is this with $A_{ij} = f_j(x_i)$. Never form
               $\mathbf{A}^T\mathbf{A}$.</li>
-            <li class="fragment"><strong>Low rank:</strong> keep the first
+            <li class="fragment"><strong>Low rank approximation:</strong> keep the first
               $k$ terms of $\sum \sigma_i\mathbf{u}_i\mathbf{v}_i^T$; the error
               is $\sigma_{k+1}$.</li>
             <li class="fragment"><strong>PCA:</strong> the SVD of the

@@ -104,7 +104,41 @@
           </aside>
         </section>
 
-        <!-- REMOVED (2026-10-20): the 4x5 worked example, too dense to follow in class.
+        <section>
+          <h2>An example</h2>
+          <div style="font-size: 0.64em; margin: -0.4em 0;">
+          $$
+          \mathbf{A} = \begin{pmatrix} 1 & 0 & 0 & 0 & 2 \\ 0 & 0 & 3 & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \\ 0 & 4 & 0 & 0 & 0 \end{pmatrix}
+          $$
+          </div>
+          <div class="fragment">
+            <p style="font-size: 0.76em; margin: 0.2em 0;">Its SVD is</p>
+            <div style="font-size: 0.64em;">
+            $$
+            \mathbf{U} = \begin{pmatrix} 0 & 0 & -1 & 0 \\ 0 & 1 & 0 & 0 \\ 0 & 0 & 0 & 1 \\ -1 & 0 & 0 & 0 \end{pmatrix},\quad
+            \boldsymbol{\Sigma} = \begin{pmatrix} 4 & 0 & 0 & 0 & 0 \\ 0 & 3 & 0 & 0 & 0 \\ 0 & 0 & \sqrt{5} & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \end{pmatrix},\quad
+            \mathbf{V} = \begin{pmatrix}
+              0 & 0 & -\tfrac{1}{\sqrt{5}} & -\tfrac{2}{\sqrt{5}} & 0 \\
+              -1 & 0 & 0 & 0 & 0 \\
+              0 & 1 & 0 & 0 & 0 \\
+              0 & 0 & 0 & 0 & 1 \\
+              0 & 0 & -\tfrac{2}{\sqrt{5}} & \tfrac{1}{\sqrt{5}} & 0
+            \end{pmatrix}
+            $$
+            </div>
+          </div>
+          <p class="fragment" style="font-size: 0.76em; margin: 0.2em 0;">The
+            singular values are $4$, $3$, $\sqrt{5}$ and $0$. Each column of
+            $\mathbf{V}$ is sent to $\sigma_i$ times a column of $\mathbf{U}$:
+            $\mathbf{A}\mathbf{v}_1 = 4\,\mathbf{u}_1$, and so on.</p>
+          <aside class="notes">
+            Only state the decomposition; do not verify it row by row in class.
+            One check if asked: v_1 = (0, -1, 0, 0, 0) picks out minus column 2
+            of A, which is (0, 0, 0, -4) = 4 u_1. The last column of V,
+            (0, 0, 0, 1, 0), is sent to zero because column 4 of A is zero.
+          </aside>
+        </section>
+        <!-- OLD (2026-10-20): the same example with a row-by-row check table, too dense to follow.
 <section>
           <h2>An example</h2>
           <div style="font-size: 0.62em; margin: -0.3em 0;">
@@ -126,37 +160,6 @@
               <tr class="fragment"><td>$0$</td><td>$(0,\ 0,\ 0,\ 1,\ 0)$</td><td>$\mathbf{0}$: column 4 of $\mathbf{A}$ is zero</td><td class="muted">none</td></tr>
             </tbody>
           </table>
-        </section>
--->
-
-        <!-- REMOVED (2026-10-20): the 4x5 worked example, too dense to follow in class.
-<section>
-          <h2>The same thing as matrices</h2>
-          <p style="font-size: 0.74em;">Stack the $\mathbf{u}_i$ as the columns
-            of $\mathbf{U}$, the $\mathbf{v}_i$ as the columns of $\mathbf{V}$,
-            and the $\sigma_i$ on the diagonal of $\boldsymbol{\Sigma}$:</p>
-          <div style="font-size: 0.66em;">
-          $$
-          \mathbf{U} = \begin{pmatrix} 0 & 0 & -1 & 0 \\ 0 & 1 & 0 & 0 \\ 0 & 0 & 0 & 1 \\ -1 & 0 & 0 & 0 \end{pmatrix},\quad
-          \boldsymbol{\Sigma} = \begin{pmatrix} 4 & 0 & 0 & 0 & 0 \\ 0 & 3 & 0 & 0 & 0 \\ 0 & 0 & \sqrt{5} & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \end{pmatrix},\quad
-          \mathbf{V} = \begin{pmatrix}
-            0 & 0 & -\tfrac{1}{\sqrt{5}} & -\tfrac{2}{\sqrt{5}} & 0 \\
-            -1 & 0 & 0 & 0 & 0 \\
-            0 & 1 & 0 & 0 & 0 \\
-            0 & 0 & 0 & 0 & 1 \\
-            0 & 0 & -\tfrac{2}{\sqrt{5}} & \tfrac{1}{\sqrt{5}} & 0
-          \end{pmatrix}
-          $$
-          </div>
-          <ul style="font-size: 0.72em;">
-            <li class="fragment">$\mathbf{U}$ is $4 \times 4$, so it has one
-              more column than there are nonzero $\sigma_i$: $(0, 0, 1, 0)$,
-              an output direction nothing maps to. $\mathbf{V}$ is
-              $5 \times 5$: its last two columns are the inputs that map to
-              zero.</li>
-            <li class="fragment">Multiply $\mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T$
-              out and $\mathbf{A}$ comes back.</li>
-          </ul>
         </section>
 -->
 
@@ -183,7 +186,23 @@
             the number of unknowns.</p>
         </section>
 
-        <!-- REMOVED (2026-10-20): the 4x5 worked example, too dense to follow in class.
+        <section>
+          <h2>Reading the example</h2>
+          <ul style="font-size: 0.78em;">
+            <li>Three nonzero singular values, so the rank is 3.</li>
+            <li class="fragment">Range: columns 1 to 3 of $\mathbf{U}$. Any
+              $\mathbf{b}$ with a component along column 4, $(0, 0, 1, 0)$,
+              is out of reach.</li>
+            <li class="fragment">Nullspace: columns 4 and 5 of $\mathbf{V}$,
+              $(-2, 0, 0, 0, 1)/\sqrt{5}$ and $(0, 0, 0, 1, 0)$. Any
+              combination of them satisfies $\mathbf{A}\mathbf{x} = \mathbf{0}$.</li>
+            <li class="fragment">$\sigma_n = 0$, so $\kappa = \infty$: the
+              columns of $\mathbf{A}$ are dependent.</li>
+          </ul>
+          <p class="fragment why">Here we can see all this by eye. For a
+            $1000 \times 1000$ matrix, the SVD finds it for us.</p>
+        </section>
+        <!-- OLD (2026-10-20): longer version with the checks written out.
 <section>
           <h2>Reading the example</h2>
           <ul style="font-size: 0.78em;">
@@ -215,7 +234,7 @@
           <ul style="font-size: 0.76em;">
             <li class="fragment">That is an eigen-decomposition: the columns of
               $\mathbf{V}$ are the eigenvectors of $\mathbf{A}^T\mathbf{A}$,
-              with eigenvalues $\sigma_i^2$.</li>
+              with eigenvalues $\sigma_i^2$. For our example, $16, 9, 5, 0, 0$.</li>
             <li class="fragment">Likewise $\mathbf{A}\mathbf{A}^T = \mathbf{U}\,(\boldsymbol{\Sigma}\boldsymbol{\Sigma}^T)\,\mathbf{U}^T$:
               the columns of $\mathbf{U}$ are its eigenvectors.</li>
             <li class="fragment">If $\mathbf{A}$ is itself symmetric, its
@@ -229,6 +248,8 @@
             DERIVATION: U^T U = I kills the middle; Sigma^T Sigma is n x n
             diagonal with sigma_i^2 (and zeros beyond rank). For symmetric A =
             Q Lambda Q^T, A^T A = Q Lambda^2 Q^T, so sigma_i^2 = lambda_i^2.
+            The eigenvalues of A^T A for the 4x5 example are printed by
+            make_figures.py: 16, 9, 5, 0, 0.
           </aside>
         </section>
 

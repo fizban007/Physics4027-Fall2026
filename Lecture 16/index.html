@@ -30,8 +30,8 @@
             was no time for it). Parts II to IV follow the 2025 Lecture 17
             (pseudoinverse, least squares, matrix approximation, PCA), with
             worked numbers: a thrown ball fit, the normal-equations table, the
-            Project 1 black hole image at low rank, and a synthetic set of
-            spectra. Every number is printed by make_figures.py.
+            Project 1 black hole image at low rank, and Fisher's iris data
+            for PCA. Every number is printed by make_figures.py.
           </aside>
         </section>
 
@@ -754,6 +754,34 @@ Eigen::VectorXd a = svd.solve(y);
         </section>
 
         <section>
+          <h2>Example: 150 irises, 4 lengths each</h2>
+          <p style="font-size: 0.74em; margin-bottom: 0.2em;">Fisher's 1936
+            data: sepal length and width, petal length and width, in cm, of
+            150 flowers. $\mathbf{X}$ is $150 \times 4$.</p>
+          <img src="figures/pca_iris.png" style="width: 86%; margin: 0 auto; display: block;"
+            alt="Left: the 150 flowers plotted by their coordinates along v1 and v2, colored by species; setosa sits alone at negative v1, versicolor and virginica form two overlapping groups at positive v1. Right: a bar chart of the four components of v1: 0.36, minus 0.08, 0.86, 0.36.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">Singular values $25.1,\ 6.0,\ 3.4,\ 1.9$:
+              $92\%$ of the variance lies along $\mathbf{v}_1$, $98\%$ along
+              $\mathbf{v}_1$ and $\mathbf{v}_2$.</li>
+            <li class="fragment">$\mathbf{v}_1$ is mostly petal length.
+              Plotted along $\mathbf{v}_1$ and $\mathbf{v}_2$, the three
+              species separate; the SVD was never told there were species.</li>
+          </ul>
+          <aside class="notes">
+            data/iris.csv is the copy shipped with scikit-learn; numbers
+            printed by make_figures.py. The coordinates are the columns of
+            U Sigma = X V after subtracting the column means. v_1 = (0.36,
+            -0.08, 0.86, 0.36), v_2 = (-0.66, -0.73, 0.17, 0.08): v_2 is
+            mostly sepal size. Setosa lies between -3.2 and -2.2 along v_1,
+            versicolor between -0.9 and 1.6, virginica between 0.5 and 3.8.
+            The data are not standardized; petal length has the largest
+            spread (1.8 cm) and so dominates v_1. Standardizing each column
+            first is the other common convention and changes the directions.
+          </aside>
+        </section>
+        <!-- OLD (2026-10-20): a synthetic set of 200 spectra; too contrived and hard to read.
+<section>
           <h2>Example: 200 spectra, 300 wavelengths</h2>
           <img src="figures/pca_spectra.png" style="width: 100%; margin: 0 auto; display: block;"
             alt="Left: four noisy spectra with several emission lines of varying strength. Middle: the singular values of the 200 by 300 data matrix, three large ones (20, 17, 13) and then a flat floor near 1.5. Right: the first three principal directions, each a pattern of lines.">
@@ -777,6 +805,7 @@ Eigen::VectorXd a = svd.solve(y);
             removes most of the noise.
           </aside>
         </section>
+        -->
 
         <section>
           <h2>PCA and the covariance matrix</h2>
@@ -793,9 +822,11 @@ Eigen::VectorXd a = svd.solve(y);
             <li class="fragment">Lecture 14 went the other way: from a
               covariance matrix, Cholesky built correlated random numbers.
               PCA reads the covariance's axes back out of the data.</li>
-            <li class="fragment">Computing $\mathbf{C}$ first squares the
-              conditioning, exactly as the normal equations did. Take the SVD
-              of $\mathbf{X}$ directly.</li>
+            <li class="fragment">Either route works. The eigenvalue route is
+              fine when $p$ is small, as here ($p = 4$). The SVD of
+              $\mathbf{X}$ wins when $p$ is large (pixels, wavelengths): it
+              never forms the $p \times p$ matrix, and it gives each
+              sample's coordinates for free.</li>
           </ul>
         </section>
 

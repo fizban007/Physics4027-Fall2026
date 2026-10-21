@@ -210,40 +210,42 @@ ax.set_xlabel("quantity 1"); ax.set_ylabel("quantity 2")
 fig.tight_layout()
 save(fig, "pca_2d")
 
-# ------------------------------------------- 6. PCA on spectra: 200 noisy spectra built from 3 components
-rng = np.random.default_rng(5)
-wl = np.linspace(400, 700, 300)                     # nm
-def line(center, width):
-    return np.exp(-0.5 * ((wl - center) / width) ** 2)
-components = np.vstack([line(450, 12) + 0.6 * line(620, 20),       # three "species", each a line pattern
-                        line(520, 10) + 0.4 * line(560, 8),
-                        0.5 * line(480, 25) + line(660, 10)])
-n_spec = 200
-amplitudes = rng.uniform(0.2, 1.0, (n_spec, 3))
-noise_level = 0.05
-spectra = amplitudes @ components + noise_level * rng.standard_normal((n_spec, wl.size))
-Xs = spectra - spectra.mean(axis=0)
-Us, ss, Vts = np.linalg.svd(Xs, full_matrices=False)
-var = ss**2 / (n_spec - 1)
-print(f"[spectra] {n_spec} spectra x {wl.size} wavelengths; first 6 singular values {ss[:6].round(2).tolist()};"
-      f" noise-floor estimate sqrt(n-1)*noise*sqrt(p/(n-1))... measured sigma_4..6 {ss[3:6].round(2).tolist()}")
-print(f"[spectra] variance fraction of first 3 components: {np.sum(var[:3])/np.sum(var):.4f};"
-      f" first 2: {np.sum(var[:2])/np.sum(var):.4f}")
-fig, axs = plt.subplots(1, 3, figsize=(14, 3.8))
-for i in range(4):
-    axs[0].plot(wl, spectra[i], lw=1.0, color=cmap(0.15 + 0.25 * i))
-axs[0].set_title("four of the 200 measured spectra", fontsize=14)
-axs[0].set_xlabel("wavelength (nm)"); axs[0].set_yticks([])
-axs[1].semilogy(np.arange(1, 21), ss[:20], "o", ms=5, color=V[0])
-axs[1].set_title("singular values of the data matrix", fontsize=14)
-axs[1].set_xlabel("$i$"); axs[1].set_ylabel(r"$\sigma_i$")
-axs[1].set_xticks([1, 3, 5, 10, 15, 20])
-axs[1].set_yticks([1, 3, 10, 30]); axs[1].set_yticklabels(["1", "3", "10", "30"]); axs[1].minorticks_off()
-for i in range(3):
-    axs[2].plot(wl, Vts[i], lw=1.4, color=[ACCENT, V[2], V[1]][i], label=r"$\mathbf{v}_%d$" % (i + 1))
-axs[2].set_title("the first three principal directions", fontsize=14)
-axs[2].set_xlabel("wavelength (nm)"); axs[2].set_yticks([])
-axs[2].legend(frameon=False, fontsize=12, loc="upper right")
+# ------------------------------------------- 6. PCA on Fisher's irises: 150 flowers, 4 lengths each
+# data/iris.csv is the copy shipped with scikit-learn (header: n, p, species names;
+# columns: sepal length, sepal width, petal length, petal width in cm, species 0/1/2).
+raw = np.loadtxt("data/iris.csv", delimiter=",", skiprows=1)
+Xi = raw[:, :4]
+species = raw[:, 4].astype(int)
+species_names = ["setosa", "versicolor", "virginica"]
+measure_names = ["sepal\nlength", "sepal\nwidth", "petal\nlength", "petal\nwidth"]
+n_fl = Xi.shape[0]
+mean_i = Xi.mean(axis=0)
+Xic = Xi - mean_i
+Ui, si, Vti = np.linalg.svd(Xic, full_matrices=False)
+if Vti[0, 2] < 0:                                   # sign convention: v1 points toward larger petals
+    Vti[0] *= -1; Ui[:, 0] *= -1
+if Vti[1, 0] > 0:
+    Vti[1] *= -1; Ui[:, 1] *= -1
+scores = Xic @ Vti.T                                # = U Sigma: each flower's coordinates along v1, v2, ...
+var_i = si**2
+print(f"[iris] X is {n_fl} x 4; first rows {Xi[0].tolist()}, {Xi[1].tolist()}; column means {mean_i.round(2).tolist()}")
+print(f"[iris] singular values {si.round(2).tolist()}; variance fractions {(var_i/var_i.sum()).round(3).tolist()};"
+      f" first two together {np.sum(var_i[:2])/var_i.sum():.3f}")
+print(f"[iris] v1 = {Vti[0].round(2).tolist()}  v2 = {Vti[1].round(2).tolist()}")
+for k in range(3):
+    print(f"[iris] {species_names[k]:10s} along v1 from {scores[species==k, 0].min():5.2f} to {scores[species==k, 0].max():5.2f}")
+fig, (b1, b2) = plt.subplots(1, 2, figsize=(11.5, 4.3), gridspec_kw={"width_ratios": [1.35, 1]})
+for k, col in enumerate([V[0], V[2], ACCENT]):
+    b1.scatter(scores[species == k, 0], scores[species == k, 1], s=22, color=col, alpha=0.8, label=species_names[k])
+b1.axhline(0, color=MUTED, lw=0.6); b1.axvline(0, color=MUTED, lw=0.6)
+b1.set_xlabel(r"coordinate along $\mathbf{v}_1$ (cm)"); b1.set_ylabel(r"along $\mathbf{v}_2$ (cm)")
+b1.legend(frameon=False, fontsize=13, loc="upper right")
+b1.set_title("each flower by its first two coordinates", fontsize=14)
+b2.bar(range(4), Vti[0], color=V[1], width=0.6)
+b2.axhline(0, color=MUTED, lw=0.6)
+b2.set_xticks(range(4)); b2.set_xticklabels(measure_names, fontsize=12)
+b2.set_ylim(-0.3, 1.0)
+b2.set_title(r"the components of $\mathbf{v}_1$", fontsize=14)
 fig.tight_layout()
-save(fig, "pca_spectra")
+save(fig, "pca_iris")
 print("done")

@@ -164,6 +164,39 @@
 -->
 
         <section>
+          <h2>What $\mathbf{U}$ and $\mathbf{V}$ are doing</h2>
+          <p style="font-size: 0.76em;">In words, the three matrices say
+            which input goes where, and scaled by how much:</p>
+          <table style="font-size: 0.66em; margin: 0.2em auto;">
+            <thead><tr><th>input direction (column of $\mathbf{V}$)</th><th>stretched by</th><th>lands on (column of $\mathbf{U}$)</th></tr></thead>
+            <tbody>
+              <tr><td>along $x_2$</td><td>$4$</td><td>output 4</td></tr>
+              <tr class="fragment"><td>along $x_3$</td><td>$3$</td><td>output 2</td></tr>
+              <tr class="fragment"><td>$x_1$ and $x_5$ together, in the ratio $1 : 2$</td><td>$\sqrt{5}$</td><td>output 1</td></tr>
+              <tr class="fragment"><td>$x_1$ and $x_5$ in the ratio $2 : -1$</td><td>$0$</td><td class="muted">nowhere</td></tr>
+              <tr class="fragment"><td>along $x_4$</td><td>$0$</td><td class="muted">nowhere</td></tr>
+            </tbody>
+          </table>
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">$\mathbf{V}$ lists the input directions
+              $\mathbf{A}$ treats as a pure stretch. $\boldsymbol{\Sigma}$ says by
+              how much. $\mathbf{U}$ says where each one lands.</li>
+            <li class="fragment">Two inputs are flattened to nothing: $x_4$,
+              which $\mathbf{A}$ never looks at, and the mix of $x_1$ and
+              $x_5$ that cancels in row 1. One output, output 3, is never
+              produced: $\mathbf{U}$ still has a column for it.</li>
+          </ul>
+          <aside class="notes">
+            Signs in U and V are a convention; v_1 = (0, -1, 0, 0, 0) is
+            "along x_2" up to sign, and u_1 = (0, 0, 0, -1) is "output 4".
+            Row 1 of A reads x_1 + 2 x_5, so the input (1, 2) direction is
+            stretched to sqrt(5) and the perpendicular (2, -1) direction
+            cancels. Keep this slide in words; the matrices on the previous
+            slide are the same facts written out.
+          </aside>
+        </section>
+
+        <section>
           <h2>What the SVD reveals</h2>
           <ul style="font-size: 0.78em;">
             <li><strong>Rank:</strong> the number of nonzero singular

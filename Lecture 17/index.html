@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 17</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 17</p>
+          <h1>Partial differential equations: advection and characteristics</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            First PDE lecture. Part I: the advection equation and its exact
+            solution, read as characteristics. Part II: characteristics beyond
+            the toy, in four steps (variable speed, a source term, nonlinear
+            speed with Burgers and shocks, two families with the wave
+            equation). Part III: from characteristics to the upwind scheme and
+            the CFL condition. Von Neumann analysis, Lax and Lax-Wendroff come
+            next lecture. Every number is printed by make_figures.py.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Where we are</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Weeks 4 to 7: ordinary differential equations. One
+              independent variable, usually time; initial value problems and
+              boundary value problems.</li>
+            <li class="fragment">Weeks 8 to 9: linear algebra, because the
+              grid method turns a boundary value problem into
+              $\mathbf{A}\mathbf{x} = \mathbf{b}$.</li>
+            <li class="fragment">From today: partial differential equations.
+              Unknowns that depend on space <em>and</em> time, and the methods
+              that fluid, plasma and electromagnetic simulations are built
+              on. Project 2 will use them.</li>
+          </ul>
+          <p class="fragment why">Today: the simplest PDE there is, the one
+            idea that explains how its solutions move, and the first scheme
+            that gets it right.</p>
+        </section>
+
+        <!-- ============ Part I: the advection equation ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; The advection equation</h2>
+          <p>A profile carried along at constant speed</p>
+        </section>
+
+        <section>
+          <h2>What a PDE is</h2>
+          <p style="font-size: 0.76em;">An equation for a function of several
+            variables, involving its partial derivatives. The ones physics
+            runs on:</p>
+          <table style="font-size: 0.66em; margin: 0.2em auto;">
+            <tbody>
+              <tr><td>diffusion</td><td>$\partial_t u = D\,\partial_x^2 u$</td><td>heat, particles spreading</td></tr>
+              <tr><td>wave</td><td>$\partial_t^2 u = c^2\,\partial_x^2 u$</td><td>strings, sound, light</td></tr>
+              <tr><td>Schr&ouml;dinger</td><td>$i\hbar\,\partial_t \psi = -\frac{\hbar^2}{2m}\partial_x^2 \psi + V\psi$</td><td>quantum mechanics in time</td></tr>
+              <tr><td>Poisson</td><td>$\partial_x^2 \phi + \partial_y^2 \phi = -\rho/\varepsilon_0$</td><td>electrostatics, gravity</td></tr>
+              <tr><td>Euler</td><td>$\partial_t \rho + \partial_x(\rho v) = 0$, and two more</td><td>fluids and gases</td></tr>
+            </tbody>
+          </table>
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">Same two kinds as for ODEs. Diffusion, wave
+              and Schr&ouml;dinger are <em>initial value problems</em>: given
+              $u$ at $t = 0$, march forward. Poisson is a <em>boundary value
+              problem</em>: $\phi$ on the boundary, solve for the inside.</li>
+            <li class="fragment">Same plan as BVP in ODEs: put space on a grid,
+              replace derivatives by differences, and the PDE becomes a large
+              system of ODEs, or a large linear system.</li>
+          </ul>
+          <aside class="notes">
+            $\partial_t$ is shorthand for $\partial/\partial t$; say so once.
+            The Poisson equation is the one they met on a grid in Lecture 12
+            and in Homework 7 in one dimension. Euler's equations are the
+            Project 2 target: the first is conservation of mass; momentum
+            and energy are the other two.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The simplest PDE</h2>
+          <p style="font-size: 0.78em;">Something is carried along at a
+            constant speed $v$, without changing shape. Dye in a pipe, a
+            pulse on a conveyor belt, a density of cars on a road where
+            everyone drives at $v$. Its density $u(x, t)$ obeys</p>
+          $$\frac{\partial u}{\partial t} + v\,\frac{\partial u}{\partial x} = 0 .$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">First order in $t$ and in $x$, linear, with
+              one parameter. Called the <em>advection equation</em>: advection
+              is transport by a flow.</li>
+            <li class="fragment">An initial value problem: give $u(x, 0) =
+              u_0(x)$ and ask for $u(x, t)$ later.</li>
+          </ul>
+          <p class="fragment why">Everything in fluid dynamics has a term of
+            this form in it. If a method cannot do this equation, it cannot do
+            fluids.</p>
+          <aside class="notes">
+            DERIVATION of the equation from conservation: the amount of stuff
+            in $[x, x + dx]$ is $u\,dx$; it changes because stuff flows in at
+            $x$ at the rate $v u(x)$ and out at $x + dx$ at the rate
+            $v u(x + dx)$. So $\partial_t (u\,dx) = v u(x) - v u(x + dx) =
+            -v\,\partial_x u\,dx$. The flux is $v u$; for constant $v$ the
+            equation is $\partial_t u + \partial_x (v u) = 0$, the
+            conservation form that Project 2 will use.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Its exact solution</h2>
+          <p style="font-size: 0.78em;">Guess that the profile just moves:
+            $u(x, t) = f(x - vt)$ for some function $f$. Check it with the
+            chain rule, with $f'$ the derivative of $f$ with respect to its
+            argument:</p>
+          $$\frac{\partial u}{\partial t} = -v\,f'(x - vt), \qquad
+            \frac{\partial u}{\partial x} = f'(x - vt), \qquad
+            \frac{\partial u}{\partial t} + v\,\frac{\partial u}{\partial x} = 0 .$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">It works for <em>every</em> $f$. The initial
+              condition picks it: $u(x, 0) = f(x)$, so $f = u_0$ and</li>
+          </ul>
+          <p class="fragment" style="font-size: 0.9em; text-align: center; margin: 0.1em 0;">
+            $u(x, t) = u_0(x - vt)$</p>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">The profile at time $t$ is the initial
+              profile shifted by $vt$. No spreading, no decay, no change of
+              shape. A kink stays a kink.</li>
+          </ul>
+          <aside class="notes">
+            Uniqueness is not shown here; the characteristics on the next
+            slide give it, because they determine $u$ at every point from
+            one initial value.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Characteristics</h2>
+          <img src="figures/char_constant.png" style="width: 92%; margin: 0 auto; display: block;"
+            alt="Left: straight lines x = x0 + v t in the x-t plane, coloured by the initial value of u at x0. Right: the Gaussian initial profile and the same profile shifted by v t at t = 3.">
+          <p style="font-size: 0.74em; margin: 0.2em 0;">Follow a point that
+            moves with the flow, $x(t) = x_0 + vt$. The value of $u$ seen
+            from it changes at the rate</p>
+          <p style="font-size: 0.8em; text-align: center; margin: 0;">
+            $\dfrac{d}{dt}\,u\big(x(t), t\big)
+              = \dfrac{\partial u}{\partial t} + \dfrac{dx}{dt}\dfrac{\partial u}{\partial x}
+              = \dfrac{\partial u}{\partial t} + v\,\dfrac{\partial u}{\partial x} = 0 .$</p>
+          <p class="fragment why">$u$ is constant along these lines. They are
+            the <em>characteristics</em> of the equation, and the PDE says:
+            nothing happens along them.</p>
+          <aside class="notes">
+            The first equality is the chain rule for $u(x(t), t)$; the
+            second uses $dx/dt = v$; the third is the PDE. Read the figure:
+            each line carries one value, the colour, from $t = 0$ upward. To
+            find $u(x, t)$, go down the line through $(x, t)$ to $t = 0$ and
+            read $u_0$ there: $u(x, t) = u_0(x - vt)$. Same solution, now with
+            a reason.
+          </aside>
+        </section>
+
+        <section>
+          <h2>What the lines tell you</h2>
+          <ul style="font-size: 0.78em;">
+            <li>The value at $(x, t)$ depends on the initial data at
+              <em>one</em> point, $x - vt$. Nothing else matters.</li>
+            <li class="fragment">Information travels at speed $v$, no faster
+              and no slower. A change made at $x_0$ at $t = 0$ is felt at $x$
+              exactly at $t = (x - x_0)/v$.</li>
+            <li class="fragment">On a finite domain $[0, L]$ with $v &gt; 0$,
+              the characteristics enter at $x = 0$ and leave at $x = L$. So a
+              boundary condition is needed at the <em>inflow</em> end only.
+              Prescribing $u$ at the outflow end would contradict what the
+              characteristic brings there.</li>
+            <li class="fragment">Sharp features are preserved. The equation
+              does not smooth anything; a numerical method that does is
+              adding something of its own.</li>
+          </ul>
+          <p class="fragment why">Each of these will come back when we build
+            a scheme: where to take information from, how far it can travel
+            in one step, where boundary conditions belong.</p>
+        </section>
+
+        <!-- ============ Part II: characteristics beyond the toy ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Characteristics beyond the toy</h2>
+          <p>Four changes to the equation, one idea</p>
+        </section>
+
+        <section>
+          <h2>Variable speed</h2>
+          <p style="font-size: 0.78em;">Let the speed depend on position:
+            $\partial_t u + v(x)\,\partial_x u = 0$. Follow a point moving
+            with the local flow, $dx/dt = v(x)$. The chain rule again:</p>
+          $$\frac{d}{dt}\,u\big(x(t), t\big) = \frac{\partial u}{\partial t} + v(x)\,\frac{\partial u}{\partial x} = 0 .$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">$u$ is still constant along each curve. The
+              curves are now solutions of the ODE $dx/dt = v(x)$, one through
+              each starting point $x_0$: curved, not straight.</li>
+            <li class="fragment">The solution: $u(x, t) = u_0(x_0)$, where
+              $x_0$ is the starting point of the characteristic that reaches
+              $(x, t)$.</li>
+          </ul>
+          <aside class="notes">
+            Two characteristics never cross: through any point of the
+            $(x, t)$ plane there is exactly one solution of $dx/dt = v(x)$,
+            by uniqueness for ODEs (Lecture 6). So $u$ is single-valued for
+            all time. Finding $x_0$ from $(x, t)$ means integrating the ODE
+            backward in time, which they can do with any solver from
+            Homework 4 or 5.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Where the curves converge, the profile steepens</h2>
+          <img src="figures/char_variable.png" style="width: 92%; margin: 0 auto; display: block;"
+            alt="Left: curved characteristics for v(x) = 1 + sin(x)/2, bunching together where v decreases with x. Right: the Gaussian profile at t = 0, 1.5 and 3, moving right and becoming steeper on its front side.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">$v(x) = 1 + \frac{1}{2}\sin x$. Where $v$
+              decreases with $x$ the front of the pulse slows before the back
+              does, the characteristics bunch, and the profile compresses: its
+              steepest slope doubles, from $1.21$ to $2.42$, by $t = 3$.</li>
+            <li class="fragment">The values are unchanged; only their spacing
+              is. The maximum is still $1$.</li>
+          </ul>
+          <aside class="notes">
+            Numbers from make_figures.py: the peak moves from $x = 0$ to
+            $x = 3.65$ at $t = 3$, and the maximum slope of the profile goes
+            from $1.21$ to $2.42$. The region where $v' &lt; 0$ is
+            $\pi/2 &lt; x &lt; 3\pi/2$, which is where the pulse is at $t = 3$.
+          </aside>
+        </section>
+
+        <section>
+          <h2>A source term</h2>
+          <p style="font-size: 0.78em;">Let something happen to $u$ along the
+            way, a decay, a chemical reaction, a force:
+            $\partial_t u + v\,\partial_x u = s(x, t, u)$. Along $dx/dt = v$
+            the same chain rule gives</p>
+          $$\frac{d}{dt}\,u\big(x(t), t\big) = s\big(x(t), t, u\big) .$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">$u$ is no longer constant along the
+              characteristic, but it obeys an <em>ordinary</em> differential
+              equation there, with $x(t)$ known.</li>
+            <li class="fragment">Example: $s = -u/\tau$. Along each line
+              $u$ decays as $e^{-t/\tau}$, so
+              $u(x, t) = u_0(x - vt)\,e^{-t/\tau}$.</li>
+          </ul>
+          <p class="fragment why">A first-order PDE is a family of ODEs, one
+            along each characteristic. You already know how to solve ODEs.</p>
+          <aside class="notes">
+            DERIVATION of the example: along the line, $du/dt = -u/\tau$
+            with $u = u_0(x_0)$ at $t = 0$, so $u = u_0(x_0) e^{-t/\tau}$,
+            and $x_0 = x - vt$. Check against the PDE: $\partial_t u =
+            -v u_0' e^{-t/\tau} - u/\tau$, $v\,\partial_x u = v u_0'
+            e^{-t/\tau}$; the sum is $-u/\tau$. Figure char_source.png shows
+            it with $\tau = 2$: the peak at $t = 3$ is $e^{-3/2} = 0.223$.
+            This is how transport with reactions is actually solved in some
+            codes: trace characteristics, integrate ODEs along them.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The recipe</h2>
+          <p style="font-size: 0.78em; margin-bottom: 0;">For any equation of the form</p>
+          $$\frac{\partial u}{\partial t} + a(x, t, u)\,\frac{\partial u}{\partial x} = s(x, t, u),$$
+          <p style="font-size: 0.78em; margin: 0;">solve, from every starting point
+            $x_0$ with $u = u_0(x_0)$, the pair of ODEs</p>
+          $$\frac{dx}{dt} = a(x, t, u), \qquad \frac{du}{dt} = s(x, t, u) .$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">The first says where the characteristic goes;
+              the second says what $u$ does along it. They are coupled when
+              $a$ depends on $u$.</li>
+            <li class="fragment">This is the <em>method of characteristics</em>.
+              It turns one PDE into many ODEs, and it works as long as the
+              characteristics do not cross.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: with $dx/dt = a$, the chain rule gives
+            $du/dt = \partial_t u + a\,\partial_x u = s$ by the PDE. The fully
+            general first-order equation $A\,\partial_t u + B\,\partial_x u
+            = C$ is the same after dividing by $A$, or with a parameter $s$
+            along the curve: $dt/ds = A$, $dx/ds = B$, $du/ds = C$. Not
+            needed here.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Nonlinear speed: Burgers' equation</h2>
+          <p style="font-size: 0.78em;">Let the speed be the value itself,
+            $a = u$. The equation</p>
+          $$\frac{\partial u}{\partial t} + u\,\frac{\partial u}{\partial x} = 0$$
+          <p style="font-size: 0.78em;">is the simplest model of a fluid: $u$
+            is the velocity, and each bit of fluid keeps its velocity and moves
+            with it. The recipe gives $dx/dt = u$ and $du/dt = 0$:</p>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">$u$ is constant along each characteristic,
+              so each characteristic is a straight line, with slope set by the
+              value it carries: $x = x_0 + u_0(x_0)\,t$.</li>
+            <li class="fragment">Where $u_0$ is large the lines are fast.
+              Fast parts of the profile overtake slow parts.</li>
+          </ul>
+          <aside class="notes">
+            This is the inviscid Burgers equation. Traffic flow is the other
+            standard picture, with $u$ replaced by a density-dependent
+            speed. For gases the same mechanism, with sound added, gives
+            shock waves; Project 2 will meet it.
+          </aside>
+        </section>
+
+        <section>
+          <h2>They cross</h2>
+          <img src="figures/burgers.png" style="width: 86%; margin: 0 auto; display: block;"
+            alt="Left: straight characteristics for u0 = exp(-x^2), fanning out on the back of the pulse and crossing on its front at t = 1.17. Right: the profile at t = 0, 0.6, 1.17 and 2, with its front steepening to vertical and then folding over.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">Two neighbouring characteristics from $x_0$
+              and $x_0 + dx_0$ meet when $x_0 + u_0 t = x_0 + dx_0 +
+              (u_0 + u_0'\,dx_0)\,t$, that is at $t = -1/u_0'(x_0)$.</li>
+            <li class="fragment">The first crossing is the <em>breaking
+              time</em>, $t_b = -1/\min u_0'$. For $u_0 = e^{-x^2}$,
+              $\min u_0' = -0.858$ at $x_0 = 0.71$, so $t_b = 1.17$.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: the two lines $x = x_0 + u_0(x_0) t$ and $x = x_0 +
+            dx_0 + u_0(x_0 + dx_0) t$ with $u_0(x_0 + dx_0) = u_0 + u_0'
+            dx_0$ coincide when $dx_0 (1 + u_0' t) = 0$, so $t = -1/u_0'$.
+            Only $u_0' &lt; 0$ gives a positive time: crossing happens where
+            the profile decreases with $x$, the front of the pulse. The
+            steepness at $(x, t)$ is $u_0'(x_0)/(1 + u_0'(x_0) t)$, which
+            goes to infinity at $t_b$: that is the vertical tangent in the
+            right panel. $\min u_0'$ for $e^{-x^2}$: $u_0'' = (4x^2 - 2)
+            e^{-x^2} = 0$ at $x = 1/\sqrt{2}$, $u_0' = -\sqrt{2} e^{-1/2} =
+            -0.858$.
+          </aside>
+        </section>
+
+        <section>
+          <h2>After the breaking time</h2>
+          <ul style="font-size: 0.78em;">
+            <li>Past $t_b$ the construction gives two or three values of $u$
+              at one $x$. For a velocity field that is meaningless: the smooth
+              solution has ended.</li>
+            <li class="fragment">Physics resolves it with a <em>shock</em>: a
+              jump in $u$ that moves so that the stuff is still conserved.
+              Written as a conservation law,
+              $\partial_t u + \partial_x\!\left(\tfrac{1}{2}u^2\right) = 0$,
+              the equation still makes sense across a jump, and the jump
+              between $u_L$ and $u_R$ travels at the average speed
+              $(u_L + u_R)/2$.</li>
+            <li class="fragment">The characteristics run <em>into</em> the
+              shock from both sides. Information is lost there, which is why
+              the solution past $t_b$ is not reversible.</li>
+          </ul>
+          <p class="fragment why">The method of characteristics told us
+            exactly when and where the smooth solution fails. A simulation
+            of a gas must survive that moment; the conservation form is how.</p>
+          <aside class="notes">
+            DERIVATION of the shock speed: integrate the conservation law
+            over an interval $[x_1, x_2]$ containing the jump at $x_s(t)$:
+            $\frac{d}{dt}\int u\,dx = F(u_1) - F(u_2)$ with $F = u^2/2$. The
+            left side is $(u_L - u_R)\,\dot x_s$ plus terms that vanish as
+            the interval shrinks. So $\dot x_s = (F_L - F_R)/(u_L - u_R) =
+            (u_L + u_R)/2$: the Rankine-Hugoniot condition. Which
+            conservation law matters: $u$ and $u^2$ both satisfy an equation
+            of this form in the smooth region, but give different shock
+            speeds, so the physics has to say what is conserved. For a gas it
+            is mass, momentum and energy.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Two families: the wave equation</h2>
+          <p style="font-size: 0.78em;">The wave equation is second order,
+            but it factorizes into two first-order advection operators:</p>
+          $$\frac{\partial^2 u}{\partial t^2} - c^2\frac{\partial^2 u}{\partial x^2}
+            = \left(\frac{\partial}{\partial t} + c\frac{\partial}{\partial x}\right)
+              \left(\frac{\partial}{\partial t} - c\frac{\partial}{\partial x}\right) u = 0 .$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">Anything killed by either factor is a
+              solution: $f(x - ct)$ moves right, $g(x + ct)$ moves left, and
+              the general solution is $u = f(x - ct) + g(x + ct)$
+              (d'Alembert).</li>
+            <li class="fragment">Two families of characteristics, $x - ct =$
+              const and $x + ct =$ const, each carrying its own piece of the
+              solution.</li>
+            <li class="fragment">A pulse released from rest splits into two
+              halves of height $\tfrac{1}{2}u_0$ moving apart.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the factorization: expand the product; the cross
+            terms $\pm c\,\partial_t\partial_x$ cancel. Released from rest
+            means $\partial_t u = 0$ at $t = 0$: with $u = f + g$ this gives
+            $-c f' + c g' = 0$, so $f = g$ up to a constant, and $f = g =
+            u_0/2$. That is the right panel of the next figure.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The domain of dependence</h2>
+          <img src="figures/wave_cone.png" style="width: 64%; margin: 0 auto; display: block;"
+            alt="Left: the x-t plane with both families of lines x plus or minus c t, and the triangle below a point (x, t) whose base is the interval from x minus c t to x plus c t. Right: a Gaussian pulse at t = 0 and the two half-height pulses it has become at t = 2.">
+          <ul style="font-size: 0.7em; margin-top: 0.1em;">
+            <li class="fragment">The value at $(x, t)$ depends only on the
+              initial data in $[x - ct,\ x + ct]$: the two characteristics
+              through the point, traced back.</li>
+            <li class="fragment">For advection the interval was a single
+              point. For a gas there are three families, at $v$ and
+              $v \pm c_s$, with $c_s$ the sound speed.</li>
+          </ul>
+          <p class="fragment why">Any numerical scheme has a domain of
+            dependence too: the grid points it reads. It had better contain
+            the physical one.</p>
+          <aside class="notes">
+            The three families for a gas come from the three Euler equations
+            written in characteristic form; Project 2 will show them. The
+            last line is the CFL condition, stated before any scheme exists;
+            Part III makes it concrete.
+          </aside>
+        </section>
+
+        <!-- ============ Part III: from characteristics to a scheme ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; From characteristics to a scheme</h2>
+          <p>Back to constant $v$, and onto a grid</p>
+        </section>
+
+        <section>
+          <h2>The grid</h2>
+          <p style="font-size: 0.78em;">Points $x_j = j\,\Delta x$ and times
+            $t_n = n\,\Delta t$; the unknowns are $u_j^n \approx u(x_j, t_n)$.
+            Replace the derivatives by the differences of Lecture 12, centered
+            in space and forward in time:</p>
+          <div style="font-size: 0.82em;">
+          $$\frac{u_j^{n+1} - u_j^n}{\Delta t} + v\,\frac{u_{j+1}^n - u_{j-1}^n}{2\Delta x} = 0
+            \qquad\Longrightarrow\qquad
+            u_j^{n+1} = u_j^n - \frac{v\Delta t}{2\Delta x}\left(u_{j+1}^n - u_{j-1}^n\right).$$
+          </div>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">Each new value comes from three old ones.
+              This is Euler's method applied to the system of ODEs
+              $du_j/dt = -v\,(u_{j+1} - u_{j-1})/2\Delta x$, one per grid
+              point. The scheme is called FTCS: forward time, centered
+              space.</li>
+            <li class="fragment">The one number that matters is the
+              combination $C = v\Delta t/\Delta x$: how many grid spacings the
+              flow moves in one step.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>FTCS fails</h2>
+          <img src="figures/ftcs.png" style="width: 100%; margin: 0 auto; display: block;"
+            alt="Three panels: the Gaussian pulse at the start; after 240 steps, grown to 1.5 with wiggles; after 400 steps, a grid-scale oscillation filling the whole box with amplitude in the thousands.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">$C = 0.5$, 200 grid points, periodic box. The
+              peak grows to $1.5$ after 240 steps and the box is filled with a
+              grid-scale oscillation of amplitude $2 \times 10^3$ after 400.</li>
+            <li class="fragment">Smaller $\Delta t$ does not save it; it only
+              delays the blow-up. The scheme is unstable for every $C$. Next
+              lecture shows why, by following a single wave on the grid.</li>
+          </ul>
+          <aside class="notes">
+            Numbers from make_figures.py. What goes wrong, in one sentence
+            for now: the centered difference does not know which way the
+            wind blows, and takes half its information from downstream, where
+            the solution has not come from. The von Neumann analysis next
+            time gives $|\xi|^2 = 1 + C^2 \sin^2 k\Delta x &gt; 1$ for every
+            mode.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Ask the characteristic</h2>
+          <p style="font-size: 0.78em;">The exact solution says where the new
+            value comes from: go down the characteristic for one step,</p>
+          $$u(x_j, t_{n+1}) = u(x_j - v\Delta t,\ t_n) .$$
+          <img src="figures/upwind_stencil.png" style="width: 100%; margin: 0.2em auto; display: block;"
+            alt="Three stencil diagrams for v dt / dx = 0.5, 1 and 1.5: the new point at t_{n+1} above x_j, the characteristic drawn back to its foot at t_n, which lies between x_{j-1} and x_j, exactly on x_{j-1}, or beyond x_{j-1}.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">The foot of the characteristic, $x_j -
+              v\Delta t$, is not a grid point. Read the old solution there by
+              linear interpolation between the two grid points around it,
+              $x_{j-1}$ and $x_j$.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>The upwind scheme</h2>
+          <p style="font-size: 0.78em;">The foot lies a fraction $C = v\Delta
+            t/\Delta x$ of the way from $x_j$ back to $x_{j-1}$. Linear
+            interpolation gives</p>
+          $$u_j^{n+1} = (1 - C)\,u_j^n + C\,u_{j-1}^n .$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">Rearranged, it is a difference scheme:
+              $$\frac{u_j^{n+1} - u_j^n}{\Delta t} + v\,\frac{u_j^n - u_{j-1}^n}{\Delta x} = 0 .$$
+              The space derivative is one-sided, taken from the side the
+              flow comes from: <em>upwind</em>. For $v &lt; 0$ use $u_{j+1}
+              - u_j$ instead.</li>
+            <li class="fragment">Same cost as FTCS, and it only ever reads
+              information from where the characteristic says it is.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the interpolation: the foot is at $x_j - C\Delta
+            x$; linear interpolation between $(x_{j-1}, u_{j-1})$ and $(x_j,
+            u_j)$ at that point gives $u_j + (u_{j-1} - u_j)\,C$. Expanding
+            the rearranged form in Taylor series shows the scheme is first
+            order in both $\Delta t$ and $\Delta x$; next lecture.
+          </aside>
+        </section>
+
+        <section>
+          <h2>When it is exact, and when it breaks</h2>
+          <ul style="font-size: 0.78em;">
+            <li>$C = 1$: the foot lands exactly on $x_{j-1}$, and the scheme
+              is $u_j^{n+1} = u_{j-1}^n$, a pure shift. The exact solution,
+              to rounding.</li>
+            <li class="fragment">$C &gt; 1$: the foot lies beyond $x_{j-1}$,
+              outside the two points used. Interpolation has become
+              extrapolation, with a negative weight $1 - C$, and the errors
+              grow every step.</li>
+            <li class="fragment">$C &lt; 1$: stable, but each step averages
+              two neighbours, and averaging smooths. The profile smears a
+              little every step.</li>
+          </ul>
+          <p class="fragment why">$C = v\Delta t/\Delta x \le 1$ is the
+            <em>CFL condition</em> (Courant, Friedrichs, Lewy, 1928): in one
+            step, the flow may not move farther than the scheme can see. The
+            numerical domain of dependence must contain the physical one.</p>
+          <aside class="notes">
+            With $C &gt; 1$ the weights $(1 - C)$ and $C$ no longer lie in
+            $[0, 1]$, so a bounded profile can produce a value outside its
+            own range, and does, every step. The general statement: if the
+            true value at $(x_j, t_{n+1})$ depends on a point the stencil
+            does not include, no choice of weights can be right for every
+            initial condition. That is the CFL argument, and it applies to
+            every explicit scheme, including the ones for the wave equation
+            and for gases, where the fastest characteristic $v + c_s$ sets
+            the limit.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Upwind in action</h2>
+          <img src="figures/upwind_pulse.png" style="width: 92%; margin: 0 auto; display: block;"
+            alt="Two panels, a Gaussian and a square step, each transported once around the periodic box. At C = 1 the upwind result lies exactly on the initial profile. At C = 0.5 the Gaussian peak has fallen to 0.71 and the step has rounded corners.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">One crossing of the box. At $C = 1$ both
+              profiles return exactly. At $C = 0.5$ the Gaussian peak has
+              fallen to $0.71$ and the step's corners are gone: the averaging
+              of 400 steps.</li>
+            <li class="fragment">The smearing is the price of stability in
+              this scheme. It looks like diffusion, and next lecture shows it
+              <em>is</em> diffusion, with a coefficient set by $\Delta x$ and
+              $C$.</li>
+          </ul>
+          <aside class="notes">
+            Numbers from make_figures.py: 200 points, box length 10, 200
+            steps at $C = 1$ and 400 at $C = 0.5$. Maximum error at $C =
+            0.5$: $0.29$ for the Gaussian, $0.48$ for the step. Next lecture:
+            the modified equation of upwind has a diffusion term
+            $\frac{1}{2} v \Delta x (1 - C)\,\partial_x^2 u$, zero at $C = 1$.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.78em;">
+            <li><strong>Advection:</strong> $\partial_t u + v\,\partial_x u =
+              0$ carries the profile along, $u = u_0(x - vt)$.</li>
+            <li class="fragment"><strong>Characteristics:</strong> the curves
+              $dx/dt = a$ along which the PDE becomes the ODE $du/dt = s$.
+              Variable speed bends them, a source changes $u$ along them,
+              nonlinearity makes them cross: a shock, at $t_b = -1/\min
+              u_0'$.</li>
+            <li class="fragment"><strong>Domain of dependence:</strong> where
+              the value at $(x, t)$ comes from. One point for advection, an
+              interval for waves, three families for a gas.</li>
+            <li class="fragment"><strong>Upwind:</strong> read the old
+              solution at the foot of the characteristic. Stable for $C =
+              v\Delta t/\Delta x \le 1$, the CFL condition, exact at $C = 1$,
+              smearing below it.</li>
+          </ul>
+          <p class="fragment why">Next time: why FTCS blows up and upwind
+            smears, by following one wave through a step. Then schemes that
+            are second order: Lax, Lax-Wendroff, and leapfrog for the wave
+            equation.</p>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 17</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

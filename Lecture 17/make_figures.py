@@ -116,6 +116,60 @@ a2.set_title("the front steepens, then folds over", fontsize=13)
 fig.tight_layout()
 save(fig, "burgers")
 
+# ------------------------------------------- 4b. Burgers after breaking: the shock path
+from scipy.optimize import brentq
+def branches(x, t):
+    """All x0 whose characteristic x0 + u0(x0) t passes through x at time t."""
+    grid = np.linspace(-4, 4, 1601)
+    g = grid + u0(grid) * t - x
+    roots = []
+    for i in np.where(np.sign(g[:-1]) != np.sign(g[1:]))[0]:
+        roots.append(brentq(lambda z: z + u0(z) * t - x, grid[i], grid[i + 1]))
+    return roots
+def shock_speed(x, t):
+    r = branches(x, t)
+    return 0.5 * (u0(min(r)) + u0(max(r)))       # Rankine-Hugoniot: average of the outer branches
+x_b = x_break + u0(x_break) * t_break
+T_end = 3.0
+ts_shock = np.linspace(t_break, T_end, 200)
+xs_shock = [x_b]
+for t0, t1 in zip(ts_shock[:-1], ts_shock[1:]):   # RK4 along the shock path
+    h = t1 - t0; x = xs_shock[-1]
+    k1 = shock_speed(x, t0); k2 = shock_speed(x + 0.5 * h * k1, t0 + 0.5 * h)
+    k3 = shock_speed(x + 0.5 * h * k2, t0 + 0.5 * h); k4 = shock_speed(x + h * k3, t1)
+    xs_shock.append(x + h * (k1 + 2 * k2 + 2 * k3 + k4) / 6)
+xs_shock = np.array(xs_shock)
+print(f"[shock] starts at (x, t) = ({x_b:.3f}, {t_break:.3f}); at t = 2 it is at x = {np.interp(2.0, ts_shock, xs_shock):.3f},"
+      f" at t = 3 at x = {xs_shock[-1]:.3f}; speed at t = 3: {shock_speed(xs_shock[-1], T_end):.3f}")
+def shock_x(t):
+    return np.interp(t, ts_shock, xs_shock) if t >= t_break else np.inf
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 4.2), gridspec_kw={"width_ratios": [1.15, 1]})
+tt = np.linspace(0, T_end, 400)
+for x0 in np.linspace(-2.5, 2.5, 26):
+    xline = x0 + u0(x0) * tt
+    after = tt >= t_break                                           # the shock exists only from t_b on
+    side = np.sign(xline[after] - np.array([shock_x(t) for t in tt[after]]))
+    hit = np.where(side != side[0])[0]                             # first time the line changes side
+    last = np.where(after)[0][0] + hit[0] if hit.size else tt.size
+    a1.plot(xline[:last], tt[:last], color=cmap(u0(x0) * 0.85), lw=1.4)
+a1.plot(xs_shock, ts_shock, color=ACCENT, lw=3.0)
+a1.plot([x_b], [t_break], "o", color=ACCENT, ms=7)
+a1.text(x_b + 0.15, t_break - 0.12, "$t_b$", color=ACCENT, fontsize=13)
+a1.text(np.interp(2.4, ts_shock, xs_shock) + 0.15, 2.4, "shock", color=ACCENT, fontsize=13)
+a1.set_xlim(-2.6, 3.6); a1.set_ylim(0, T_end + 0.05)
+a1.set_xlabel("$x$"); a1.set_ylabel("$t$")
+a1.set_title("characteristics end at the shock", fontsize=13)
+xx_s = np.linspace(-2.6, 3.6, 1200)
+for t, col in [(0.0, V[0]), (2.0, V[2]), (3.0, ACCENT)]:
+    xsh = shock_x(t)
+    prof = np.array([u0(min(branches(x, t))) if x < xsh else u0(max(branches(x, t))) for x in xx_s]) if t > 0 else u0(xx_s)
+    a2.plot(xx_s, prof, color=col, label=f"$t = {t:.0f}$")
+a2.set_xlim(-2.6, 3.6); a2.set_ylim(-0.05, 1.2)
+a2.set_xlabel("$x$"); a2.set_ylabel("$u$"); a2.legend(frameon=False, fontsize=12, loc="upper left")
+a2.set_title("the profile keeps one value: a jump", fontsize=13)
+fig.tight_layout()
+save(fig, "burgers_shock")
+
 # ------------------------------------------- 5. wave equation: two families and the domain of dependence
 c = 1.0
 fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 4.2), gridspec_kw={"width_ratios": [1.15, 1]})

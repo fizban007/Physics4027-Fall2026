@@ -402,24 +402,19 @@
 
         <section>
           <h2>After the breaking time</h2>
-          <ul style="font-size: 0.78em;">
-            <li>Past $t_b$ the construction gives two or three values of $u$
-              at one $x$. For a velocity field that is meaningless: the smooth
-              solution has ended.</li>
-            <li class="fragment">Physics resolves it with a <em>shock</em>: a
-              jump in $u$ that moves so that the stuff is still conserved.
-              Written as a conservation law,
-              $\partial_t u + \partial_x\!\left(\tfrac{1}{2}u^2\right) = 0$,
-              the equation still makes sense across a jump, and the jump
-              between $u_L$ and $u_R$ travels at the average speed
-              $(u_L + u_R)/2$.</li>
-            <li class="fragment">The characteristics run <em>into</em> the
-              shock from both sides. Information is lost there, which is why
-              the solution past $t_b$ is not reversible.</li>
+          <img src="figures/burgers_shock.png" style="width: 86%; margin: 0 auto; display: block;"
+            alt="Left: the characteristics of the Gaussian pulse, each ending where it meets a thick curve that starts at the breaking point and bends to the right: the shock path. Right: the profile at t = 0, 2 and 3, with a vertical jump on its front side instead of a fold.">
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">The folded profile is not a solution: $u$
+              must have one value. What forms instead is a <em>shock</em>, a
+              jump, and the characteristics end when they run into it.</li>
+            <li class="fragment">The jump moves at the average of the two
+              sides, $(u_L + u_R)/2$, which is what keeps the area under $u$
+              conserved. Here it slows as the pulse behind it drains.</li>
           </ul>
-          <p class="fragment why">The method of characteristics told us
-            exactly when and where the smooth solution fails. A simulation
-            of a gas must survive that moment; the conservation form is how.</p>
+          <p class="fragment why">Characteristics say when the smooth
+            solution ends; conservation says what happens next. Gases do
+            this, and Project 2 will have to survive it.</p>
           <aside class="notes">
             DERIVATION of the shock speed: integrate the conservation law
             over an interval $[x_1, x_2]$ containing the jump at $x_s(t)$:

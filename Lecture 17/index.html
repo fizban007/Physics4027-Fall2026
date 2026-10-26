@@ -208,30 +208,70 @@
           <h2>Variable speed</h2>
           <p style="font-size: 0.78em;">Let the speed depend on position:
             $\partial_t u + v(x)\,\partial_x u = 0$. Follow a point moving
-            with the local flow, $dX/dt = v(X)$. The chain rule, with both
+            with the local flow, $dX/dt = v(X)$. The chain rule, with the
             partial derivatives taken at the point $x = X(t)$:</p>
           $$\frac{d}{dt}\,u\big(X(t), t\big)
-            = \left[\frac{\partial u}{\partial t} + \frac{dX}{dt}\frac{\partial u}{\partial x}\right]_{x = X(t)}
-            = \left[\frac{\partial u}{\partial t} + v(x)\,\frac{\partial u}{\partial x}\right]_{x = X(t)} = 0 .$$
+            = \left[\frac{\partial u}{\partial t} + v\,\frac{\partial u}{\partial x}\right]_{x = X(t)} = 0 .$$
           <ul style="font-size: 0.76em;">
-            <li class="fragment">The middle step uses $dX/dt = v(X(t))$,
-              which is $v(x)$ at $x = X(t)$. The bracket is then the left side
-              of the PDE at the moving point, and the PDE holds there as
-              everywhere.</li>
-            <li class="fragment">$u$ is still constant along each curve. The
-              curves are now solutions of the ODE $dX/dt = v(X)$, one through
-              each starting point $x_0$: curved, not straight.</li>
-            <li class="fragment">The solution: $u(x, t) = u_0(x_0)$, where
-              $x_0$ is the starting point of the characteristic that reaches
-              $(x, t)$.</li>
+            <li class="fragment">The bracket is the PDE's left side at the
+              moving point, and the PDE holds everywhere. So $u$ is constant
+              along each curve, exactly as before.</li>
+            <li class="fragment">Only the curves have changed: each is the
+              solution of the ODE $dX/dt = v(X)$ from its own starting point
+              $x_0$, and it is bent where $v$ varies.</li>
+          </ul>
+          <p class="fragment why">To find $u$ at $(x, t)$: go back down the
+            curve through $(x, t)$ to $t = 0$, and read $u_0$ there. The next
+            slide does this step by step.</p>
+          <aside class="notes">
+            The chain rule gives $\partial_t u + (dX/dt)\,\partial_x u$ with
+            both partials at $x = X(t)$; $dX/dt = v(X(t))$ is $v(x)$ at that
+            point, which is why the bracket is the PDE's left side. Two
+            characteristics never cross: through any point of the $(x, t)$
+            plane there is exactly one solution of $dX/dt = v(X)$, by
+            uniqueness for ODEs (Lecture 6). So $u$ is single-valued for all
+            time.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Building the solution</h2>
+          <table style="font-size: 0.68em; margin: 0.2em auto;">
+            <thead><tr><th></th><th>in general</th><th>example: $v(x) = x$</th></tr></thead>
+            <tbody>
+              <tr><td>1. the curve from $x_0$</td>
+                <td>solve $dX/dt = v(X)$ with $X(0) = x_0$</td>
+                <td>$dX/dt = X$, so $X(t) = x_0\,e^{t}$</td></tr>
+              <tr class="fragment"><td>2. the value it carries</td>
+                <td>$u = u_0(x_0)$ all along the curve</td>
+                <td>$u_0(x_0)$</td></tr>
+              <tr class="fragment"><td>3. which curve reaches $(x, t)$?</td>
+                <td>solve $X(t) = x$ for $x_0$</td>
+                <td>$x_0\,e^{t} = x$, so $x_0 = x\,e^{-t}$</td></tr>
+              <tr class="fragment"><td>4. read off $u$</td>
+                <td>$u(x, t) = u_0(x_0)$</td>
+                <td>$u(x, t) = u_0(x\,e^{-t})$</td></tr>
+            </tbody>
+          </table>
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">Check: for constant $v$, step 1 gives $X = x_0
+              + vt$, step 3 gives $x_0 = x - vt$, and step 4 is
+              $u_0(x - vt)$ again.</li>
+            <li class="fragment">For $v = x$ the flow stretches: the profile
+              $u_0(x e^{-t})$ is the initial one widened by the factor
+              $e^{t}$. Where $v$ decreases with $x$ it compresses instead.</li>
+            <li class="fragment">Step 3 is the only hard part. When it cannot
+              be done by hand, run the ODE $dX/dt = v(X)$ backward from
+              $(x, t)$ to $t = 0$ with any solver from Homework 4 or 5.</li>
           </ul>
           <aside class="notes">
-            Two characteristics never cross: through any point of the
-            $(x, t)$ plane there is exactly one solution of $dX/dt = v(X)$,
-            by uniqueness for ODEs (Lecture 6). So $u$ is single-valued for
-            all time. Finding $x_0$ from $(x, t)$ means integrating the ODE
-            backward in time, which they can do with any solver from
-            Homework 4 or 5.
+            DERIVATION of the check for $v = x$: $u = u_0(x e^{-t})$ gives
+            $\partial_t u = -x e^{-t} u_0'$ and $x\,\partial_x u = x e^{-t}
+            u_0'$, which cancel. The width grows as $e^{t}$ because the
+            flow is faster the farther out: outer points run away from inner
+            ones. The movie on the next slide uses $v = 1 + \frac{1}{2}\sin x$,
+            where step 3 has no closed form and the curves were integrated
+            numerically.
           </aside>
         </section>
 

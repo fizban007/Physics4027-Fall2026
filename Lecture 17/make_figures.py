@@ -147,10 +147,16 @@ fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 4.2), gridspec_kw={"width_ratios
 tt = np.linspace(0, T_end, 400)
 for x0 in np.linspace(-2.5, 2.5, 26):
     xline = x0 + u0(x0) * tt
-    after = tt >= t_break                                           # the shock exists only from t_b on
-    side = np.sign(xline[after] - np.array([shock_x(t) for t in tt[after]]))
-    hit = np.where(side != side[0])[0]                             # first time the line changes side
-    last = np.where(after)[0][0] + hit[0] if hit.size else tt.size
+    # A line is part of the physical solution while it is the outermost branch on its
+    # side of the shock: the leftmost root of x0 + u0(x0) t = x left of the shock, the
+    # rightmost root right of it. Middle-branch lines are discarded even before they
+    # meet the shock curve (they belong to the fold, which the shock has replaced).
+    last = tt.size
+    for i in np.where(tt >= t_break)[0]:
+        r = branches(xline[i], tt[i])
+        physical = min(r) if xline[i] < shock_x(tt[i]) else max(r)
+        if abs(physical - x0) > 1e-6:
+            last = i; break
     a1.plot(xline[:last], tt[:last], color=cmap(u0(x0) * 0.85), lw=1.4)
 a1.plot(xs_shock, ts_shock, color=ACCENT, lw=3.0)
 a1.plot([x_b], [t_break], "o", color=ACCENT, ms=7)

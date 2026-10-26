@@ -151,7 +151,7 @@
 
         <section>
           <h2>Characteristics</h2>
-          <video controls data-autoplay poster="figures/char_constant_poster.png" style="width: 74%; display: block; margin: 0 auto;"><source src="figures/char_constant.mp4" type="video/mp4"></video>
+          <video controls poster="figures/char_constant_poster.png" style="width: 74%; display: block; margin: 0 auto;"><source src="figures/char_constant.mp4" type="video/mp4"></video>
           <p style="font-size: 0.72em; margin: 0.15em 0 0 0;">Follow a point that
             moves with the flow: its position is $X(t) = x_0 + vt$. The value
             of $u$ seen from it changes at the rate</p>
@@ -277,7 +277,7 @@
 
         <section>
           <h2>Converging curves steepen the profile</h2>
-          <video controls data-autoplay poster="figures/char_variable_poster.png" style="width: 78%; display: block; margin: 0 auto;"><source src="figures/char_variable.mp4" type="video/mp4"></video>
+          <video controls poster="figures/char_variable_poster.png" style="width: 78%; display: block; margin: 0 auto;"><source src="figures/char_variable.mp4" type="video/mp4"></video>
           <ul style="font-size: 0.7em; margin-top: 0.1em;">
             <li class="fragment">$v(x) = 1 + \frac{1}{2}\sin x$. Where $v$
               decreases with $x$ the front of the pulse slows before the back
@@ -377,7 +377,7 @@
 
         <section>
           <h2>They cross</h2>
-          <video controls data-autoplay poster="figures/burgers_poster.png" style="width: 78%; display: block; margin: 0 auto;"><source src="figures/burgers.mp4" type="video/mp4"></video>
+          <video controls poster="figures/burgers_poster.png" style="width: 78%; display: block; margin: 0 auto;"><source src="figures/burgers.mp4" type="video/mp4"></video>
           <ul style="font-size: 0.72em;">
             <li class="fragment">Two neighbouring characteristics from $x_0$
               and $x_0 + dx_0$ meet when $x_0 + u_0 t = x_0 + dx_0 +
@@ -458,7 +458,7 @@
 
         <section>
           <h2>The domain of dependence</h2>
-          <video controls data-autoplay poster="figures/wave_cone_poster.png" style="width: 62%; display: block; margin: 0 auto;"><source src="figures/wave_cone.mp4" type="video/mp4"></video>
+          <video controls poster="figures/wave_cone_poster.png" style="width: 62%; display: block; margin: 0 auto;"><source src="figures/wave_cone.mp4" type="video/mp4"></video>
           <ul style="font-size: 0.7em; margin-top: 0.1em;">
             <li class="fragment">The value at $(x, t)$ depends only on the
               initial data in $[x - ct,\ x + ct]$: the two characteristics
@@ -510,7 +510,7 @@
 
         <section>
           <h2>FTCS fails</h2>
-          <video controls data-autoplay poster="figures/ftcs_poster.png" style="width: 58%; display: block; margin: 0 auto;"><source src="figures/ftcs.mp4" type="video/mp4"></video>
+          <video controls poster="figures/ftcs_poster.png" style="width: 58%; display: block; margin: 0 auto;"><source src="figures/ftcs.mp4" type="video/mp4"></video>
           <ul style="font-size: 0.72em;">
             <li class="fragment">$C = 0.5$, 200 grid points, periodic box. The
               peak grows to $1.5$ after 240 steps and the box is filled with a
@@ -601,7 +601,7 @@
 
         <section>
           <h2>Upwind in action</h2>
-          <video controls data-autoplay poster="figures/upwind_poster.png" style="width: 76%; display: block; margin: 0 auto;"><source src="figures/upwind.mp4" type="video/mp4"></video>
+          <video controls poster="figures/upwind_poster.png" style="width: 76%; display: block; margin: 0 auto;"><source src="figures/upwind.mp4" type="video/mp4"></video>
           <ul style="font-size: 0.72em;">
             <li class="fragment">One crossing of the box. At $C = 1$ both
               profiles return exactly. At $C = 0.5$ the Gaussian peak has
@@ -683,6 +683,14 @@
           81: null, // Do not respond to Q
         }
       });
+      // Movies start when their slide appears and are left alone afterwards.
+      // Reveal's own data-autoplay restarts a video from zero every time it
+      // re-scans the slide, which happens on each fragment step; this does not.
+      function playMovies(slide) {
+        slide.querySelectorAll("video").forEach(v => { v.currentTime = 0; v.play().catch(() => {}); });
+      }
+      Reveal.on("ready", e => playMovies(e.currentSlide));
+      Reveal.on("slidechanged", e => playMovies(e.currentSlide));
     </script>
   </body>
 </html>

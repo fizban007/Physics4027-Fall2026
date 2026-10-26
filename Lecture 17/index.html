@@ -153,18 +153,21 @@
           <h2>Characteristics</h2>
           <video controls data-autoplay poster="figures/char_constant_poster.png" style="width: 74%; display: block; margin: 0 auto;"><source src="figures/char_constant.mp4" type="video/mp4"></video>
           <p style="font-size: 0.72em; margin: 0.15em 0 0 0;">Follow a point that
-            moves with the flow, $x(t) = x_0 + vt$. The value of $u$ seen
-            from it changes at the rate</p>
+            moves with the flow: its position is $X(t) = x_0 + vt$. The value
+            of $u$ seen from it changes at the rate</p>
           <p style="font-size: 0.76em; text-align: center; margin: 0;">
-            $\dfrac{d}{dt}\,u\big(x(t), t\big)
-              = \dfrac{\partial u}{\partial t} + \dfrac{dx}{dt}\dfrac{\partial u}{\partial x}
+            $\dfrac{d}{dt}\,u\big(X(t), t\big)
+              = \dfrac{\partial u}{\partial t} + \dfrac{dX}{dt}\dfrac{\partial u}{\partial x}
               = \dfrac{\partial u}{\partial t} + v\,\dfrac{\partial u}{\partial x} = 0 .$</p>
           <p class="fragment why">$u$ is constant along these lines. They are
             the <em>characteristics</em> of the equation, and the PDE says:
             nothing happens along them.</p>
           <aside class="notes">
-            The first equality is the chain rule for $u(x(t), t)$; the
-            second uses $dx/dt = v$; the third is the PDE. Read the figure:
+            The first equality is the chain rule for $u(X(t), t)$, with
+            the partial derivatives evaluated at $x = X(t)$; the second uses
+            $dX/dt = v$; the third is the PDE. Capital $X$ is the moving
+            point, lower-case $x$ the coordinate; the line it traces in the
+            figure is $x = X(t)$. Read the figure:
             each line carries one value, the colour, from $t = 0$ upward. To
             find $u(x, t)$, go down the line through $(x, t)$ to $t = 0$ and
             read $u_0$ there: $u(x, t) = u_0(x - vt)$. Same solution, now with
@@ -205,11 +208,12 @@
           <h2>Variable speed</h2>
           <p style="font-size: 0.78em;">Let the speed depend on position:
             $\partial_t u + v(x)\,\partial_x u = 0$. Follow a point moving
-            with the local flow, $dx/dt = v(x)$. The chain rule again:</p>
-          $$\frac{d}{dt}\,u\big(x(t), t\big) = \frac{\partial u}{\partial t} + v(x)\,\frac{\partial u}{\partial x} = 0 .$$
+            with the local flow, $dX/dt = v(X)$. The chain rule again:</p>
+          $$\frac{d}{dt}\,u\big(X(t), t\big) = \frac{\partial u}{\partial t} + \frac{dX}{dt}\frac{\partial u}{\partial x}
+            = \frac{\partial u}{\partial t} + v\,\frac{\partial u}{\partial x} = 0 .$$
           <ul style="font-size: 0.76em;">
             <li class="fragment">$u$ is still constant along each curve. The
-              curves are now solutions of the ODE $dx/dt = v(x)$, one through
+              curves are now solutions of the ODE $dX/dt = v(X)$, one through
               each starting point $x_0$: curved, not straight.</li>
             <li class="fragment">The solution: $u(x, t) = u_0(x_0)$, where
               $x_0$ is the starting point of the characteristic that reaches
@@ -217,7 +221,7 @@
           </ul>
           <aside class="notes">
             Two characteristics never cross: through any point of the
-            $(x, t)$ plane there is exactly one solution of $dx/dt = v(x)$,
+            $(x, t)$ plane there is exactly one solution of $dX/dt = v(X)$,
             by uniqueness for ODEs (Lecture 6). So $u$ is single-valued for
             all time. Finding $x_0$ from $(x, t)$ means integrating the ODE
             backward in time, which they can do with any solver from
@@ -248,13 +252,13 @@
           <h2>A source term</h2>
           <p style="font-size: 0.78em;">Let something happen to $u$ along the
             way, a decay, a chemical reaction, a force:
-            $\partial_t u + v\,\partial_x u = s(x, t, u)$. Along $dx/dt = v$
+            $\partial_t u + v\,\partial_x u = s(x, t, u)$. Along $dX/dt = v$
             the same chain rule gives</p>
-          $$\frac{d}{dt}\,u\big(x(t), t\big) = s\big(x(t), t, u\big) .$$
+          $$\frac{d}{dt}\,u\big(X(t), t\big) = s\big(X(t), t, u\big) .$$
           <ul style="font-size: 0.76em;">
             <li class="fragment">$u$ is no longer constant along the
               characteristic, but it obeys an <em>ordinary</em> differential
-              equation there, with $x(t)$ known.</li>
+              equation there, with $X(t)$ known.</li>
             <li class="fragment">Example: $s = -u/\tau$. Along each line
               $u$ decays as $e^{-t/\tau}$, so
               $u(x, t) = u_0(x - vt)\,e^{-t/\tau}$.</li>
@@ -282,7 +286,7 @@
           <p style="font-size: 0.78em; margin: 0;">solve, from every starting point
             $x_0$ with $u = u_0(x_0)$, the pair of ODEs</p>
           <div style="font-size: 0.85em;">
-          $$\frac{dx}{dt} = a(x, t, u), \qquad \frac{du}{dt} = s(x, t, u) .$$
+          $$\frac{dX}{dt} = a(X, t, u), \qquad \frac{du}{dt} = s(X, t, u) .$$
           </div>
           <ul style="font-size: 0.76em;">
             <li class="fragment">The first says where the characteristic goes;
@@ -293,7 +297,7 @@
               characteristics do not cross.</li>
           </ul>
           <aside class="notes">
-            DERIVATION: with $dx/dt = a$, the chain rule gives
+            DERIVATION: with $dX/dt = a$, the chain rule gives
             $du/dt = \partial_t u + a\,\partial_x u = s$ by the PDE. The fully
             general first-order equation $A\,\partial_t u + B\,\partial_x u
             = C$ is the same after dividing by $A$, or with a parameter $s$
@@ -309,7 +313,7 @@
           $$\frac{\partial u}{\partial t} + u\,\frac{\partial u}{\partial x} = 0$$
           <p style="font-size: 0.78em;">is the simplest model of a fluid: $u$
             is the velocity, and each bit of fluid keeps its velocity and moves
-            with it. The recipe gives $dx/dt = u$ and $du/dt = 0$:</p>
+            with it. The recipe gives $dX/dt = u$ and $du/dt = 0$:</p>
           <ul style="font-size: 0.76em;">
             <li class="fragment">$u$ is constant along each characteristic,
               so each characteristic is a straight line, with slope set by the
@@ -582,7 +586,7 @@
             <li><strong>Advection:</strong> $\partial_t u + v\,\partial_x u =
               0$ carries the profile along, $u = u_0(x - vt)$.</li>
             <li class="fragment"><strong>Characteristics:</strong> the curves
-              $dx/dt = a$ along which the PDE becomes the ODE $du/dt = s$.
+              $dX/dt = a$ along which the PDE becomes the ODE $du/dt = s$.
               Variable speed bends them, a source changes $u$ along them,
               nonlinearity makes them cross: a shock, at $t_b = -1/\min
               u_0'$.</li>

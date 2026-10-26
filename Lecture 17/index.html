@@ -157,8 +157,8 @@
             of $u$ seen from it changes at the rate</p>
           <p style="font-size: 0.76em; text-align: center; margin: 0;">
             $\dfrac{d}{dt}\,u\big(X(t), t\big)
-              = \dfrac{\partial u}{\partial t} + \dfrac{dX}{dt}\dfrac{\partial u}{\partial x}
-              = \dfrac{\partial u}{\partial t} + v\,\dfrac{\partial u}{\partial x} = 0 .$</p>
+              = \left[\dfrac{\partial u}{\partial t} + \dfrac{dX}{dt}\dfrac{\partial u}{\partial x}\right]_{x = X(t)}
+              = \left[\dfrac{\partial u}{\partial t} + v\,\dfrac{\partial u}{\partial x}\right]_{x = X(t)} = 0 .$</p>
           <p class="fragment why">$u$ is constant along these lines. They are
             the <em>characteristics</em> of the equation, and the PDE says:
             nothing happens along them.</p>
@@ -208,10 +208,16 @@
           <h2>Variable speed</h2>
           <p style="font-size: 0.78em;">Let the speed depend on position:
             $\partial_t u + v(x)\,\partial_x u = 0$. Follow a point moving
-            with the local flow, $dX/dt = v(X)$. The chain rule again:</p>
-          $$\frac{d}{dt}\,u\big(X(t), t\big) = \frac{\partial u}{\partial t} + \frac{dX}{dt}\frac{\partial u}{\partial x}
-            = \frac{\partial u}{\partial t} + v\,\frac{\partial u}{\partial x} = 0 .$$
+            with the local flow, $dX/dt = v(X)$. The chain rule, with both
+            partial derivatives taken at the point $x = X(t)$:</p>
+          $$\frac{d}{dt}\,u\big(X(t), t\big)
+            = \left[\frac{\partial u}{\partial t} + \frac{dX}{dt}\frac{\partial u}{\partial x}\right]_{x = X(t)}
+            = \left[\frac{\partial u}{\partial t} + v(x)\,\frac{\partial u}{\partial x}\right]_{x = X(t)} = 0 .$$
           <ul style="font-size: 0.76em;">
+            <li class="fragment">The middle step uses $dX/dt = v(X(t))$,
+              which is $v(x)$ at $x = X(t)$. The bracket is then the left side
+              of the PDE at the moving point, and the PDE holds there as
+              everywhere.</li>
             <li class="fragment">$u$ is still constant along each curve. The
               curves are now solutions of the ODE $dX/dt = v(X)$, one through
               each starting point $x_0$: curved, not straight.</li>

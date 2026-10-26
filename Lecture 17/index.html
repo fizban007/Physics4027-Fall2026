@@ -151,12 +151,11 @@
 
         <section>
           <h2>Characteristics</h2>
-          <img src="figures/char_constant.png" style="width: 92%; margin: 0 auto; display: block;"
-            alt="Left: straight lines x = x0 + v t in the x-t plane, coloured by the initial value of u at x0. Right: the Gaussian initial profile and the same profile shifted by v t at t = 3.">
-          <p style="font-size: 0.74em; margin: 0.2em 0;">Follow a point that
+          <video controls data-autoplay poster="figures/char_constant_poster.png" style="width: 74%; display: block; margin: 0 auto;"><source src="figures/char_constant.mp4" type="video/mp4"></video>
+          <p style="font-size: 0.72em; margin: 0.15em 0 0 0;">Follow a point that
             moves with the flow, $x(t) = x_0 + vt$. The value of $u$ seen
             from it changes at the rate</p>
-          <p style="font-size: 0.8em; text-align: center; margin: 0;">
+          <p style="font-size: 0.76em; text-align: center; margin: 0;">
             $\dfrac{d}{dt}\,u\big(x(t), t\big)
               = \dfrac{\partial u}{\partial t} + \dfrac{dx}{dt}\dfrac{\partial u}{\partial x}
               = \dfrac{\partial u}{\partial t} + v\,\dfrac{\partial u}{\partial x} = 0 .$</p>
@@ -227,10 +226,9 @@
         </section>
 
         <section>
-          <h2>Where the curves converge, the profile steepens</h2>
-          <img src="figures/char_variable.png" style="width: 92%; margin: 0 auto; display: block;"
-            alt="Left: curved characteristics for v(x) = 1 + sin(x)/2, bunching together where v decreases with x. Right: the Gaussian profile at t = 0, 1.5 and 3, moving right and becoming steeper on its front side.">
-          <ul style="font-size: 0.72em;">
+          <h2>Converging curves steepen the profile</h2>
+          <video controls data-autoplay poster="figures/char_variable_poster.png" style="width: 78%; display: block; margin: 0 auto;"><source src="figures/char_variable.mp4" type="video/mp4"></video>
+          <ul style="font-size: 0.7em; margin-top: 0.1em;">
             <li class="fragment">$v(x) = 1 + \frac{1}{2}\sin x$. Where $v$
               decreases with $x$ the front of the pulse slows before the back
               does, the characteristics bunch, and the profile compresses: its
@@ -278,10 +276,14 @@
         <section>
           <h2>The recipe</h2>
           <p style="font-size: 0.78em; margin-bottom: 0;">For any equation of the form</p>
+          <div style="font-size: 0.85em;">
           $$\frac{\partial u}{\partial t} + a(x, t, u)\,\frac{\partial u}{\partial x} = s(x, t, u),$$
+          </div>
           <p style="font-size: 0.78em; margin: 0;">solve, from every starting point
             $x_0$ with $u = u_0(x_0)$, the pair of ODEs</p>
+          <div style="font-size: 0.85em;">
           $$\frac{dx}{dt} = a(x, t, u), \qquad \frac{du}{dt} = s(x, t, u) .$$
+          </div>
           <ul style="font-size: 0.76em;">
             <li class="fragment">The first says where the characteristic goes;
               the second says what $u$ does along it. They are coupled when
@@ -325,8 +327,7 @@
 
         <section>
           <h2>They cross</h2>
-          <img src="figures/burgers.png" style="width: 86%; margin: 0 auto; display: block;"
-            alt="Left: straight characteristics for u0 = exp(-x^2), fanning out on the back of the pulse and crossing on its front at t = 1.17. Right: the profile at t = 0, 0.6, 1.17 and 2, with its front steepening to vertical and then folding over.">
+          <video controls data-autoplay poster="figures/burgers_poster.png" style="width: 78%; display: block; margin: 0 auto;"><source src="figures/burgers.mp4" type="video/mp4"></video>
           <ul style="font-size: 0.72em;">
             <li class="fragment">Two neighbouring characteristics from $x_0$
               and $x_0 + dx_0$ meet when $x_0 + u_0 t = x_0 + dx_0 +
@@ -412,8 +413,7 @@
 
         <section>
           <h2>The domain of dependence</h2>
-          <img src="figures/wave_cone.png" style="width: 64%; margin: 0 auto; display: block;"
-            alt="Left: the x-t plane with both families of lines x plus or minus c t, and the triangle below a point (x, t) whose base is the interval from x minus c t to x plus c t. Right: a Gaussian pulse at t = 0 and the two half-height pulses it has become at t = 2.">
+          <video controls data-autoplay poster="figures/wave_cone_poster.png" style="width: 62%; display: block; margin: 0 auto;"><source src="figures/wave_cone.mp4" type="video/mp4"></video>
           <ul style="font-size: 0.7em; margin-top: 0.1em;">
             <li class="fragment">The value at $(x, t)$ depends only on the
               initial data in $[x - ct,\ x + ct]$: the two characteristics
@@ -465,8 +465,7 @@
 
         <section>
           <h2>FTCS fails</h2>
-          <img src="figures/ftcs.png" style="width: 100%; margin: 0 auto; display: block;"
-            alt="Three panels: the Gaussian pulse at the start; after 240 steps, grown to 1.5 with wiggles; after 400 steps, a grid-scale oscillation filling the whole box with amplitude in the thousands.">
+          <video controls data-autoplay poster="figures/ftcs_poster.png" style="width: 58%; display: block; margin: 0 auto;"><source src="figures/ftcs.mp4" type="video/mp4"></video>
           <ul style="font-size: 0.72em;">
             <li class="fragment">$C = 0.5$, 200 grid points, periodic box. The
               peak grows to $1.5$ after 240 steps and the box is filled with a
@@ -557,8 +556,7 @@
 
         <section>
           <h2>Upwind in action</h2>
-          <img src="figures/upwind_pulse.png" style="width: 92%; margin: 0 auto; display: block;"
-            alt="Two panels, a Gaussian and a square step, each transported once around the periodic box. At C = 1 the upwind result lies exactly on the initial profile. At C = 0.5 the Gaussian peak has fallen to 0.71 and the step has rounded corners.">
+          <video controls data-autoplay poster="figures/upwind_poster.png" style="width: 76%; display: block; margin: 0 auto;"><source src="figures/upwind.mp4" type="video/mp4"></video>
           <ul style="font-size: 0.72em;">
             <li class="fragment">One crossing of the box. At $C = 1$ both
               profiles return exactly. At $C = 0.5$ the Gaussian peak has

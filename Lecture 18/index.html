@@ -465,7 +465,7 @@
 
         <section>
           <h2>Three schemes, one table</h2>
-          <table style="font-size: 0.62em; margin: 0.3em auto;">
+          <table style="font-size: 0.56em; margin: 0.1em auto;">
             <thead><tr><th>scheme</th><th>reads</th><th>order</th><th>stable for</th><th>leading error</th><th>Gaussian peak after one crossing, $C = 0.5$</th><th>step</th></tr></thead>
             <tbody>
               <tr><td>FTCS</td><td>$j - 1, j, j + 1$</td><td>1</td><td>never</td><td>growth</td><td>blows up</td><td>blows up</td></tr>
@@ -474,7 +474,7 @@
               <tr class="fragment"><td>Lax-Wendroff</td><td>$j - 1, j, j + 1$</td><td>2</td><td>$C \le 1$</td><td>dispersion, $\tfrac{1}{6} v\Delta x^2 (1 - C^2)$</td><td>$0.995$</td><td>wiggles</td></tr>
             </tbody>
           </table>
-          <ul style="font-size: 0.74em;">
+          <ul style="font-size: 0.68em; margin-top: 0.1em;">
             <li class="fragment">All three stable schemes are exact at
               $C = 1$ and worst at small $C$: a smaller time step is
               <em>not</em> more accurate here. Run as close to the CFL limit

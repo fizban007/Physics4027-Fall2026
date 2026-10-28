@@ -51,6 +51,17 @@ for th in [np.pi/2, np.pi/4, 2*np.pi*4/200]:
 # upwind: per-step damping at the Gaussian's scale and the peak after 400 steps
 # (the peak after a crossing is quoted from make_movies / Lecture 17: 0.707)
 
+# FTCS alone, for the diagnosis slide
+fig, ax = plt.subplots(figsize=(7.2, 3.6))
+for C, col in [(0.25, V[2]), (0.5, V[1]), (0.9, ACCENT)]:
+    ax.plot(theta, np.abs(xi("FTCS", C, theta)), color=col, label=r"$C = %.2g$" % C)
+ax.axhline(1, color=MUTED, lw=0.8, ls="--")
+ax.set_xlim(0, np.pi); ax.set_ylim(0.9, 1.45)
+ax.set_xticks([0, np.pi/4, np.pi/2, 3*np.pi/4, np.pi]); ax.set_xticklabels(["0", r"$\pi/4$", r"$\pi/2$", r"$3\pi/4$", r"$\pi$"])
+ax.set_xlabel(r"$k\,\Delta x$"); ax.set_ylabel(r"$|\xi|$ per step"); ax.legend(frameon=False, fontsize=12, loc="upper left")
+ax.set_title("FTCS: every wave is amplified", fontsize=14)
+fig.tight_layout(); save(fig, "amplification_ftcs")
+
 # ------------------------------------------- phase error: numerical phase speed over v
 fig, axs = plt.subplots(1, 2, figsize=(11, 4.0), sharey=True)
 for ax, C in zip(axs, [0.5, 0.9]):

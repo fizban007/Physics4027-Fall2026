@@ -96,48 +96,77 @@
 
         <section>
           <h2>Follow one wave</h2>
-          <p style="font-size: 0.78em;">Any profile on the grid is a sum of
-            waves $e^{ikx_j}$, and the scheme is linear, so each wave evolves
-            on its own. Try the solution</p>
-          $$u_j^n = \xi^n\, e^{i k x_j},$$
-          <p style="font-size: 0.78em;">a wave whose amplitude is multiplied
-            by the same factor $\xi$ every step. Put it into FTCS, using
-            $u_{j \pm 1}^n = \xi^n e^{ikx_j} e^{\pm ik\Delta x}$:</p>
-          $$\xi = 1 - \frac{C}{2}\left(e^{ik\Delta x} - e^{-ik\Delta x}\right)
-             = 1 - i\,C \sin(k\Delta x).$$
-          <p class="fragment why">$\xi$ is the <em>amplification factor</em>.
-            After $n$ steps the wave has grown by $|\xi|^n$. This is von
-            Neumann's stability analysis, and it takes one line per scheme.</p>
+          <ul style="font-size: 0.78em;">
+            <li>Any profile on the grid is a sum of waves $e^{ikx_j}$, one
+              for each wavelength the grid can hold, from the box size down
+              to two cells.</li>
+            <li class="fragment">The scheme is linear, so it acts on each
+              wave separately: a wave goes in, the same wave comes out,
+              multiplied by some number. The scheme cannot turn one
+              wavelength into another.</li>
+            <li class="fragment">So ask of one wave: what happens to its
+              amplitude in one step? Call the factor $\xi$. After $n$ steps
+              the wave has been multiplied by $\xi^n$.</li>
+          </ul>
+          <p class="fragment why">A scheme is <em>stable</em> if no wave
+            grows: $|\xi| \le 1$ for every $k$ the grid can hold. This is
+            von Neumann's stability analysis. It needs one wave and one
+            step.</p>
           <aside class="notes">
-            DERIVATION: divide the scheme by $\xi^n e^{ikx_j}$; every term
-            loses that factor, and $u_{j+1}$, $u_{j-1}$ leave behind
-            $e^{\pm ik\Delta x}$. The difference is $2i \sin(k\Delta x)$. The
-            exact solution advances the wave by the phase $e^{-ikv\Delta t}$
-            per step, which has modulus 1: nothing should grow, and the
-            phase should be $-Ck\Delta x$. Both can be read off $\xi$.
+            The exact solution moves the wave without changing its size:
+            $e^{ik(x - vt)}$ has $|\xi| = 1$ exactly, with phase $-kv\Delta t$
+            per step. A scheme with $|\xi| &lt; 1$ damps the wave, which is an
+            error but a harmless one; $|\xi| &gt; 1$ is a disaster, because
+            rounding seeds every wave at $10^{-16}$ and the factor does the
+            rest. "Every $k$ the grid can hold": $0 \le k\Delta x \le \pi$,
+            the two-cell wave being the shortest.
           </aside>
         </section>
 
         <section>
-          <h2>Every wave grows</h2>
-          <img src="figures/amplification.png" style="width: 86%; margin: 0 auto; display: block;"
-            alt="Modulus of the amplification factor against k dx for FTCS, upwind, Lax-Friedrichs and Lax-Wendroff at Courant numbers 0.5 and 0.9. FTCS is above 1 everywhere except at the ends; the other three stay at or below 1.">
-          <ul style="font-size: 0.7em; margin-top: 0.1em;">
-            <li class="fragment">$|\xi|^2 = 1 + C^2 \sin^2(k\Delta x)$. Larger
-              than $1$ for every wave except the two ends, at every $C$.
-              Reducing $\Delta t$ only reduces the excess.</li>
+          <h2>FTCS, one wave at a time</h2>
+          <p style="font-size: 0.78em;">Put $u_j^n = \xi^n e^{ikx_j}$ into
+            the scheme. The neighbours are the same wave shifted by one
+            cell, $u_{j \pm 1}^n = \xi^n e^{ikx_j}\, e^{\pm ik\Delta x}$, and
+            the new value is $u_j^{n+1} = \xi^{n+1} e^{ikx_j}$:</p>
+          $$\xi^{n+1} e^{ikx_j} = \xi^n e^{ikx_j}
+            - \frac{C}{2}\,\xi^n e^{ikx_j}\left(e^{ik\Delta x} - e^{-ik\Delta x}\right).$$
+          <p style="font-size: 0.78em;">Every term carries $\xi^n e^{ikx_j}$.
+            Divide it out, and with $e^{i\theta} - e^{-i\theta} = 2i\sin\theta$:</p>
+          $$\xi = 1 - i\,C \sin(k\Delta x), \qquad
+            |\xi|^2 = 1 + C^2 \sin^2(k\Delta x).$$
+          <p class="fragment why">One line of algebra, and it holds for every
+            wave at once: $k$ is still free.</p>
+          <aside class="notes">
+            $|\xi|^2 = \xi \bar\xi = (1 - iC\sin\theta)(1 + iC\sin\theta)$.
+            Point out that $\xi$ is complex: its modulus is the growth per
+            step, its argument the phase advance per step. The exact phase
+            advance is $-Ck\Delta x$; FTCS has $-\arctan(C\sin\theta)$, close
+            for long waves. Today only the modulus matters.
+          </aside>
+        </section>
+
+        <section>
+          <h2>What it says</h2>
+          <img src="figures/amplification_ftcs.png" style="width: 58%; margin: 0 auto; display: block;"
+            alt="Modulus of the FTCS amplification factor against k dx for Courant numbers 0.25, 0.5 and 0.9. All three curves lie above 1 except at k dx = 0 and pi, peaking at k dx = pi/2.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">$|\xi| &gt; 1$ for every wave except the two
+              ends, at every $C$. A smaller time step lowers the curve and
+              never brings it to $1$: FTCS is unstable for all $C$.</li>
             <li class="fragment">Worst at $k\Delta x = \pi/2$, a wave four
               cells long: $|\xi| = 1.118$ at $C = 0.5$, which is $10^{19}$
               after 400 steps. The Gaussian's own waves have $k\Delta x
-              \approx 0.1$ and grow only $2.2\times$: that is why it looked
-              fine until the four-cell wave, seeded by rounding, caught up.</li>
+              \approx 0.1$ and grew only $2.2\times$. That is the movie: the
+              Gaussian looked fine until the four-cell wave, seeded by
+              rounding, caught up with it.</li>
           </ul>
           <aside class="notes">
-            The other curves are for later. Stability means $|\xi| \le 1$
-            for every $k$ the grid can hold, $0 \le k\Delta x \le \pi$. FTCS
-            is called unconditionally unstable: no $C$ works. The centered
-            difference takes half its information from downstream, where the
-            solution has not come from; that is the physical reading.
+            Physical reading: the centered difference takes half its
+            information from downstream, where the solution has not come
+            from. Any fix must either read from the right side or damp the
+            short waves hard enough to beat the growth; Parts II to IV are
+            those two strategies.
           </aside>
         </section>
 
@@ -466,6 +495,21 @@
         <section class="divider">
           <h2>Part V &middot; Choosing</h2>
           <p>Diffusion or dispersion</p>
+        </section>
+
+        <section>
+          <h2>The four amplification factors</h2>
+          <img src="figures/amplification.png" style="width: 92%; margin: 0 auto; display: block;"
+            alt="Modulus of the amplification factor against k dx for FTCS, upwind, Lax-Friedrichs and Lax-Wendroff at Courant numbers 0.5 and 0.9. FTCS is above 1 everywhere except at the ends; the other three stay at or below 1.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">The three fixes all sit at or below $1$, and
+              all touch $1$ at $k\Delta x = 0$: long waves are carried
+              faithfully by every stable scheme.</li>
+            <li class="fragment">They differ in how hard they damp the short
+              waves. Lax-Friedrichs damps the four-cell wave to $0.5$ per
+              step at $C = 0.5$; Lax-Wendroff leaves it at $0.90$. That is
+              the diffusion difference of the crossing figure, wave by wave.</li>
+          </ul>
         </section>
 
         <section>

@@ -87,7 +87,7 @@
           <ul style="font-size: 0.72em;">
             <li class="fragment">$C = 0.5$, 200 points, periodic box. The
               Gaussian survives a while, then a grid-scale oscillation
-              appears, and by 400 steps it is at $2 \times 10^3$.</li>
+              appears and takes over.</li>
             <li class="fragment">A smaller $\Delta t$ delays it and does not
               cure it. To see why, stop looking at the Gaussian and look at
               one wave.</li>
@@ -227,8 +227,8 @@
           <video controls poster="figures/upwind_poster.png" style="width: 76%; display: block; margin: 0 auto;"><source src="figures/upwind.mp4" type="video/mp4"></video>
           <ul style="font-size: 0.72em;">
             <li class="fragment">One crossing of the box. At $C = 1$ both
-              profiles return exactly. At $C = 0.5$ the Gaussian peak has
-              fallen to $0.71$ and the step's corners are gone.</li>
+              profiles return exactly. At $C = 0.5$ the Gaussian has lost
+              height and the step's corners are gone.</li>
             <li class="fragment">Stable, and smeared. The next slide says by
               how much, and why.</li>
           </ul>
@@ -245,8 +245,8 @@
           <ul style="font-size: 0.76em;">
             <li class="fragment">This is the <em>modified equation</em>:
               advection plus a diffusion term that the scheme added, with a
-              coefficient set by the grid. It vanishes at $C = 1$ and is
-              largest for small steps: at $C = 0.5$, $D = 0.25\,v\Delta x$.</li>
+              coefficient set by the grid. It vanishes at $C = 1$ and grows
+              as the step shrinks.</li>
             <li class="fragment">Diffusion is what averaging does. Each step
               replaces $u_j$ by a weighted mean of itself and its upwind
               neighbour, and means are smoother than what they average.</li>
@@ -314,8 +314,8 @@
               damps the short waves that FTCS amplified; enough of it, and
               nothing grows.</li>
             <li class="fragment">The price is the same as upwind's, and
-              larger: at $C = 0.5$, $D = 0.75\,v\Delta x$ against $0.25$. The
-              Gaussian peak after one crossing is $0.50$, against $0.71$.</li>
+              larger: more diffusion for the same $C$, so the Gaussian comes
+              back lower.</li>
             <li class="fragment">One wave escapes: at $k\Delta x = \pi$, the
               two-cell checkerboard, $|\xi| = 1$ at every $C$. The average
               of the neighbours of a checkerboard is the checkerboard. It
@@ -389,8 +389,7 @@
               $C \le 1$. Same condition a third time.</li>
             <li class="fragment">The damping is fourth order in $k\Delta x$
               for long waves, where upwind's was second order. The Gaussian
-              comes back from one crossing at $C = 0.5$ with its peak at
-              $0.995$: against $0.71$ for upwind and $0.50$ for Lax.</li>
+              comes back from one crossing with its height intact.</li>
           </ul>
           <img src="figures/crossing.png" style="width: 64%; margin: 0.1em auto; display: block;"
             alt="Gaussian and step after one crossing at C = 0.5 for upwind, Lax-Friedrichs and Lax-Wendroff. The Lax-Wendroff Gaussian lies on the exact one; its step has an overshoot to 1.23 and oscillations trailing behind each edge.">
@@ -412,13 +411,11 @@
           <ul style="font-size: 0.72em;">
             <li class="fragment">The phase of $\xi$ is how far the wave moved
               in one step. Exact: $-Ck\Delta x$. Lax-Wendroff moves short
-              waves too slowly, $0.75\,v$ at $k\Delta x = \pi/2$ for
-              $C = 0.5$, and the two-cell wave not at all.</li>
+              waves too slowly, and the two-cell wave not at all.</li>
             <li class="fragment">A step is made of short waves. They fall
               behind, and the step arrives with a train of oscillations
-              trailing each edge: overshoot $1.23$, undershoot $-0.23$ after
-              one crossing. Lax-Friedrichs has the opposite error: its short
-              waves run ahead.</li>
+              trailing each edge. Lax-Friedrichs has the opposite error: its
+              short waves run ahead.</li>
           </ul>
           <aside class="notes">
             The modified equation of Lax-Wendroff has no $u_{xx}$ term; its
@@ -461,9 +458,8 @@
               all touch $1$ at $k\Delta x = 0$: long waves are carried
               faithfully by every stable scheme.</li>
             <li class="fragment">They differ in how hard they damp the short
-              waves. Lax-Friedrichs damps the four-cell wave to $0.5$ per
-              step at $C = 0.5$; Lax-Wendroff leaves it at $0.90$. That is
-              the diffusion difference of the crossing figure, wave by wave.</li>
+              waves: Lax-Friedrichs hardest, Lax-Wendroff least. That is the
+              diffusion difference of the crossing figure, wave by wave.</li>
           </ul>
         </section>
 

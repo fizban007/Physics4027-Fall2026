@@ -30,7 +30,7 @@
             not reached and is folded in here as Fix 1. Part I: FTCS again and
             the von Neumann diagnosis. Fixes: upwind (information from the
             right side; numerical diffusion), Lax-Friedrichs (diffusion added
-            on purpose; the Project 2 flux), Lax-Wendroff (second order;
+            on purpose), Lax-Wendroff (second order;
             dispersion). Part V: choosing. Every number is printed by
             make_figures.py; movies by make_movies.py.
           </aside>
@@ -273,7 +273,7 @@
 
         <section class="divider">
           <h2>Part III &middot; Fix 2: add diffusion on purpose</h2>
-          <p>Lax-Friedrichs, and the Project 2 flux</p>
+          <p>Lax-Friedrichs</p>
         </section>
 
         <section>
@@ -341,34 +341,6 @@
             <li class="fragment">At $C = 0.5$ it smears three times faster
               than upwind, and the checkerboard ripples ride on the step.</li>
           </ul>
-        </section>
-
-        <section>
-          <h2>This is the Project 2 flux</h2>
-          <p style="font-size: 0.78em;">Write the scheme as fluxes through
-            the faces between cells. The Lax flux through the face between
-            $j$ and $j + 1$ is</p>
-          $$F_{j+1/2} = \tfrac{1}{2}\left(v u_j + v u_{j+1}\right)
-            - \frac{\Delta x}{2\Delta t}\left(u_{j+1} - u_j\right):$$
-          <p style="font-size: 0.78em;">the average of the two cells' fluxes,
-            minus a diffusion proportional to the jump across the face.</p>
-          <ul style="font-size: 0.76em;">
-            <li class="fragment">The <em>Rusanov flux</em> of the project is
-              the same formula with the coefficient $\Delta x/2\Delta t$
-              replaced by half the fastest signal speed on the face, $v_\max
-              /2$: the least diffusion that still covers every wave the gas
-              can send.</li>
-            <li class="fragment">That is why the fluid code is stable with
-              centered fluxes and no upwinding, and why its vortices smear.
-              You will measure both.</li>
-          </ul>
-          <aside class="notes">
-            DERIVATION: $u_j^{n+1} = u_j^n - \frac{\Delta t}{\Delta x}(F_{j+1/2} - F_{j-1/2})$
-            with the flux above reproduces the Lax scheme: the average
-            terms give the centered difference, the jump terms give the
-            second difference. With $C = 1$ the coefficient is $v/2$ and
-            the formula is Rusanov's for a single wave of speed $v$.
-          </aside>
         </section>
 
         <!-- ============ Part IV: Lax-Wendroff ============ -->
@@ -527,11 +499,6 @@
               first order where the solution is not smooth, a <em>limiter</em>,
               and a flux with just enough built-in diffusion to cover the
               fastest wave.</li>
-            <li class="fragment">That second thing is the Project 2 scheme:
-              second-order extrapolation to the cell faces, and the Rusanov
-              flux. It has no limiter, which is why it must smooth its
-              initial jumps and why its vortices blur. The resolution study
-              in the project measures the blur.</li>
           </ul>
           <p class="fragment why">Every scheme has an error. The choice is
             what kind, and where.</p>

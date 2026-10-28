@@ -95,60 +95,50 @@
         </section>
 
         <section>
-          <h2>Von Neumann stability analysis</h2>
-          <ul style="font-size: 0.8em;">
-            <li>Any profile on the grid is a sum of waves $e^{ikx_j}$.</li>
-            <li class="fragment">The scheme is linear, so it acts on each wave
-              separately. One step multiplies the wave by a number $\xi$, the
-              <em>amplification factor</em>; $n$ steps multiply it by $\xi^n$.</li>
-            <li class="fragment">Stable: $|\xi| \le 1$ for every $k$ the grid
-              can hold.</li>
-          </ul>
-          <p class="fragment why">So: substitute one wave, $u_j^n = \xi^n e^{ikx_j}$,
-            and compute $\xi$.</p>
-          <aside class="notes">
-            The exact solution has $|\xi| = 1$ with phase $-kv\Delta t$ per
-            step. $|\xi| &lt; 1$ damps a wave, an error; $|\xi| &gt; 1$ grows
-            it from rounding noise, a disaster. The grid holds
-            $0 \le k\Delta x \le \pi$, the two-cell wave being the shortest.
-          </aside>
+          <h2>Stability Analysis</h2>
+          <p>Unfortunately, the FTCS scheme is not very stable. To understand
+          what is going on, we can use the <em>von Neumann stability analysis</em>.</p>
+          <div class="fragment">
+          <p>Let's assume that a wave exists on our grid that takes the form:</p>
+          $$
+          u(x,0) = e^{ikx},\quad u_j^0 = e^{ikx_j}
+          $$
+          <p>where $k$ is a constant. What happens to this wave after one time step?</p>
+          </div>
         </section>
 
         <section>
-          <h2>FTCS</h2>
-          <p style="font-size: 0.78em;">With $u_{j \pm 1}^n = \xi^n e^{ikx_j} e^{\pm ik\Delta x}$
-            and $u_j^{n+1} = \xi^{n+1} e^{ikx_j}$, the scheme reads</p>
-          $$\xi^{n+1} e^{ikx_j} = \xi^n e^{ikx_j}
-            - \frac{C}{2}\,\xi^n e^{ikx_j}\left(e^{ik\Delta x} - e^{-ik\Delta x}\right).$$
-          <p style="font-size: 0.78em;">Divide by $\xi^n e^{ikx_j}$:</p>
-          $$\xi = 1 - i\,C \sin(k\Delta x), \qquad
-            |\xi|^2 = 1 + C^2 \sin^2(k\Delta x) .$$
-          <aside class="notes">
-            $e^{i\theta} - e^{-i\theta} = 2i\sin\theta$, and
-            $|\xi|^2 = (1 - iC\sin\theta)(1 + iC\sin\theta)$. The modulus is
-            the growth per step, the argument the phase advance per step
-            (exact: $-Ck\Delta x$); today only the modulus matters.
-          </aside>
+          <h2>Stability Analysis</h2>
+          <p>After one step of the FTCS scheme, we have:</p>
+          $$
+          \begin{align}
+          u_j^1 &= u_j^0 - v \frac{\Delta t}{2\Delta x} (u_{j+1}^0 - u_{j-1}^0) \\
+           &= u_j^0 - v \frac{\Delta t}{2\Delta x} (e^{ik\Delta x} - e^{-ik\Delta x})u_j^0 \\
+           &= \left[1 - i\frac{v\Delta t}{\Delta x}\sin (k\Delta x)\right]u_j^0 \\
+           &= \xi u_j^0
+          \end{align}
+          $$
+          <div class="fragment">
+            <p>After many steps, the solution will look like $u_j^n = \xi^n u_j^0$.</p>
+          </div>
         </section>
 
         <section>
-          <h2>$|\xi| > 1$ for every wave</h2>
-          <img src="figures/amplification_ftcs.png" style="width: 58%; margin: 0 auto; display: block;"
-            alt="Modulus of the FTCS amplification factor against k dx for Courant numbers 0.25, 0.5 and 0.9. All three curves lie above 1 except at k dx = 0 and pi, peaking at k dx = pi/2.">
-          <ul style="font-size: 0.74em;">
-            <li class="fragment">At every $C$. Smaller steps lower the curve
-              and never reach $1$: FTCS is unconditionally unstable.</li>
-            <li class="fragment">Worst for the four-cell wave, $k\Delta x = \pi/2$:
-              $|\xi| = 1.118$ at $C = 0.5$, which is $10^{19}$ in 400 steps.
-              The Gaussian's waves ($k\Delta x \approx 0.1$) grew $2.2\times$,
-              which is why it looked fine until the short wave took over.</li>
-          </ul>
-          <aside class="notes">
-            Physical reading: the centered difference takes half its
-            information from downstream. The fixes either read from the
-            right side (upwind) or damp the short waves enough to beat the
-            growth (Lax, Lax-Wendroff).
-          </aside>
+          <h2>Stability Analysis</h2>
+          <p>We want our solution to not grow to infinity after some time.
+          Therefore, the stability condition is simply $|\xi| \leq 1$. $\xi$ is called the "amplification factor" of
+          the numerical scheme. Note that $\xi$ is often complex, therefore
+          $|\xi|$ means its modulus.</p>
+          <div class="fragment">
+            <p>From our previous derivation, $|\xi|$ for the FTCS scheme is:</p>
+            $$
+            |\xi| = \left|1 - i\frac{v\Delta t}{\Delta x}\sin (k\Delta x)\right| = \sqrt{1 + \left(\frac{v\Delta t}{\Delta x}\right)^2\sin^2 (k\Delta x)}
+            $$
+            <p class="fragment">
+              This is larger than $1$ for any $k$, $\Delta x$, and $\Delta t$.
+              Therefore we call the FTCS scheme <em>unconditionally unstable</em>.
+            </p>
+          </div>
         </section>
 
         <!-- ============ Part II: upwind ============ -->

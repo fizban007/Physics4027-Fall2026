@@ -436,11 +436,12 @@
           <h2>Lax-Wendroff in action</h2>
           <video controls poster="figures/lw_poster.png" style="width: 76%; display: block; margin: 0 auto;"><source src="figures/lw.mp4" type="video/mp4"></video>
           <ul style="font-size: 0.72em;">
-            <li class="fragment">The Gaussian is carried almost untouched,
-              which neither of the first-order schemes could do.</li>
-            <li class="fragment">The step grows wiggles behind each edge,
-              which neither of the first-order schemes did. Second order buys
-              accuracy on smooth solutions and pays for it at jumps.</li>
+            <li class="fragment">At $C = 0.5$ the Gaussian is carried almost
+              untouched, where the first-order schemes smeared it. (At
+              $C = 1$ all three are exact.)</li>
+            <li class="fragment">At $C = 0.5$ the step grows wiggles behind
+              each edge, which the first-order schemes did not. Second order
+              buys accuracy on smooth solutions and pays for it at jumps.</li>
           </ul>
         </section>
 

@@ -200,12 +200,17 @@
             <li class="fragment">$1 - \cos k\Delta x \ge 0$, so $|\xi| \le 1$
               for every wave exactly when $C(1 - C) \ge 0$: that is
               $0 \le C \le 1$.</li>
-            <li class="fragment">The CFL condition of last time, now from the
-              waves instead of from the stencil. The two arguments agree,
-              and they always will: a scheme that reads from the wrong place
-              amplifies something.</li>
+            <li class="fragment">This is the <em>CFL condition</em> (Courant,
+              Friedrichs, Lewy, 1928): $v\,\Delta t \le \Delta x$. In one
+              step, the flow may not travel farther than one cell.</li>
+            <li class="fragment">In the stencil picture: the foot of the
+              characteristic must lie between the two points the scheme
+              reads. For $C &gt; 1$ it lies beyond $x_{j-1}$, the interpolation
+              becomes an extrapolation with a negative weight $1 - C$, and
+              the errors grow every step.</li>
             <li class="fragment">At $C = 1$, $\xi = e^{-ik\Delta x}$: modulus
-              one, and the exact phase. The scheme is the exact shift.</li>
+              one and the exact phase. The foot lands on $x_{j-1}$ and the
+              scheme is the exact shift.</li>
           </ul>
           <aside class="notes">
             DERIVATION: $|\xi|^2 = (1 - C + C\cos\theta)^2 + C^2\sin^2\theta$

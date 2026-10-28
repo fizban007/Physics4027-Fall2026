@@ -95,78 +95,59 @@
         </section>
 
         <section>
-          <h2>Follow one wave</h2>
-          <ul style="font-size: 0.78em;">
-            <li>Any profile on the grid is a sum of waves $e^{ikx_j}$, one
-              for each wavelength the grid can hold, from the box size down
-              to two cells.</li>
-            <li class="fragment">The scheme is linear, so it acts on each
-              wave separately: a wave goes in, the same wave comes out,
-              multiplied by some number. The scheme cannot turn one
-              wavelength into another.</li>
-            <li class="fragment">So ask of one wave: what happens to its
-              amplitude in one step? Call the factor $\xi$. After $n$ steps
-              the wave has been multiplied by $\xi^n$.</li>
+          <h2>Von Neumann stability analysis</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Any profile on the grid is a sum of waves $e^{ikx_j}$.</li>
+            <li class="fragment">The scheme is linear, so it acts on each wave
+              separately. One step multiplies the wave by a number $\xi$, the
+              <em>amplification factor</em>; $n$ steps multiply it by $\xi^n$.</li>
+            <li class="fragment">Stable: $|\xi| \le 1$ for every $k$ the grid
+              can hold.</li>
           </ul>
-          <p class="fragment why">A scheme is <em>stable</em> if no wave
-            grows: $|\xi| \le 1$ for every $k$ the grid can hold. This is
-            von Neumann's stability analysis. It needs one wave and one
-            step.</p>
+          <p class="fragment why">So: substitute one wave, $u_j^n = \xi^n e^{ikx_j}$,
+            and compute $\xi$.</p>
           <aside class="notes">
-            The exact solution moves the wave without changing its size:
-            $e^{ik(x - vt)}$ has $|\xi| = 1$ exactly, with phase $-kv\Delta t$
-            per step. A scheme with $|\xi| &lt; 1$ damps the wave, which is an
-            error but a harmless one; $|\xi| &gt; 1$ is a disaster, because
-            rounding seeds every wave at $10^{-16}$ and the factor does the
-            rest. "Every $k$ the grid can hold": $0 \le k\Delta x \le \pi$,
-            the two-cell wave being the shortest.
+            The exact solution has $|\xi| = 1$ with phase $-kv\Delta t$ per
+            step. $|\xi| &lt; 1$ damps a wave, an error; $|\xi| &gt; 1$ grows
+            it from rounding noise, a disaster. The grid holds
+            $0 \le k\Delta x \le \pi$, the two-cell wave being the shortest.
           </aside>
         </section>
 
         <section>
-          <h2>FTCS, one wave at a time</h2>
-          <p style="font-size: 0.78em;">Put $u_j^n = \xi^n e^{ikx_j}$ into
-            the scheme. The neighbours are the same wave shifted by one
-            cell, $u_{j \pm 1}^n = \xi^n e^{ikx_j}\, e^{\pm ik\Delta x}$, and
-            the new value is $u_j^{n+1} = \xi^{n+1} e^{ikx_j}$:</p>
+          <h2>FTCS</h2>
+          <p style="font-size: 0.78em;">With $u_{j \pm 1}^n = \xi^n e^{ikx_j} e^{\pm ik\Delta x}$
+            and $u_j^{n+1} = \xi^{n+1} e^{ikx_j}$, the scheme reads</p>
           $$\xi^{n+1} e^{ikx_j} = \xi^n e^{ikx_j}
             - \frac{C}{2}\,\xi^n e^{ikx_j}\left(e^{ik\Delta x} - e^{-ik\Delta x}\right).$$
-          <p style="font-size: 0.78em;">Every term carries $\xi^n e^{ikx_j}$.
-            Divide it out, and with $e^{i\theta} - e^{-i\theta} = 2i\sin\theta$:</p>
+          <p style="font-size: 0.78em;">Divide by $\xi^n e^{ikx_j}$:</p>
           $$\xi = 1 - i\,C \sin(k\Delta x), \qquad
-            |\xi|^2 = 1 + C^2 \sin^2(k\Delta x).$$
-          <p class="fragment why">One line of algebra, and it holds for every
-            wave at once: $k$ is still free.</p>
+            |\xi|^2 = 1 + C^2 \sin^2(k\Delta x) .$$
           <aside class="notes">
-            $|\xi|^2 = \xi \bar\xi = (1 - iC\sin\theta)(1 + iC\sin\theta)$.
-            Point out that $\xi$ is complex: its modulus is the growth per
-            step, its argument the phase advance per step. The exact phase
-            advance is $-Ck\Delta x$; FTCS has $-\arctan(C\sin\theta)$, close
-            for long waves. Today only the modulus matters.
+            $e^{i\theta} - e^{-i\theta} = 2i\sin\theta$, and
+            $|\xi|^2 = (1 - iC\sin\theta)(1 + iC\sin\theta)$. The modulus is
+            the growth per step, the argument the phase advance per step
+            (exact: $-Ck\Delta x$); today only the modulus matters.
           </aside>
         </section>
 
         <section>
-          <h2>What it says</h2>
+          <h2>$|\xi| > 1$ for every wave</h2>
           <img src="figures/amplification_ftcs.png" style="width: 58%; margin: 0 auto; display: block;"
             alt="Modulus of the FTCS amplification factor against k dx for Courant numbers 0.25, 0.5 and 0.9. All three curves lie above 1 except at k dx = 0 and pi, peaking at k dx = pi/2.">
-          <ul style="font-size: 0.72em;">
-            <li class="fragment">$|\xi| &gt; 1$ for every wave except the two
-              ends, at every $C$. A smaller time step lowers the curve and
-              never brings it to $1$: FTCS is unstable for all $C$.</li>
-            <li class="fragment">Worst at $k\Delta x = \pi/2$, a wave four
-              cells long: $|\xi| = 1.118$ at $C = 0.5$, which is $10^{19}$
-              after 400 steps. The Gaussian's own waves have $k\Delta x
-              \approx 0.1$ and grew only $2.2\times$. That is the movie: the
-              Gaussian looked fine until the four-cell wave, seeded by
-              rounding, caught up with it.</li>
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">At every $C$. Smaller steps lower the curve
+              and never reach $1$: FTCS is unconditionally unstable.</li>
+            <li class="fragment">Worst for the four-cell wave, $k\Delta x = \pi/2$:
+              $|\xi| = 1.118$ at $C = 0.5$, which is $10^{19}$ in 400 steps.
+              The Gaussian's waves ($k\Delta x \approx 0.1$) grew $2.2\times$,
+              which is why it looked fine until the short wave took over.</li>
           </ul>
           <aside class="notes">
             Physical reading: the centered difference takes half its
-            information from downstream, where the solution has not come
-            from. Any fix must either read from the right side or damp the
-            short waves hard enough to beat the growth; Parts II to IV are
-            those two strategies.
+            information from downstream. The fixes either read from the
+            right side (upwind) or damp the short waves enough to beat the
+            growth (Lax, Lax-Wendroff).
           </aside>
         </section>
 

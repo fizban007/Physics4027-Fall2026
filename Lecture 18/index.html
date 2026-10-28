@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 18</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 18</p>
+          <h1>Why schemes blow up, and three ways to stop it</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            Lecture 17 ended at the FTCS blow-up; its Part III (upwind) was
+            not reached and is folded in here as Fix 1. Part I: FTCS again and
+            the von Neumann diagnosis. Fixes: upwind (information from the
+            right side; numerical diffusion), Lax-Friedrichs (diffusion added
+            on purpose; the Project 2 flux), Lax-Wendroff (second order;
+            dispersion). Part V: choosing. Every number is printed by
+            make_figures.py; movies by make_movies.py.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <ul style="font-size: 0.8em;">
+            <li>The advection equation $\partial_t u + v\,\partial_x u = 0$
+              carries a profile along at speed $v$: $u = u_0(x - vt)$.</li>
+            <li class="fragment">Characteristics: the curves along which a
+              first-order PDE is an ODE. Where they converge the profile
+              steepens; where they cross, a shock forms.</li>
+            <li class="fragment">The value at $(x, t)$ depends on the initial
+              data in a definite place, the domain of dependence. A scheme
+              had better look there.</li>
+            <li class="fragment">The first scheme we tried, FTCS, blew up.</li>
+          </ul>
+          <p class="fragment why">Today: exactly why it blew up, a test that
+            tells in advance, and three ways to fix it, each with a price.</p>
+        </section>
+
+        <!-- ============ Part I: why FTCS blows up ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Why FTCS blows up</h2>
+          <p>Follow one wave through one step</p>
+        </section>
+
+        <section>
+          <h2>The scheme again</h2>
+          <p style="font-size: 0.78em;">Points $x_j = j\,\Delta x$, times
+            $t_n = n\,\Delta t$, unknowns $u_j^n$. Forward difference in time,
+            centered in space:</p>
+          <div style="font-size: 0.78em;">
+          $$\frac{u_j^{n+1} - u_j^n}{\Delta t} + v\,\frac{u_{j+1}^n - u_{j-1}^n}{2\Delta x} = 0
+            \quad\Longrightarrow\quad
+            u_j^{n+1} = u_j^n - \frac{C}{2}\left(u_{j+1}^n - u_{j-1}^n\right),
+            \quad C = \frac{v\Delta t}{\Delta x}.$$
+          </div>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">$C$, the Courant number, is how many grid
+              spacings the flow moves in one step. It is the only parameter
+              of the scheme.</li>
+            <li class="fragment">Euler's method on the system of ODEs
+              $du_j/dt = -v\,(u_{j+1} - u_{j-1})/2\Delta x$, one per grid
+              point. Both halves are things we trust.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>FTCS fails</h2>
+          <video controls poster="figures/ftcs_poster.png" style="width: 58%; display: block; margin: 0 auto;"><source src="figures/ftcs.mp4" type="video/mp4"></video>
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">$C = 0.5$, 200 points, periodic box. The
+              Gaussian survives a while, then a grid-scale oscillation
+              appears, and by 400 steps it is at $2 \times 10^3$.</li>
+            <li class="fragment">A smaller $\Delta t$ delays it and does not
+              cure it. To see why, stop looking at the Gaussian and look at
+              one wave.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Follow one wave</h2>
+          <p style="font-size: 0.78em;">Any profile on the grid is a sum of
+            waves $e^{ikx_j}$, and the scheme is linear, so each wave evolves
+            on its own. Try the solution</p>
+          $$u_j^n = \xi^n\, e^{i k x_j},$$
+          <p style="font-size: 0.78em;">a wave whose amplitude is multiplied
+            by the same factor $\xi$ every step. Put it into FTCS, using
+            $u_{j \pm 1}^n = \xi^n e^{ikx_j} e^{\pm ik\Delta x}$:</p>
+          $$\xi = 1 - \frac{C}{2}\left(e^{ik\Delta x} - e^{-ik\Delta x}\right)
+             = 1 - i\,C \sin(k\Delta x).$$
+          <p class="fragment why">$\xi$ is the <em>amplification factor</em>.
+            After $n$ steps the wave has grown by $|\xi|^n$. This is von
+            Neumann's stability analysis, and it takes one line per scheme.</p>
+          <aside class="notes">
+            DERIVATION: divide the scheme by $\xi^n e^{ikx_j}$; every term
+            loses that factor, and $u_{j+1}$, $u_{j-1}$ leave behind
+            $e^{\pm ik\Delta x}$. The difference is $2i \sin(k\Delta x)$. The
+            exact solution advances the wave by the phase $e^{-ikv\Delta t}$
+            per step, which has modulus 1: nothing should grow, and the
+            phase should be $-Ck\Delta x$. Both can be read off $\xi$.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Every wave grows</h2>
+          <img src="figures/amplification.png" style="width: 86%; margin: 0 auto; display: block;"
+            alt="Modulus of the amplification factor against k dx for FTCS, upwind, Lax-Friedrichs and Lax-Wendroff at Courant numbers 0.5 and 0.9. FTCS is above 1 everywhere except at the ends; the other three stay at or below 1.">
+          <ul style="font-size: 0.7em; margin-top: 0.1em;">
+            <li class="fragment">$|\xi|^2 = 1 + C^2 \sin^2(k\Delta x)$. Larger
+              than $1$ for every wave except the two ends, at every $C$.
+              Reducing $\Delta t$ only reduces the excess.</li>
+            <li class="fragment">Worst at $k\Delta x = \pi/2$, a wave four
+              cells long: $|\xi| = 1.118$ at $C = 0.5$, which is $10^{19}$
+              after 400 steps. The Gaussian's own waves have $k\Delta x
+              \approx 0.1$ and grow only $2.2\times$: that is why it looked
+              fine until the four-cell wave, seeded by rounding, caught up.</li>
+          </ul>
+          <aside class="notes">
+            The other curves are for later. Stability means $|\xi| \le 1$
+            for every $k$ the grid can hold, $0 \le k\Delta x \le \pi$. FTCS
+            is called unconditionally unstable: no $C$ works. The centered
+            difference takes half its information from downstream, where the
+            solution has not come from; that is the physical reading.
+          </aside>
+        </section>
+
+        <!-- ============ Part II: upwind ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Fix 1: take information from upwind</h2>
+          <p>Ask the characteristic</p>
+        </section>
+
+        <section>
+          <h2>Ask the characteristic</h2>
+          <p style="font-size: 0.78em;">The exact solution says where the new
+            value comes from: go down the characteristic for one step,</p>
+          $$u(x_j, t_{n+1}) = u(x_j - v\Delta t,\ t_n) .$$
+          <img src="figures/upwind_stencil.png" style="width: 100%; margin: 0.2em auto; display: block;"
+            alt="Three stencil diagrams for C = 0.5, 1 and 1.5: the new point at t_{n+1} above x_j, the characteristic drawn back to its foot at t_n, which lies between x_{j-1} and x_j, exactly on x_{j-1}, or beyond x_{j-1}.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">The foot, $x_j - v\Delta t$, is not a grid
+              point. Read the old solution there by linear interpolation
+              between the two grid points around it, $x_{j-1}$ and $x_j$.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>The upwind scheme</h2>
+          <p style="font-size: 0.78em;">The foot lies a fraction $C$ of the
+            way from $x_j$ back to $x_{j-1}$. Linear interpolation gives</p>
+          <div style="font-size: 0.84em;">
+          $$u_j^{n+1} = (1 - C)\,u_j^n + C\,u_{j-1}^n
+            \qquad\Longleftrightarrow\qquad
+            \frac{u_j^{n+1} - u_j^n}{\Delta t} + v\,\frac{u_j^n - u_{j-1}^n}{\Delta x} = 0 .$$
+          </div>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">A one-sided difference, taken from the side
+              the flow comes from. For $v &lt; 0$ use $u_{j+1} - u_j$
+              instead.</li>
+            <li class="fragment">Same cost as FTCS, and it only ever reads
+              information from where the characteristic says it is.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the interpolation: the foot is at $x_j - C\Delta x$;
+            linear interpolation between $(x_{j-1}, u_{j-1})$ and $(x_j, u_j)$
+            at that point gives $u_j + (u_{j-1} - u_j)\,C$.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Its amplification factor</h2>
+          <p style="font-size: 0.78em;">Same substitution, $u_j^n = \xi^n e^{ikx_j}$:</p>
+          $$\xi = 1 - C + C\,e^{-ik\Delta x}, \qquad
+            |\xi|^2 = 1 - 2C(1 - C)\,\big(1 - \cos k\Delta x\big).$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">$1 - \cos k\Delta x \ge 0$, so $|\xi| \le 1$
+              for every wave exactly when $C(1 - C) \ge 0$: that is
+              $0 \le C \le 1$.</li>
+            <li class="fragment">The CFL condition of last time, now from the
+              waves instead of from the stencil. The two arguments agree,
+              and they always will: a scheme that reads from the wrong place
+              amplifies something.</li>
+            <li class="fragment">At $C = 1$, $\xi = e^{-ik\Delta x}$: modulus
+              one, and the exact phase. The scheme is the exact shift.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: $|\xi|^2 = (1 - C + C\cos\theta)^2 + C^2\sin^2\theta$
+            with $\theta = k\Delta x$; expand, use $\cos^2 + \sin^2 = 1$:
+            $(1-C)^2 + 2C(1-C)\cos\theta + C^2 = 1 - 2C(1-C) + 2C(1-C)\cos\theta$.
+            At $C = 0.5$ the phase of $\xi = \frac{1}{2}(1 + e^{-i\theta})$
+            is exactly $-\theta/2 = -C\theta$: upwind has no phase error at
+            $C = 1/2$, a coincidence visible in the phase figure later.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Upwind in action</h2>
+          <video controls poster="figures/upwind_poster.png" style="width: 76%; display: block; margin: 0 auto;"><source src="figures/upwind.mp4" type="video/mp4"></video>
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">One crossing of the box. At $C = 1$ both
+              profiles return exactly. At $C = 0.5$ the Gaussian peak has
+              fallen to $0.71$ and the step's corners are gone.</li>
+            <li class="fragment">Stable, and smeared. The next slide says by
+              how much, and why.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>The price: numerical diffusion</h2>
+          <p style="font-size: 0.78em;">Expand the scheme in Taylor series
+            about $(x_j, t_n)$ and keep one more order than the equation it
+            was meant to solve. What the upwind scheme actually solves is</p>
+          $$\frac{\partial u}{\partial t} + v\,\frac{\partial u}{\partial x}
+            = D\,\frac{\partial^2 u}{\partial x^2} + \dots, \qquad
+            D = \tfrac{1}{2}\,v\,\Delta x\,(1 - C).$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">This is the <em>modified equation</em>:
+              advection plus a diffusion term that the scheme added, with a
+              coefficient set by the grid. It vanishes at $C = 1$ and is
+              largest for small steps: at $C = 0.5$, $D = 0.25\,v\Delta x$.</li>
+            <li class="fragment">Diffusion is what averaging does. Each step
+              replaces $u_j$ by a weighted mean of itself and its upwind
+              neighbour, and means are smoother than what they average.</li>
+          </ul>
+          <p class="fragment why">The scheme is first order: the error term
+            is proportional to $\Delta x$. Halve the grid and the smearing
+            halves.</p>
+          <aside class="notes">
+            DERIVATION: write $u_j^{n+1} = u + \Delta t\,u_t + \frac{1}{2}\Delta t^2 u_{tt}$
+            and $u_{j-1}^n = u - \Delta x\,u_x + \frac{1}{2}\Delta x^2 u_{xx}$,
+            all at $(x_j, t_n)$. The scheme becomes $u_t + v u_x =
+            \frac{1}{2} v \Delta x\, u_{xx} - \frac{1}{2}\Delta t\, u_{tt} + O(\Delta^2)$.
+            To leading order $u_{tt} = v^2 u_{xx}$ (differentiate the
+            equation), so the right side is $\frac{1}{2} v\Delta x (1 - C)\, u_{xx}$.
+            Check against the figure: a Gaussian of width $\sigma$ under
+            diffusion for a time $T$ has width $\sqrt{\sigma^2 + 2DT}$; with
+            $\sigma = 0.5$, $D = 0.25 \times 0.05 = 0.0125$, $T = 10$, that is
+            $\sqrt{0.25 + 0.25} = 0.707$, and the peak falls to $0.5/0.707 =
+            0.707$. Measured: $0.707$.
+          </aside>
+        </section>
+
+        <!-- ============ Part III: Lax-Friedrichs ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; Fix 2: add diffusion on purpose</h2>
+          <p>Lax-Friedrichs, and the Project 2 flux</p>
+        </section>
+
+        <section>
+          <h2>The Lax idea</h2>
+          <p style="font-size: 0.78em;">Keep the centered difference, but
+            replace the $u_j^n$ that the step starts from by the average of
+            its neighbours:</p>
+          $$u_j^{n+1} = \tfrac{1}{2}\left(u_{j+1}^n + u_{j-1}^n\right)
+            - \frac{C}{2}\left(u_{j+1}^n - u_{j-1}^n\right).$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">Amplification factor:
+              $\xi = \cos k\Delta x - i\,C \sin k\Delta x$, so
+              $|\xi|^2 = \cos^2 k\Delta x + C^2 \sin^2 k\Delta x
+               = 1 - (1 - C^2)\sin^2 k\Delta x$.</li>
+            <li class="fragment">$|\xi| \le 1$ for every wave exactly when
+              $C \le 1$. Stable, with the same condition as upwind, and it
+              never had to ask which way the wind blows.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: $\frac{1}{2}(e^{i\theta} + e^{-i\theta}) = \cos\theta$
+            and $\frac{1}{2}(e^{i\theta} - e^{-i\theta}) = i\sin\theta$. The
+            scheme is also what you get from the centered-space system of
+            ODEs with a smoothing of the old value; it works for $v$ of
+            either sign and for systems, which is why it survives into the
+            fluid code.
+          </aside>
+        </section>
+
+        <section>
+          <h2>What was added</h2>
+          <p style="font-size: 0.78em;">Subtract $u_j^n$ from both sides and
+            the average becomes a second difference:</p>
+          $$\frac{u_j^{n+1} - u_j^n}{\Delta t} + v\,\frac{u_{j+1}^n - u_{j-1}^n}{2\Delta x}
+            = \frac{\Delta x^2}{2\Delta t}\,\frac{u_{j+1}^n - 2u_j^n + u_{j-1}^n}{\Delta x^2}.$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">FTCS on the left, a diffusion term on the
+              right with $D = \Delta x^2/2\Delta t = v\Delta x/2C$. Diffusion
+              damps the short waves that FTCS amplified; enough of it, and
+              nothing grows.</li>
+            <li class="fragment">The price is the same as upwind's, and
+              larger: at $C = 0.5$, $D = 0.75\,v\Delta x$ against $0.25$. The
+              Gaussian peak after one crossing is $0.50$, against $0.71$.</li>
+            <li class="fragment">One wave escapes: at $k\Delta x = \pi$, the
+              two-cell checkerboard, $|\xi| = 1$ at every $C$. The average
+              of the neighbours of a checkerboard is the checkerboard. It
+              shows as fine ripples on the step.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: $\frac{1}{2}(u_{j+1} + u_{j-1}) - u_j = \frac{1}{2}(u_{j+1} - 2u_j + u_{j-1})$;
+            divide by $\Delta t$ and write the second difference over
+            $\Delta x^2$. The modified equation, with $u_{tt} = v^2 u_{xx}$
+            as before, has $D = \frac{\Delta x^2}{2\Delta t}(1 - C^2)$; the
+            slide quotes the leading term. The checkerboard: odd and even
+            points never talk to each other in a centered scheme, the
+            odd-even decoupling.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Lax-Friedrichs in action</h2>
+          <video controls poster="figures/lax_poster.png" style="width: 76%; display: block; margin: 0 auto;"><source src="figures/lax.mp4" type="video/mp4"></video>
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">Exact at $C = 1$, like upwind, and for the
+              same reason: the scheme becomes a shift.</li>
+            <li class="fragment">At $C = 0.5$ it smears three times faster
+              than upwind, and the checkerboard ripples ride on the step.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>This is the Project 2 flux</h2>
+          <p style="font-size: 0.78em;">Write the scheme as fluxes through
+            the faces between cells. The Lax flux through the face between
+            $j$ and $j + 1$ is</p>
+          $$F_{j+1/2} = \tfrac{1}{2}\left(v u_j + v u_{j+1}\right)
+            - \frac{\Delta x}{2\Delta t}\left(u_{j+1} - u_j\right):$$
+          <p style="font-size: 0.78em;">the average of the two cells' fluxes,
+            minus a diffusion proportional to the jump across the face.</p>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">The <em>Rusanov flux</em> of the project is
+              the same formula with the coefficient $\Delta x/2\Delta t$
+              replaced by half the fastest signal speed on the face, $v_\max
+              /2$: the least diffusion that still covers every wave the gas
+              can send.</li>
+            <li class="fragment">That is why the fluid code is stable with
+              centered fluxes and no upwinding, and why its vortices smear.
+              You will measure both.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: $u_j^{n+1} = u_j^n - \frac{\Delta t}{\Delta x}(F_{j+1/2} - F_{j-1/2})$
+            with the flux above reproduces the Lax scheme: the average
+            terms give the centered difference, the jump terms give the
+            second difference. With $C = 1$ the coefficient is $v/2$ and
+            the formula is Rusanov's for a single wave of speed $v$.
+          </aside>
+        </section>
+
+        <!-- ============ Part IV: Lax-Wendroff ============ -->
+
+        <section class="divider">
+          <h2>Part IV &middot; Fix 3: be second order</h2>
+          <p>Lax-Wendroff</p>
+        </section>
+
+        <section>
+          <h2>One more term of Taylor</h2>
+          <p style="font-size: 0.78em;">Euler in time keeps one term of the
+            Taylor series. Keep two, and use the equation itself to turn time
+            derivatives into space derivatives:</p>
+          $$u^{n+1} = u + \Delta t\,\frac{\partial u}{\partial t} + \frac{\Delta t^2}{2}\frac{\partial^2 u}{\partial t^2},
+            \qquad
+            \frac{\partial u}{\partial t} = -v\,\frac{\partial u}{\partial x}, \quad
+            \frac{\partial^2 u}{\partial t^2} = v^2\,\frac{\partial^2 u}{\partial x^2}.$$
+          <p style="font-size: 0.78em;">Centered differences for both space
+            derivatives give the <em>Lax-Wendroff</em> scheme:</p>
+          $$u_j^{n+1} = u_j^n - \frac{C}{2}\left(u_{j+1}^n - u_{j-1}^n\right)
+            + \frac{C^2}{2}\left(u_{j+1}^n - 2u_j^n + u_{j-1}^n\right).$$
+          <p class="fragment why">FTCS plus a second difference, like Lax,
+            but with the coefficient $C^2/2$ that the Taylor series asks for
+            instead of the $1/2$ that Lax put in by hand. Second order in
+            $\Delta t$ and $\Delta x$.</p>
+          <aside class="notes">
+            DERIVATION: $u_{tt} = \partial_t(-v u_x) = -v\,\partial_x u_t = v^2 u_{xx}$.
+            The second-difference term is $\frac{\Delta t^2}{2} v^2 u_{xx}$
+            with $u_{xx} \approx (u_{j+1} - 2u_j + u_{j-1})/\Delta x^2$; the
+            coefficient is $\frac{1}{2} v^2 \Delta t^2/\Delta x^2 = C^2/2$.
+            Lax-Friedrichs has $1/2$ there, so Lax minus Lax-Wendroff is
+            $\frac{1}{2}(1 - C^2)$ times a second difference: the extra
+            diffusion that Lax carries.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Stable, and accurate</h2>
+          <div style="font-size: 0.8em; margin-top: -0.3em;">
+          $$\xi = 1 - i\,C \sin k\Delta x - C^2\left(1 - \cos k\Delta x\right), \qquad
+            |\xi|^2 = 1 - C^2\left(1 - C^2\right)\left(1 - \cos k\Delta x\right)^2 .$$
+          </div>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">$|\xi| \le 1$ for every wave exactly when
+              $C \le 1$. Same condition a third time.</li>
+            <li class="fragment">The damping is fourth order in $k\Delta x$
+              for long waves, where upwind's was second order. The Gaussian
+              comes back from one crossing at $C = 0.5$ with its peak at
+              $0.995$: against $0.71$ for upwind and $0.50$ for Lax.</li>
+          </ul>
+          <img src="figures/crossing.png" style="width: 64%; margin: 0.1em auto; display: block;"
+            alt="Gaussian and step after one crossing at C = 0.5 for upwind, Lax-Friedrichs and Lax-Wendroff. The Lax-Wendroff Gaussian lies on the exact one; its step has an overshoot to 1.23 and oscillations trailing behind each edge.">
+          <aside class="notes">
+            DERIVATION: with $\theta = k\Delta x$, $\xi = [1 - C^2(1 - \cos\theta)] - iC\sin\theta$;
+            $|\xi|^2 = 1 - 2C^2(1-\cos\theta) + C^4(1-\cos\theta)^2 + C^2\sin^2\theta$
+            and $\sin^2\theta = (1-\cos\theta)(1+\cos\theta) = 2(1-\cos\theta) - (1-\cos\theta)^2$,
+            so $|\xi|^2 = 1 - C^2(1-\cos\theta)^2 + C^4(1-\cos\theta)^2$.
+            For small $\theta$, $1 - \cos\theta \approx \theta^2/2$, so the
+            loss per step is $O(\theta^4)$. The right panel of the figure is
+            the next slide's subject.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The price: dispersion</h2>
+          <img src="figures/phase.png" style="width: 84%; margin: 0 auto; display: block;"
+            alt="Numerical phase speed divided by the exact speed against k dx, for upwind, Lax-Friedrichs and Lax-Wendroff at C = 0.5 and 0.9. Lax-Wendroff is below 1 and falls to zero at k dx = pi; Lax-Friedrichs is above 1; upwind is exactly 1 at C = 0.5.">
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">The phase of $\xi$ is how far the wave moved
+              in one step. Exact: $-Ck\Delta x$. Lax-Wendroff moves short
+              waves too slowly, $0.75\,v$ at $k\Delta x = \pi/2$ for
+              $C = 0.5$, and the two-cell wave not at all.</li>
+            <li class="fragment">A step is made of short waves. They fall
+              behind, and the step arrives with a train of oscillations
+              trailing each edge: overshoot $1.23$, undershoot $-0.23$ after
+              one crossing. Lax-Friedrichs has the opposite error: its short
+              waves run ahead.</li>
+          </ul>
+          <aside class="notes">
+            The modified equation of Lax-Wendroff has no $u_{xx}$ term; its
+            leading error is $-\frac{1}{6} v \Delta x^2 (1 - C^2)\, u_{xxx}$, a
+            third derivative, which is dispersive: different wavelengths
+            travel at different speeds, which is what the phase plot shows.
+            Upwind's leading error is diffusive, $u_{xx}$. Diffusion smears,
+            dispersion wiggles; a scheme has one or the other as its leading
+            error. Upwind at $C = 0.5$ has zero phase error (previous
+            derivation note), a coincidence of that one value of $C$.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Lax-Wendroff in action</h2>
+          <video controls poster="figures/lw_poster.png" style="width: 76%; display: block; margin: 0 auto;"><source src="figures/lw.mp4" type="video/mp4"></video>
+          <ul style="font-size: 0.72em;">
+            <li class="fragment">The Gaussian is carried almost untouched,
+              which neither of the first-order schemes could do.</li>
+            <li class="fragment">The step grows wiggles behind each edge,
+              which neither of the first-order schemes did. Second order buys
+              accuracy on smooth solutions and pays for it at jumps.</li>
+          </ul>
+        </section>
+
+        <!-- ============ Part V: choosing ============ -->
+
+        <section class="divider">
+          <h2>Part V &middot; Choosing</h2>
+          <p>Diffusion or dispersion</p>
+        </section>
+
+        <section>
+          <h2>Three schemes, one table</h2>
+          <table style="font-size: 0.62em; margin: 0.3em auto;">
+            <thead><tr><th>scheme</th><th>reads</th><th>order</th><th>stable for</th><th>leading error</th><th>Gaussian peak after one crossing, $C = 0.5$</th><th>step</th></tr></thead>
+            <tbody>
+              <tr><td>FTCS</td><td>$j - 1, j, j + 1$</td><td>1</td><td>never</td><td>growth</td><td>blows up</td><td>blows up</td></tr>
+              <tr class="fragment"><td>upwind</td><td>$j - 1, j$</td><td>1</td><td>$C \le 1$</td><td>diffusion, $\tfrac{1}{2} v\Delta x (1 - C)$</td><td>$0.71$</td><td>smeared</td></tr>
+              <tr class="fragment"><td>Lax-Friedrichs</td><td>$j - 1, j + 1$</td><td>1</td><td>$C \le 1$</td><td>diffusion, $\tfrac{1}{2} v\Delta x (1 - C^2)/C$</td><td>$0.50$</td><td>smeared, ripples</td></tr>
+              <tr class="fragment"><td>Lax-Wendroff</td><td>$j - 1, j, j + 1$</td><td>2</td><td>$C \le 1$</td><td>dispersion, $\tfrac{1}{6} v\Delta x^2 (1 - C^2)$</td><td>$0.995$</td><td>wiggles</td></tr>
+            </tbody>
+          </table>
+          <ul style="font-size: 0.74em;">
+            <li class="fragment">All three stable schemes are exact at
+              $C = 1$ and worst at small $C$: a smaller time step is
+              <em>not</em> more accurate here. Run as close to the CFL limit
+              as you dare.</li>
+            <li class="fragment">First order smears, second order wiggles. The
+              wiggles are confined to jumps; the smearing is everywhere.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Which to use</h2>
+          <ul style="font-size: 0.78em;">
+            <li>Smooth solutions: a second-order scheme, or higher. The
+              dispersion error shrinks as $\Delta x^2$ and there are no jumps
+              to excite it.</li>
+            <li class="fragment">Solutions with shocks or fronts: you need
+              diffusion at the jump, and would rather not have it elsewhere.
+              The modern answer is a second-order scheme that switches to
+              first order where the solution is not smooth, a <em>limiter</em>,
+              and a flux with just enough built-in diffusion to cover the
+              fastest wave.</li>
+            <li class="fragment">That second thing is the Project 2 scheme:
+              second-order extrapolation to the cell faces, and the Rusanov
+              flux. It has no limiter, which is why it must smooth its
+              initial jumps and why its vortices blur. The resolution study
+              in the project measures the blur.</li>
+          </ul>
+          <p class="fragment why">Every scheme has an error. The choice is
+            what kind, and where.</p>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.78em;">
+            <li><strong>Von Neumann:</strong> put $\xi^n e^{ikx_j}$ into the
+              scheme; it is stable if $|\xi| \le 1$ for every $k$. One line
+              per scheme, and it predicts the blow-up before any run.</li>
+            <li class="fragment"><strong>FTCS:</strong> $|\xi|^2 = 1 + C^2\sin^2 k\Delta x$,
+              unstable at every $C$.</li>
+            <li class="fragment"><strong>Three fixes, one condition:</strong>
+              upwind, Lax-Friedrichs and Lax-Wendroff are all stable for
+              $C \le 1$ and exact at $C = 1$.</li>
+            <li class="fragment"><strong>Two prices:</strong> first-order
+              schemes add diffusion, $D \propto v\Delta x$; the second-order
+              scheme adds dispersion and wiggles at jumps. The modified
+              equation says which, and how much.</li>
+          </ul>
+          <p class="fragment why">Next time: the diffusion equation, where
+            the explicit scheme is stable but the time step is tiny, and the
+            implicit schemes that fix it. Then the wave equation on a
+            staggered grid.</p>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 18</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+      // Movies start when their slide appears and are left alone afterwards.
+      // Reveal's own data-autoplay restarts a video from zero every time it
+      // re-scans the slide, which happens on each fragment step; this does not.
+      function playMovies(slide) {
+        slide.querySelectorAll("video").forEach(v => { v.currentTime = 0; v.play().catch(() => {}); });
+      }
+      Reveal.on("ready", e => playMovies(e.currentSlide));
+      Reveal.on("slidechanged", e => playMovies(e.currentSlide));
+    </script>
+  </body>
+</html>

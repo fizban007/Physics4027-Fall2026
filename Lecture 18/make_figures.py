@@ -104,6 +104,26 @@ for ax, init, name in zip(axs, [gauss(xg), step], ["Gaussian", "step"]):
 axs[0].set_ylabel("$u$"); axs[0].legend(frameon=False, fontsize=11)
 fig.tight_layout(); save(fig, "crossing")
 
+# ------------------------------------------- stencil diagram: the foot of the characteristic
+fig, axs = plt.subplots(1, 3, figsize=(13, 3.4))
+for ax, Cn, title in zip(axs, [0.5, 1.0, 1.5],
+                         [r"$v\Delta t = 0.5\,\Delta x$", r"$v\Delta t = \Delta x$", r"$v\Delta t = 1.5\,\Delta x$: the foot is outside the stencil"]):
+    for j, lab in zip([-1, 0, 1], ["$x_{j-1}$", "$x_j$", "$x_{j+1}$"]):
+        ax.plot([j], [0], "o", color=INK, ms=7)
+        ax.text(j, -0.22, lab, ha="center", fontsize=13)
+    ax.plot([0], [1], "o", color=ACCENT, ms=8)
+    ax.text(0.08, 1.05, "$u_j^{n+1}$", fontsize=13, color=ACCENT)
+    foot = -Cn
+    ax.plot([foot, 0], [0, 1], color=V[1], lw=2.0)
+    ax.plot([foot], [0], "s", color=V[1], ms=7)
+    ax.text(foot - 0.12, 0.16, "foot", ha="right", fontsize=12, color=V[1])
+    ax.axhline(0, color=MUTED, lw=0.8); ax.axhline(1, color=MUTED, lw=0.8)
+    ax.text(-1.95, 0.02, "$t_n$", fontsize=12, color=MUTED); ax.text(-1.95, 1.02, "$t_{n+1}$", fontsize=12, color=MUTED)
+    ax.set_xlim(-2.1, 1.6); ax.set_ylim(-0.4, 1.3); ax.axis("off")
+    ax.set_title(title, fontsize=13)
+fig.tight_layout()
+save(fig, "upwind_stencil")
+
 # ------------------------------------------- numerical diffusion coefficients, in units of v dx
 for C in [0.25, 0.5, 0.9, 1.0]:
     print(f"[diffusion] C={C}: upwind D = {0.5*(1-C):.3f} v dx; Lax D = {(1-C**2)/(2*C):.3f} v dx")

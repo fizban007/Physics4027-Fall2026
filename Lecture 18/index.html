@@ -96,6 +96,7 @@
 
         <section>
           <h2>Stability Analysis</h2>
+          <div style="font-size: 0.8em;">
           <p>Unfortunately, the FTCS scheme is not very stable. To understand
           what is going on, we can use the <em>von Neumann stability analysis</em>.</p>
           <div class="fragment">
@@ -105,10 +106,12 @@
           $$
           <p>where $k$ is a constant. What happens to this wave after one time step?</p>
           </div>
+                  </div>
         </section>
 
         <section>
           <h2>Stability Analysis</h2>
+          <div style="font-size: 0.8em;">
           <p>After one step of the FTCS scheme, we have:</p>
           $$
           \begin{align}
@@ -121,10 +124,12 @@
           <div class="fragment">
             <p>After many steps, the solution will look like $u_j^n = \xi^n u_j^0$.</p>
           </div>
+                  </div>
         </section>
 
         <section>
           <h2>Stability Analysis</h2>
+          <div style="font-size: 0.8em;">
           <p>We want our solution to not grow to infinity after some time.
           Therefore, the stability condition is simply $|\xi| \leq 1$. $\xi$ is called the "amplification factor" of
           the numerical scheme. Note that $\xi$ is often complex, therefore
@@ -139,6 +144,7 @@
               Therefore we call the FTCS scheme <em>unconditionally unstable</em>.
             </p>
           </div>
+                  </div>
         </section>
 
         <!-- ============ Part II: upwind ============ -->

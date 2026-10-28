@@ -479,9 +479,29 @@
               $C = 1$ and worst at small $C$: a smaller time step is
               <em>not</em> more accurate here. Run as close to the CFL limit
               as you dare.</li>
+            <li class="fragment">Why not always $C = 1$, then? Because only
+              one speed can have it. A gas carries three waves at different
+              speeds, a variable $v(x)$ is a different speed at every point,
+              and two dimensions have no exact shift at all. The exactness
+              belongs to this toy problem, not to the schemes.</li>
             <li class="fragment">First order smears, second order wiggles. The
               wiggles are confined to jumps; the smearing is everywhere.</li>
           </ul>
+          <aside class="notes">
+            Why not $C = 1$ always, in full. (1) $C = v\Delta t/\Delta x$ can
+            equal 1 for one speed only; the sound waves of a gas move at
+            $v \pm c$ and the flow at $v$, so at best one family is exact and
+            the others see $C &lt; 1$ and are smeared, with $\Delta t$ set by
+            the fastest. (2) With $v(x)$, $C$ varies along the grid; the
+            global $\Delta t$ is set by the maximum, everywhere else $C &lt; 1$.
+            (3) Nonlinear problems: the speed depends on the solution and
+            changes in time. (4) Two dimensions: the stencil cannot shift
+            diagonally by exactly one cell, and the stability limit itself
+            drops below 1. (5) $C = 1$ sits exactly on the stability
+            boundary; any extra term, a source or a boundary, can push it
+            over. In practice $C$ of $0.4$ to $0.8$, and the smearing that
+            comes with it, which is why the order of the scheme matters.
+          </aside>
         </section>
 
         <section>

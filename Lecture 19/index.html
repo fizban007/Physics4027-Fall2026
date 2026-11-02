@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 19</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+      /* Slides reused from the 2025 deck: body text at the size the
+         earlier slides use inline, heading unchanged. */
+      .reveal .slides section.compact { font-size: 0.78em; }
+      .reveal .slides section.compact h2 { font-size: calc(var(--r-heading2-size) / 0.78); }
+    </style>
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 19</p>
+          <h1>The diffusion equation and implicit schemes</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            Second PDE of the course. Part I: the equation and the behaviour
+            of its solutions. Part II: FTCS, stable but with a step that
+            scales as dx^2. Part III: implicit FTCS (BTCS), one tridiagonal
+            solve per step. Part IV: Crank-Nicolson. Part V: the Schrodinger
+            equation, where Crank-Nicolson is also unitary. Slides 9 on
+            follow the 2025 Lecture 20 and reuse its three movies
+            (figures/*-2025.mp4); the first figure comes from
+            make_figures.py.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Von Neumann stability analysis: substitute a single wave
+              $u_j^n = \xi^n e^{ikx_j}$ into the scheme and require
+              $|\xi| \le 1$ for every $k$.</li>
+            <li class="fragment">For FTCS on the advection equation,
+              $|\xi|^2 = 1 + C^2 \sin^2 k\Delta x > 1$. The scheme is
+              unstable for every time step.</li>
+            <li class="fragment">Upwind, Lax-Friedrichs and Lax-Wendroff
+              are stable for $C = v\Delta t/\Delta x \le 1$, the CFL
+              condition.</li>
+            <li class="fragment">The first-order schemes smear the profile.
+              The second-order scheme produces oscillations behind sharp
+              features.</li>
+          </ul>
+          <!-- <p class="fragment why">Today we treat the diffusion equation.
+               FTCS is stable for it, but the time step it requires is so
+               small that we need implicit schemes, which we first met in
+               Lecture 7 for stiff ODEs.</p> -->
+        </section>
+
+        <!-- ============ Part I: the equation ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; The diffusion equation</h2>
+          <p>Where it comes from and how its solutions behave</p>
+        </section>
+
+        <section>
+          <h2>The equation</h2>
+          <p style="font-size: 0.78em;">Heat conduction in a solid, dye
+            spreading in still water, viscosity in a fluid and the decay
+            of a magnetic field in a conductor are all described by the
+            same equation. For a density $u(x, t)$,</p>
+          $$\frac{\partial u}{\partial t} = D\,\frac{\partial^2 u}{\partial x^2},
+            \qquad [D] = \frac{\text{length}^2}{\text{time}} .$$
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">It follows from a conservation law,
+              $\partial_t u + \partial_x F = 0$, with a flux proportional to
+              the gradient, $F = -D\,\partial_x u$ (Fick's law for particles,
+              Fourier's law for heat).</li>
+            <li class="fragment">The equation is linear, first order in time
+              and second order in space, with a single parameter $D$. Like
+              the advection equation it is an initial value problem.</li>
+            <li class="fragment">The time to diffuse over a distance $\ell$
+              is $\ell^2/D$. Two lengths matter in a simulation: the box,
+              with time $L^2/D$, and one grid cell, with time
+              $\Delta x^2/D$.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: the amount in $[x, x + dx]$ changes by the flux in
+            at $x$ minus the flux out at $x + dx$, $\partial_t u\,dx = F(x) -
+            F(x + dx) = -\partial_x F\,dx$; with $F = -D\,\partial_x u$ this
+            is the diffusion equation. For heat, $u$ is the temperature and
+            $D = \kappa/\rho c_p$; for a viscous fluid the velocity $v_y(x)$
+            obeys it with $D = \nu$; for a magnetic field in a conductor
+            $D = 1/\mu_0 \sigma$. The time $\ell^2/D$ follows from
+            dimensions alone: it is the only time one can build from $D$
+            and $\ell$.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Behaviour of the solutions</h2>
+          <img src="figures/spreading.png" style="width: 74%; margin: 0.1em auto; display: block;"
+            alt="Left: a Gaussian at t = 0, 0.25, 1, 4 spreading and falling. Right: a top hat at t = 0, 0.01, 0.1, 1; the corners round off immediately, the plateau survives longer.">
+          <ul style="font-size: 0.68em;">
+            <li class="fragment">A single wave $e^{ikx}$ keeps its shape and
+              decays as $e^{-Dk^2 t}$. Short waves decay fastest. A kink in
+              the profile is made of short waves, so it is smoothed out
+              immediately. The advection equation preserved kinks.</li>
+            <li class="fragment">A Gaussian remains a Gaussian, with
+              $\sigma^2 = \sigma_0^2 + 2Dt$. The widths in the figure are
+              $0.5$, $0.87$, $1.5$ and $2.9$ at $t = 0$, $0.25$, $1$, $4$.
+              The area under $u$ is conserved, so the peak falls as
+              $1/\sigma$.</li>
+            <li class="fragment">The value at each point moves toward the
+              average of its neighbourhood, so no new maxima appear. The
+              solution at any point depends on the entire initial profile.
+              There are no characteristics.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: $u = e^{ikx} e^{-Dk^2 t}$ gives $\partial_t u =
+            -Dk^2 u$ and $D\,\partial_x^2 u = -Dk^2 u$. Any initial profile is
+            a sum of such waves (Fourier), each decaying at its own rate.
+            For the Gaussian, substitute $u = \sigma_0 \sigma^{-1}
+            e^{-x^2/2\sigma^2}$ with $\sigma^2 = \sigma_0^2 + 2Dt$ and check
+            both sides; the prefactor keeps $\int u\,dx$ constant. "No new
+            maxima" is the maximum principle: at a local maximum $u_{xx} <
+            0$, so $u_t < 0$ there. "Depends on the entire profile": the
+            Green's function $e^{-x^2/4Dt}/\sqrt{4\pi Dt}$ is nonzero
+            everywhere for any $t > 0$. This is why no explicit scheme can
+            be exact here the way upwind was at $C = 1$: the domain of
+            dependence is the whole line.
+          </aside>
+        </section>
+
+        <!-- ============ Part II: FTCS ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; FTCS on the diffusion equation</h2>
+          <p>The same first scheme as for advection</p>
+        </section>
+
+        <section>
+          <h2>The scheme</h2>
+          <p style="font-size: 0.78em;">Forward difference in time, and the
+            three-point second difference of Lecture 12 in space:</p>
+          <div style="font-size: 0.82em; margin-top: -0.3em;">
+          $$\frac{u_j^{n+1} - u_j^n}{\Delta t} = D\,\frac{u_{j+1}^n - 2u_j^n + u_{j-1}^n}{\Delta x^2}$$
+          $$u_j^{n+1} = u_j^n + \alpha\left(u_{j+1}^n - 2u_j^n + u_{j-1}^n\right),
+            \qquad \alpha = \frac{D\,\Delta t}{\Delta x^2}.$$
+          </div>
+          <ul style="font-size: 0.76em;">
+            <li class="fragment">$\alpha$ is the time step measured in units
+              of the diffusion time across one cell, $\Delta x^2/D$. It plays
+              the role that $C$ played for advection.</li>
+            <li class="fragment">The scheme can be rearranged as
+              $u_j^{n+1} = (1 - 2\alpha)\,u_j^n + \alpha\,u_{j+1}^n
+              + \alpha\,u_{j-1}^n$, so the new value is a weighted average
+              of the old value and its two neighbours.</li>
+            <li class="fragment">It is also Euler's method applied to the
+              system of ODEs $du_j/dt = D\,(u_{j+1} - 2u_j + u_{j-1})/\Delta x^2$,
+              one equation per grid point.</li>
+          </ul>
+        </section>
+
+        <section class="compact">
+          <h2>Stability of FTCS</h2>
+          <p>What is its stability criterion?</p>
+          <div class="fragment">
+            $$
+            \xi = 1 - 4\alpha \sin^2\left(\frac{k \Delta x}{2}\right)
+            $$
+            <p>The scheme is stable when $\alpha \leq \tfrac12$, that is
+              $\Delta t \leq \Delta x^2/2D$: the time step should be less
+              than half the diffusion time across a cell.</p>
+          </div>
+          <aside class="notes">
+            DERIVATION: substitute $u_j^n = \xi^n e^{ikx_j}$; the second
+            difference of a wave is $(e^{ik\Delta x} - 2 + e^{-ik\Delta x})
+            u_j = -4\sin^2(k\Delta x/2)\,u_j$. $\xi$ is real because the
+            second difference is symmetric (no $i$, unlike the centered
+            first difference of advection). $\xi \le 1$ always; $\xi \ge -1$
+            for the worst wave $k\Delta x = \pi$ requires $4\alpha \le 2$. Same result from the ODE view: Euler on $du_j/dt$
+            with the largest eigenvalue $4D/\Delta x^2$ of the
+            second-difference matrix, stable for $\Delta t\lambda \le 2$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>FTCS in action</h2>
+          <p>Let's implement it: $1000$ grid points on $0 \le x \le 1$, so
+            $\Delta x = 10^{-3}$, with $D = 1$ and a Gaussian of width $0.1$.
+            Choosing $\alpha = \tfrac12$, so $\Delta t = \Delta x^2/2D =
+            5 \times 10^{-7}$. The movie shows $1000$ steps.</p>
+          <video controls poster="figures/diffusion-slow-2025_poster.png" style="width: 43%; display: block; margin: 0 auto;"><source src="figures/diffusion-slow-2025.mp4" type="video/mp4"></video>
+        </section>
+
+        <section class="compact">
+          <h2>The problem with FTCS</h2>
+          <p>It turns out $\Delta t \sim \Delta x^2/D$ is too slow. If we are
+            interested in things happening on length scales $L$, then we need
+            $n \sim L^2/\Delta x^2$ time steps! For the Gaussian of width
+            $L = 0.1$ on the grid with $\Delta x = 10^{-3}$ that is $10^4$
+            steps, and the movie showed $1000$ of them.</p>
+          <p class="fragment">How can we take much larger time steps without
+            breaking the algorithm?</p>
+          <aside class="notes">
+            With $\alpha = 1/2$ exactly, $n = 2(L/\Delta x)^2$: for the
+            whole box of $N$ cells, $2N^2$ steps, against $2N$ for
+            advection.
+            Halving $\Delta x$ costs four times as many steps, each on twice
+            as many points. In 2D and 3D the limit is $\alpha \le 1/4$,
+            $1/6$ and the points multiply.
+          </aside>
+        </section>
+
+        <!-- ============ Part III: implicit ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; Implicit schemes</h2>
+        </section>
+
+        <section class="compact">
+          <h2>Implicit FTCS</h2>
+          <p>Remember in ODEs, implicit schemes were introduced for stiff
+            problems to overcome stability problems (Lecture 7). We can use
+            the same concept here:
+            $$
+            \frac{u_j^{n+1} - u_j^n}{\Delta t} = D \frac{u_{j+1}^{n+1} - 2 u_j^{n+1} + u_{j-1}^{n+1}}{\Delta x^2}
+            $$</p>
+          <p class="fragment">This is called the <em>implicit</em> FTCS, or BTCS, B for backward.</p>
+        </section>
+
+        <section class="compact">
+          <h2>Implicit FTCS</h2>
+          <p>What is the stability criterion for this scheme?</p>
+          <p class="fragment">
+            $$
+            \xi = \frac{1}{\displaystyle 1 + 4\alpha \sin^2\left(\frac{k \Delta x}{2}\right)}
+            $$
+          </p>
+          <p class="fragment">$|\xi| < 1$ for any $\Delta t$. The implicit FTCS
+            scheme is <em>unconditionally stable</em>.</p>
+          <aside class="notes">
+            DERIVATION: the same substitution gives $\xi - 1 = -4\alpha
+            \sin^2(k\Delta x/2)\,\xi$. Mode by mode this is implicit Euler,
+            $y_{n+1} = y_n/(1 + \Delta t\lambda)$, with $\lambda = (4D/\Delta
+            x^2)\sin^2(k\Delta x/2)$. The shortest wave is now damped the
+            most, which is what the exact solution does. The scheme is still
+            first order in time, so a large $\Delta t$ is stable but not
+            accurate: with $\alpha = 400$ one step from $t = 0$ to $t = 1$
+            gives a Gaussian peak of $0.44$ instead of $0.33$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Implicit FTCS</h2>
+          <p>However, there is only one problem:</p>
+          $$
+          \frac{u_j^{n+1} - u_j^n}{\Delta t} = D \frac{u_{j+1}^{n+1} - 2 u_j^{n+1} + u_{j-1}^{n+1}}{\Delta x^2}
+          $$
+          <p class="fragment">This is a system of linear equations with $u_j^{n+1}$
+            being the unknown vector. Can we write down the matrix $A$?</p>
+        </section>
+
+        <section class="compact">
+          <h2>Implicit FTCS</h2>
+          <p>The matrix $A$ associated with the implicit FTCS scheme is:</p>
+          <div>
+          $$
+          A = \begin{pmatrix}
+            1 + 2\alpha & -\alpha & 0 & \cdots & 0 & 0 & 0 \\
+            -\alpha & 1 + 2\alpha & -\alpha & \cdots & 0 & 0 & 0 \\
+            0 & -\alpha & 1 + 2\alpha & \cdots & 0 & 0 & 0 \\
+            \vdots & \vdots & \vdots & \ddots & \vdots & \vdots & \vdots \\
+            0 & 0 & 0 & \cdots & 1 + 2\alpha & -\alpha & 0 \\
+            0 & 0 & 0 & \cdots & -\alpha & 1 + 2\alpha & -\alpha \\
+            0 & 0 & 0 & \cdots & 0 & -\alpha & 1 + 2\alpha \\
+          \end{pmatrix}
+          $$
+          </div>
+          <p>This is a tri-diagonal matrix that is diagonally dominant.</p>
+          <aside class="notes">
+            Boundary rows: a fixed value at a wall goes into the right-hand
+            side of the end row; a zero-gradient wall changes the end
+            diagonal to $1 + \alpha$; a periodic box adds two corner entries
+            (Sherman-Morrison, or solve in Fourier space as the demo does).
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Implicit FTCS</h2>
+          <p>At every time step, we solve the linear system:
+            $$
+            \mathbf{A} \mathbf{u}^{n+1} = \mathbf{u}^n
+            $$</p>
+          <p class="fragment">Since $\mathbf{A}$ is tri-diagonal, we can use
+            the Thomas algorithm (<a href="../Lecture 14/index.html">Lecture 14</a>),
+            the solver you wrote in Homework 7. $\mathbf{A}$ never changes over
+            time, so we find its LU decomposition once and reuse it at every
+            time step. One step costs $O(N)$, about twice an FTCS step.</p>
+        </section>
+
+        <section class="compact">
+          <h2>Implicit FTCS in action</h2>
+          <p>Let's see how it does. Same grid and initial profile, choosing
+            $\alpha = 100$, so $\Delta t = 10^{-4}$, two hundred times the
+            FTCS limit. The movie shows $100$ steps, to $t = 10^{-2}$.</p>
+          <video controls poster="figures/diffusion-fast-2025_poster.png" style="width: 46%; display: block; margin: 0 auto;"><source src="figures/diffusion-fast-2025.mp4" type="video/mp4"></video>
+        </section>
+
+        <!-- ============ Part IV: Crank-Nicolson ============ -->
+
+        <section class="divider">
+          <h2>Part IV &middot; Crank-Nicolson</h2>
+        </section>
+
+        <section class="compact">
+          <h2>Second order accuracy in time</h2>
+          <p>The implicit FTCS scheme is still 1st order accurate in time. To
+            achieve 2nd order accuracy in time, we can take the average between
+            the FTCS and implicit FTCS schemes:</p>
+          <div>
+          $$
+          \frac{u_j^{n+1} - u_j^n}{\Delta t} = \frac{D}{2} \left(\frac{u_{j+1}^{n+1} - 2 u_j^{n+1} + u_{j-1}^{n+1}}{\Delta x^2} + \frac{u_{j+1}^n - 2 u_j^n + u_{j-1}^n}{\Delta x^2}\right)
+          $$
+          </div>
+          <p>Why is this scheme second order accurate in time?</p>
+          <p class="fragment">This numerical scheme is called the <em>Crank-Nicolson</em> scheme,
+            and is the recommended scheme for diffusion-type PDEs.</p>
+          <aside class="notes">
+            DERIVATION: both sides are centered at $t_{n+1/2}$. The left is
+            the centered difference there, error $\Delta t^2 u_{ttt}/24$; the
+            right is the average of $u_{xx}$ at the two ends, equal to
+            $u_{xx}(t_{n+1/2}) + \Delta t^2 u_{xxtt}/8$. Odd powers of
+            $\Delta t$ cancel by symmetry, as for the trapezoidal rule of
+            Lecture 5, which is exactly what this is, applied to $du_j/dt$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Crank-Nicolson scheme</h2>
+          <p>Let's work out the amplification factor:</p>
+          <p class="fragment">
+            $$
+            \xi = \frac{\displaystyle 1 - 2\alpha \sin^2\left(\frac{k \Delta x}{2}\right)}{\displaystyle 1 + 2\alpha \sin^2\left(\frac{k \Delta x}{2}\right)}
+            $$
+          </p>
+          <p class="fragment">
+            Again, this scheme is unconditionally stable.
+          </p>
+          <aside class="notes">
+            DERIVATION: $\xi - 1 = -2\alpha s^2(\xi + 1)$ with $s =
+            \sin(k\Delta x/2)$. Numerator and denominator are $1 \mp x$ with
+            $x > 0$, so $|\xi| < 1$. One caveat: for the shortest waves at
+            large $\alpha$, $\xi \to -1$, so a sharp edge leaves a
+            sign-flipping wiggle that decays slowly ($|\xi| = 0.9$ at $\alpha
+            = 10$). Starting with one or two implicit FTCS steps removes it.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Crank-Nicolson scheme</h2>
+          <p>Again, one needs to solve a tri-diagonal system at every time step.
+            However, this time the right hand side is not simply $\mathbf{u}^n$:</p>
+          $$
+          \mathbf{A} \mathbf{u}^{n+1} = \mathbf{B} \mathbf{u}^n
+          $$
+          <p class="fragment">
+            The matrix $\mathbf{A}$ has $(-\tfrac{\alpha}{2}, 1 + \alpha, -\tfrac{\alpha}{2})$ on its
+            diagonals, while the matrix $\mathbf{B}$ has $(\tfrac{\alpha}{2}, 1 - \alpha, \tfrac{\alpha}{2})$
+            on its diagonals, with the same $\alpha = D\Delta t/\Delta x^2$.
+          </p>
+        </section>
+
+        <!-- ============ Part V: Schrodinger ============ -->
+
+        <section class="divider">
+          <h2>Part V &middot; The Schr&ouml;dinger equation</h2>
+        </section>
+
+        <section class="compact">
+          <h2>The Schr&ouml;dinger equation</h2>
+          <p>The Schr&ouml;dinger equation is the fundamental equation of quantum
+            mechanics:</p>
+          $$
+          i \hbar \frac{\partial \psi}{\partial t} = -\frac{\hbar^2}{2m} \frac{\partial^2 \psi}{\partial x^2} + V(x) \psi
+          $$
+          <p class="fragment">It is like a diffusion equation in imaginary time,
+            so the methods today are applicable.</p>
+        </section>
+
+        <section class="compact">
+          <h2>The Schr&ouml;dinger equation</h2>
+          <p>We first get rid of the units by performing non-dimensionalization,
+            the equation looks like:
+            $$
+            i \frac{\partial \psi}{\partial t} = -\frac{1}{2} \frac{\partial^2 \psi}{\partial x^2} + V(x) \psi
+            $$
+          </p>
+          <p class="fragment">Let's use the implicit FTCS scheme:
+            $$
+            i \frac{\psi_j^{n+1} - \psi_j^n}{\Delta t} = -\frac{1}{2} \frac{\psi_{j+1}^{n+1} - 2 \psi_j^{n+1} + \psi_{j-1}^{n+1}}{\Delta x^2} + V(x) \psi_j^{n+1}
+            $$
+          </p>
+          <aside class="notes">
+            Units: $\hbar = m = 1$, lengths in some $a$, times in $ma^2/\hbar$,
+            energies in $\hbar^2/ma^2$. FTCS here gives $\xi = 1 - i[\dots]$
+            with $|\xi| > 1$: unstable for every $\Delta t$, like advection.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The Schr&ouml;dinger equation</h2>
+          <p>The amplification factor for the implicit FTCS scheme is:</p>
+          $$
+          \xi = \frac{1}{\displaystyle 1+i\left[\frac{2\Delta t}{\Delta x^2}\sin^2\left(\frac{k\Delta x}{2}\right) + V_j \Delta t\right]}
+          $$
+          <p class="fragment">The scheme is unconditionally stable. However, $|\xi| < 1$ in general, so it
+            does not preserve amplitudes. In quantum mechanical language, it is not <em>unitary</em>.</p>
+          <aside class="notes">
+            DERIVATION: same substitution, with $V$ taken locally constant
+            (frozen-coefficient analysis). The bracket is real, so $|\xi| =
+            1/\sqrt{1 + [\dots]^2} < 1$. In the demo run, the norm drops to
+            $0.70$ after 800 steps.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The Schr&ouml;dinger equation</h2>
+          <p>Unitarity is important in quantum mechanics. The wave function is
+            understood as a probability amplitude. The probability of finding the
+            particle at location $x$ is $P(x) = |\psi(x)|^2$. It satisfies the
+            normalization condition:
+            $$
+            \int_{-\infty}^{\infty} |\psi(x)|^2 dx = 1
+            $$
+          </p>
+          <p class="fragment">Amplitude decay is not a desirable trait of the numerical method when
+            solving quantum mechanics!</p>
+        </section>
+
+        <section class="compact">
+          <h2>The Schr&ouml;dinger equation</h2>
+          <p>If we formally write the Schr&ouml;dinger equation as:</p>
+          $$
+          i\frac{\partial \psi}{\partial t} = \hat{H} \psi
+          $$
+          <p>where $\hat{H}$ is the Hamiltonian operator, then the implicit FTCS
+            scheme is effectively:</p>
+          <p class="fragment">
+            $$
+            \psi^{n+1} = \left(1 + i\hat{H}\Delta t\right)^{-1} \psi^n
+            $$
+            $(1 + i\hat{H}\Delta t)^{-1}$ is a non-unitary approximation to the time evolution operator $e^{-i\hat{H}\Delta t}$.
+          </p>
+        </section>
+
+        <section class="compact">
+          <h2>The Schr&ouml;dinger equation</h2>
+          <p>The cure is to use the so-called "Cayley's form" for $e^{-i\hat{H}\Delta t}$:
+            $$
+            e^{-i\hat{H}\Delta t} \approx \frac{\displaystyle 1 - \frac{1}{2}i\hat{H}\Delta t}{\displaystyle 1 + \frac{1}{2}i\hat{H}\Delta t}
+            $$
+          </p>
+          <p class="fragment">
+            Then the numerical scheme becomes:
+            $$
+            \left(1 + \frac{1}{2}i\hat{H}\Delta t\right)\psi_j^{n+1} = \left(1 - \frac{1}{2}i\hat{H}\Delta t\right)\psi_j^n
+            $$
+            In fact, this is equivalent to the Crank-Nicolson scheme!
+          </p>
+          <aside class="notes">
+            DERIVATION: $\hat{H}$ is Hermitian, so $(1 - iH\Delta t/2)$ and
+            $(1 + iH\Delta t/2)$ have the same eigenvectors with eigenvalues
+            $1 \mp iE\Delta t/2$, complex conjugates of equal modulus; the
+            ratio has modulus one for every eigenvector. The norm is
+            conserved to rounding error ($2 \times 10^{-14}$ over 800 steps
+            in the demo). Complex tridiagonal solve, same Thomas algorithm.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The Schr&ouml;dinger equation</h2>
+          <p>Let's see the Crank-Nicolson scheme in action:</p>
+          <video controls poster="figures/schrodinger-2025_poster.png" style="width: 50%; display: block; margin: 0 auto;"><source src="figures/schrodinger-2025.mp4" type="video/mp4"></video>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.8em;">
+            <li>FTCS is stable for the diffusion equation when
+              $\Delta t \le \Delta x^2/2D$, which is too small a step.</li>
+            <li class="fragment">Implicit FTCS (BTCS) is unconditionally
+              stable. Each step is a tri-diagonal solve.</li>
+            <li class="fragment">Crank-Nicolson averages the two, is
+              unconditionally stable and second order in time.</li>
+            <li class="fragment">For the Schr&ouml;dinger equation
+              Crank-Nicolson is also unitary.</li>
+          </ul>
+          <!-- <p class="fragment why">Next time: the wave equation on a staggered
+               grid, and then Poisson's equation.</p> -->
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 19</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+      // Movies start when their slide appears and are left alone afterwards.
+      // Reveal's own data-autoplay restarts a video from zero every time it
+      // re-scans the slide, which happens on each fragment step; this does not.
+      function playMovies(slide) {
+        slide.querySelectorAll("video").forEach(v => { v.currentTime = 0; v.play().catch(() => {}); });
+      }
+      Reveal.on("ready", e => playMovies(e.currentSlide));
+      Reveal.on("slidechanged", e => playMovies(e.currentSlide));
+    </script>
+  </body>
+</html>

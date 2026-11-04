@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 20</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+      /* Body text at the size the other decks use inline, heading unchanged. */
+      .reveal .slides section.compact { font-size: 0.78em; }
+      .reveal .slides section.compact h2 { font-size: calc(var(--r-heading2-size) / 0.78); }
+    </style>
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 20</p>
+          <h1>Conservation laws and the finite-volume method</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            The lecture between HW9 and Project 2. Part I: conservative form
+            and what the integral form buys. Part II: the finite-volume
+            update and the flux as the whole algorithm (Lax-Friedrichs as a
+            flux, Rusanov). Part III: the scheme of Project 2, the Euler
+            system, signal speeds and the time step, the half step and the
+            reconstruction, two dimensions. Part IV: what the student checks
+            that the agent cannot: conservation, a sound wave, symmetry and
+            resolution; the Kelvin-Helmholtz movies from 2025. HW9 3b is due
+            tonight, so Part I does not say which of its two runs gets the
+            shock right.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <ul style="font-size: 0.8em;">
+            <li>The diffusion equation. FTCS is stable for
+              $\alpha = D\Delta t/\Delta x^2 \le \tfrac12$, but that time
+              step is tiny.</li>
+            <li class="fragment">Implicit FTCS is unconditionally stable, at
+              the price of a tridiagonal solve per step. Crank-Nicolson is
+              also second order in time.</li>
+            <li class="fragment">Before that, three schemes for the advection
+              equation, upwind, Lax-Friedrichs and Lax-Wendroff, and the
+              CFL condition $v\Delta t \le \Delta x$.</li>
+          </ul>
+          <p class="fragment why">Today: conservation laws, the finite-volume
+            method, and the scheme of Project 2.</p>
+        </section>
+
+        <!-- ============ Part I ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Conservative form</h2>
+        </section>
+
+        <section class="compact">
+          <h2>Conservative form</h2>
+          <p>Burgers' equation (Lecture 17):</p>
+          $$
+          \frac{\partial u}{\partial t} + u \frac{\partial u}{\partial x} = 0.
+          $$
+          <p class="fragment">Since $u\,\partial_x u = \partial_x (u^2/2)$,
+            the same equation is
+            $$
+            \frac{\partial u}{\partial t} + \frac{\partial F}{\partial x} = 0,
+            \qquad F = \frac{u^2}{2}.
+            $$
+          </p>
+          <p class="fragment">This is the <em>conservative form</em>,
+            $\partial_t Q + \nabla\cdot\mathbf{F} = 0$: $Q$ is a density,
+            $\mathbf{F}$ its flux. The continuity equation
+            $\partial_t\rho + \nabla\cdot(\rho\mathbf{v}) = 0$ is one.</p>
+        </section>
+
+        <section class="compact">
+          <h2>The integral form</h2>
+          <p>Integrate over $[x_1, x_2]$:</p>
+          $$
+          \frac{d}{dt}\int_{x_1}^{x_2} Q\,dx = F(x_1) - F(x_2).
+          $$
+          <ul>
+            <li class="fragment">$Q$ changes only by what flows through the
+              ends. On a periodic box the total is constant.</li>
+            <li class="fragment">No derivatives of $Q$: it holds across a
+              jump, and gives the shock speed
+              $\dot{x}_s = (F_L - F_R)/(Q_L - Q_R)$ (Lecture 17).</li>
+            <li class="fragment">$u$ and $u^2$ both satisfy a conservation law
+              where $u$ is smooth, with different shock speeds. The physics
+              decides which is conserved.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the shock speed from the integral form: with a jump
+            at $x_s(t)$ inside the interval, the left side is $(Q_L -
+            Q_R)\dot{x}_s$ plus terms that vanish as the interval shrinks
+            onto the jump, so $\dot{x}_s = (F_L - F_R)/(Q_L - Q_R)$, the
+            Rankine-Hugoniot condition. For Burgers, $F = u^2/2$, this is
+            $(u_L + u_R)/2$. For $Q = u^2$ the flux is $2u^3/3$ (multiply
+            the equation by $2u$) and the speed is
+            $\tfrac23(u_L^2 + u_L u_R + u_R^2)/(u_L + u_R)$, a different
+            number. Do not say which of the two HW9 runs gets this right;
+            3b is due tonight.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>On a grid</h2>
+          <p>Cells of width $\Delta x$, the cell <em>average</em> $Q_j$,
+            faces at $x_{j \pm 1/2}$. The integral form over one cell and
+            one step:</p>
+          $$
+          Q_j^{n+1} = Q_j^n - \frac{\Delta t}{\Delta x}\left(F_{j+1/2} - F_{j-1/2}\right).
+          $$
+          <ul>
+            <li class="fragment">$F_{j+1/2}$ is the flux through the face
+              between cells $j$ and $j+1$: what leaves $j$ enters $j+1$.</li>
+            <li class="fragment">Sum over $j$ and the fluxes cancel in pairs.
+              $\sum_j Q_j\Delta x$ is conserved to rounding, for any
+              $F_{j+1/2}$.</li>
+            <li class="fragment">Such a scheme also gets the shock speed
+              right, since that followed from conservation alone.</li>
+          </ul>
+          <aside class="notes">
+            The telescoping sum is the whole content of "conservative
+            scheme". The second claim is the Lax-Wendroff theorem (1960): if
+            a conservative scheme converges, it converges to a solution
+            satisfying the integral form, with the right jump conditions.
+            The upwind scheme in conservative form of HW9 3b is exactly this
+            update with $F_{j+1/2} = F_j$.
+          </aside>
+        </section>
+
+        <!-- ============ Part II ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; The finite-volume method</h2>
+        </section>
+
+        <section class="compact">
+          <h2>Finite volume method</h2>
+          <p>The finite volume method exploits this structure, allowing us to
+            write the update as:</p>
+          $$
+          \begin{align}
+          \int_\mathrm{cell}Q^{n+1} \mathrm{d}V &= \int_\mathrm{cell}Q^n \mathrm{d}V - \Delta t\int_\mathrm{cell} \nabla \cdot \mathbf{F} \mathrm{d}V \\
+          &= \int_\mathrm{cell}Q^n \mathrm{d}V - \Delta t\int_\mathrm{boundary} \mathbf{F} \cdot \mathrm{d}\mathbf{S}
+          \end{align}
+          $$
+          <p class="fragment">
+            Define $\bar{Q}$ as the average $Q$ in each cell, we can write:
+            $$
+            \bar{Q}^{n+1}\Delta V = \bar{Q}^n \Delta V - \Delta t\sum_\mathrm{faces} \mathbf{F} \cdot \mathbf{S}
+            $$
+          </p>
+          <p class="fragment">
+            $\rho$ by itself is a conserved quantity, and
+            $\int_\mathrm{cell}\rho\, \mathrm{d}V$ is the mass in the cell.
+            This is what we use as one of the conserved quantities in
+            Project 2.
+          </p>
+          <aside class="notes">
+            2025 slide. The divergence theorem turns the volume integral of
+            $\nabla\cdot\mathbf{F}$ into the flux through the surface; with
+            a cell-averaged flux over the step this is exact, no
+            discretization error yet. All the error is in how the face
+            fluxes are computed from the cell averages.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Face fluxes</h2>
+          <p>The update is exact. A scheme is a formula for $F_{j+1/2}$ from
+            the two cells sharing the face, $Q_L = Q_j$ and $Q_R = Q_{j+1}$.</p>
+          <p class="fragment">Upwind, flow to the right: $F_{j+1/2} = F(Q_L)$.</p>
+          <p class="fragment">Lax-Friedrichs:
+            $$
+            F_{j+1/2} = \frac{1}{2}\left[F(Q_L) + F(Q_R)\right] - \frac{\Delta x}{2\Delta t}\left(Q_R - Q_L\right).
+            $$
+            In the update this gives the scheme of Lecture 18; the second
+            term is its numerical diffusion, $D = \Delta x^2/2\Delta t$.</p>
+          <aside class="notes">
+            DERIVATION: $F_{j+1/2} - F_{j-1/2} = \tfrac12(F_{j+1} - F_{j-1})
+            - \frac{\Delta x}{2\Delta t}(Q_{j+1} - 2Q_j + Q_{j-1})$. Multiply
+            by $\Delta t/\Delta x$ and subtract from $Q_j$:
+            $Q_j^{n+1} = \tfrac12(Q_{j+1} + Q_{j-1}) - \frac{\Delta t}{2\Delta
+            x}(F_{j+1} - F_{j-1})$, which for $F = vQ$ is Lax-Friedrichs
+            with $C = v\Delta t/\Delta x$. The diffusive flux $-D\,\partial_x
+            Q$ with $D = \Delta x^2/2\Delta t$ discretized as $-D(Q_R -
+            Q_L)/\Delta x$ is exactly the second term.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The Rusanov flux</h2>
+          <p>There are many ways to construct the fluxes at the cell faces.
+            One way is the Rusanov flux:</p>
+          $$
+          F = \frac{1}{2}(F_L + F_R) - \frac{v_\mathrm{max}}{2}(Q_R - Q_L).
+          $$
+          <p class="fragment">Subscript $L$ and $R$ are quantities calculated
+            using the fluid variables in the cell to the left and right of
+            the face, and $v_\mathrm{max}$ is the largest speed at which
+            information travels across the face. This is what we will be
+            using in Project 2.</p>
+          <p class="fragment">Lax-Friedrichs with $\Delta x/\Delta t$ replaced
+            by $v_\mathrm{max} \le \Delta x/\Delta t$: less diffusion,
+            $v_\mathrm{max}\Delta x/2$ instead of $\Delta x^2/2\Delta t$.</p>
+          <aside class="notes">
+            2025 slide with the comparison added. For linear advection,
+            $F = vQ$ and $v_\mathrm{max} = |v|$, the Rusanov flux is
+            $\tfrac12 v(Q_L + Q_R) - \tfrac12|v|(Q_R - Q_L)$, which is
+            $vQ_L$ for $v > 0$ and $vQ_R$ for $v < 0$: exactly upwind. For a
+            system it is the "local Lax-Friedrichs" flux, upwind-like
+            without ever asking which way each wave goes.
+          </aside>
+        </section>
+
+        <!-- ============ Part III ============ -->
+
+        <section class="divider">
+          <h2>Part III &middot; The scheme of Project 2</h2>
+        </section>
+
+        <section class="compact">
+          <h2>Project 2</h2>
+          <p>In Project 2, we will solve the equations for an ideal fluid:</p>
+          $$
+          \begin{align}
+          \frac{\partial \rho}{\partial t} + \nabla \cdot (\rho \mathbf{v}) &= 0 \\
+          \frac{\partial \mathbf{v}}{\partial t} + (\mathbf{v} \cdot \nabla) \mathbf{v} &= -\frac{1}{\rho} \nabla P
+          \end{align}
+          $$
+          <p class="fragment">These are called "Euler equations". They are the
+            limit of Navier-Stokes equations when fluid viscosity becomes
+            zero.</p>
+          <p class="fragment">The velocity equation is not in conservation
+            form. Momentum $\rho\mathbf{v}$ and energy
+            $U = \rho(\tfrac12 v^2 + u)$ are conserved; their equations are.</p>
+          <aside class="notes">
+            2025 slide. The handout derives the conservative form; here the
+            point is only that velocity is not conserved and momentum is,
+            so the solver must evolve $\rho\mathbf{v}$ and $U$ and convert
+            back to $\mathbf{v}$ and $P$ when it needs them.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>A system of conservation laws</h2>
+          <p>In 1D, the Euler equations in conservative form are
+            $\partial_t Q + \partial_x F = 0$ with</p>
+          $$
+          Q = \begin{pmatrix} \rho \\ \rho v \\ U \end{pmatrix}, \qquad
+          F = \begin{pmatrix} \rho v \\ \rho v^2 + P \\ (U + P)\,v \end{pmatrix},
+          \qquad U = \frac{1}{2}\rho v^2 + \frac{P}{\gamma - 1}.
+          $$
+          <p class="fragment">Part II applies to the vector $Q$ component by
+            component. Mass, momentum and energy are conserved to rounding.</p>
+          <p class="fragment">In 2D there are two flux vectors, $F_x$ and
+            $F_y$; the handout lists them.</p>
+          <aside class="notes">
+            $U$ from $u = P/((\gamma - 1)\rho)$, the ideal gas. The energy
+            flux $(U + P)v$: the extra $Pv$ is the work done by pressure on
+            the fluid flowing through the face. In 2D the $x$-flux of
+            $\rho v_y$ is $\rho v_x v_y$; pressure appears only in the flux
+            of the momentum component normal to the face.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Signal speeds and the time step</h2>
+          <p>A gas carries information at three speeds: the flow speed $v$,
+            and sound at $v \pm c_s$,
+            $$
+            c_s = \sqrt{\gamma P/\rho}.
+            $$
+          </p>
+          <p class="fragment">The CFL condition with the fastest signal on
+            the grid, set every step:
+            $$
+            \Delta t = C_\mathrm{CFL}\,\frac{\min(\Delta x, \Delta y)}{\max_{ij}\left(c_s + |\mathbf{v}|\right)}.
+            $$
+            On a face, $c_s + |\mathbf{v}|$ is the $v_\mathrm{max}$ of the
+            Rusanov flux.</p>
+          <p class="fragment">$C_\mathrm{CFL} \le 1$ is not enough in 2D;
+            the handout uses $0.4$.</p>
+          <aside class="notes">
+            The three speeds are the characteristics of the Euler system,
+            derived in the 5027 section of the handout: the eigenvalues of
+            the flux Jacobian $\partial F/\partial Q$ are $v - c_s$, $v$,
+            $v + c_s$. The middle one carries entropy and, in 2D, the
+            transverse velocity; the outer two are sound. Why $\Delta t$
+            changes every step: the loud sound wave and the KH run change
+            $\max(c_s + |v|)$ as they evolve.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Second order</h2>
+          <p>$Q_L = Q_j$, $Q_R = Q_{j+1}$ is piecewise constant: first order
+            in space, diffusion $\propto \Delta x$. The handout's scheme:</p>
+          <ul>
+            <li class="fragment">Half step: advance $\rho, \mathbf{v}, P$ by
+              $\Delta t/2$ with centered differences (the midpoint rule,
+              Lecture 6). Second order in time.</li>
+            <li class="fragment">Reconstruct: extrapolate to the faces with
+              the centered slope,
+              $\rho^{R}_{j} = \rho_j + \tfrac14(\rho_{j+1} - \rho_{j-1})$.
+              Piecewise linear. Second order in space.</li>
+            <li class="fragment">Rusanov flux from the two face values;
+              update $Q$; recover $\rho, \mathbf{v}, P$.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the $\tfrac14$: the centered slope is $(\rho_{j+1}
+            - \rho_{j-1})/2\Delta x$; the right face is $\Delta x/2$ from
+            the centre, so the extrapolation is $\rho_j + \tfrac14(\rho_{j+1}
+            - \rho_{j-1})$; the left face has $-\tfrac14$. At the face
+            $j+1/2$, $\rho^R_j$ from cell $j$ and $\rho^L_{j+1}$ from cell
+            $j+1$ differ by the second difference $\tfrac14(\rho_{j+2} -
+            \rho_{j+1} - \rho_j + \rho_{j-1})$, which is $O(\Delta x^2)$ for
+            smooth data, so the Rusanov diffusion term acts on an
+            $O(\Delta x^2)$ jump. That is where the first-order diffusion
+            goes away. This is the MUSCL-Hancock idea without the limiter;
+            the handout keeps it unlimited, which is why the shock run
+            shows ripples.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Two dimensions</h2>
+          <p>Cells $\Delta x \times \Delta y$ indexed by $(i, j)$, four faces
+            each:</p>
+          $$
+          Q_{ij}^{n+1}\,\Delta x\Delta y = Q_{ij}^n\,\Delta x\Delta y
+          - \left(F_{x,ij} - F_{x,i-1,j}\right)\Delta y\,\Delta t
+          - \left(F_{y,ij} - F_{y,i,j-1}\right)\Delta x\,\Delta t .
+          $$
+          <p class="fragment">$F_{x,ij}$ is the $x$-flux through the right
+            face of cell $(i,j)$, from the two cells on either side as in
+            1D. The $y$-faces use $F_y$.</p>
+          <p class="fragment">Periodic boundaries: a layer of ghost cells
+            copying the far side. Data layout, loops and output are the
+            agent's part of the project.</p>
+          <aside class="notes">
+            The flux through a face is the normal flux times the face area
+            ($\Delta y$ for an $x$-face) times $\Delta t$, which is why the
+            factors appear as they do. Dividing by $\Delta x\Delta y$ gives
+            the usual form with $\Delta t/\Delta x$ and $\Delta t/\Delta y$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The CFL condition in 2D</h2>
+          <p>Why is $C_\mathrm{CFL} = 1$ not safe in 2D? The simplest case:
+            2D advection, $\partial_t u + \mathbf{v}\cdot\nabla u = 0$,
+            with Lax-Friedrichs, now averaging four neighbours:</p>
+          $$
+          \begin{align}
+          u_{j,k}^{n+1} = \frac{1}{4}\left(u_{j+1,k}^n + u_{j-1,k}^n + u_{j,k+1}^n + u_{j,k-1}^n\right)
+          &- \frac{v_x\Delta t}{2\Delta x}\left(u_{j+1,k}^n - u_{j-1,k}^n\right) \\
+          &- \frac{v_y\Delta t}{2\Delta y}\left(u_{j,k+1}^n - u_{j,k-1}^n\right).
+          \end{align}
+          $$
+          <p class="fragment">Von Neumann analysis with a 2D mode
+            $u^n_{j,k} = \xi^n e^{i(k_x j\Delta x + k_y k\Delta y)}$, for
+            $\Delta x = \Delta y = \Delta$:
+            $$
+            \Delta t \leq \frac{\Delta}{\sqrt{2}\,|\mathbf{v}|}.
+            $$
+            An extra $\sqrt{2}$ compared with 1D; $\sqrt{d}$ in $d$
+            dimensions.</p>
+          <aside class="notes">
+            DERIVATION: $\xi = \tfrac12(\cos\theta_x + \cos\theta_y) -
+            iC_x\sin\theta_x - iC_y\sin\theta_y$ with $\theta_x = k_x\Delta
+            x$, $C_x = v_x\Delta t/\Delta x$, and the same for $y$. Then
+            $|\xi|^2 = \tfrac14(\cos\theta_x + \cos\theta_y)^2 +
+            (C_x\sin\theta_x + C_y\sin\theta_y)^2$. By Cauchy-Schwarz the
+            second term is at most $(C_x^2 + C_y^2)(\sin^2\theta_x +
+            \sin^2\theta_y)$, and $\tfrac14(\cos\theta_x + \cos\theta_y)^2
+            \le \tfrac12(\cos^2\theta_x + \cos^2\theta_y) = 1 -
+            \tfrac12(\sin^2\theta_x + \sin^2\theta_y)$. So $|\xi|^2 \le 1$
+            for all modes when $C_x^2 + C_y^2 \le \tfrac12$, and the worst
+            mode, along $\mathbf{v}$ with $\theta_x = \theta_y$, shows the
+            condition is also necessary. With $\Delta x = \Delta y$ this is
+            $\Delta t \le \Delta/(\sqrt2|\mathbf{v}|)$. Unlike 1D, no choice
+            of $\Delta t$ makes the scheme exact: equality in Cauchy-Schwarz
+            needs $\theta \parallel \mathbf{C}$, so waves in other
+            directions are always damped.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Lax-Friedrichs scheme in 2D</h2>
+          <p>Demo of the Lax-Friedrichs scheme in 2D: a Gaussian on a
+            $128 \times 128$ periodic grid, $\mathbf{v} = (1.5, 1)$, with
+            $\Delta t$ at the 2D CFL limit.</p>
+          <video controls poster="figures/lax_2d-2025_poster.png" style="width: 34%; display: block; margin: 0 auto;"><source src="figures/lax_2d-2025.mp4" type="video/mp4"></video>
+          <p class="fragment">The peak drops from $1$ to $0.36$ during the
+            run: in 2D the scheme is diffusive even at the CFL limit. The
+            smearing is across the direction of motion; along it the
+            profile keeps its width.</p>
+          <aside class="notes">
+            From the 2025 notebook: unit square, $u_0 = \exp[-r^2/(0.05)^2]$
+            at the centre, $\Delta t = \Delta/(\sqrt2\,|\mathbf{v}|)$, $256$
+            steps to $t = 0.79$, a frame every $2$ steps. The final position
+            $(0.68, 0.28)$ is the centre carried by $\mathbf{v}t$ and wrapped
+            around the periodic box, which checks the parameters.
+            <br><br>
+            DERIVATION (why the smear is across the motion): expand the
+            scheme in Taylor series as for the 1D modified equation. The
+            four-point average contributes
+            $\frac{\Delta^2}{4\Delta t}(u_{xx} + u_{yy})$, isotropic
+            diffusion. The time derivative contributes
+            $-\frac{\Delta t}{2} u_{tt} = -\frac{\Delta t}{2}
+            (\mathbf{v}\cdot\nabla)^2 u$, which is negative diffusion
+            along $\mathbf{v}$ only. So the numerical diffusion is a tensor,
+            $D = \frac{\Delta^2}{4\Delta t}\,I - \frac{\Delta t}{2}\,
+            \mathbf{v}\mathbf{v}^T$. Along $\mathbf{v}$ the coefficient is
+            $\frac{\Delta^2}{4\Delta t} - \frac{\Delta t}{2}|\mathbf{v}|^2$,
+            which is exactly zero at $\Delta t = \Delta/(\sqrt2|\mathbf{v}|)$:
+            the same cancellation that makes the 1D scheme exact at $C = 1$.
+            Across $\mathbf{v}$ nothing cancels and the coefficient is
+            $\frac{\Delta^2}{4\Delta t} = \frac{|\mathbf{v}|\Delta}{2\sqrt2}$.
+            Check against the run: the width across $\mathbf{v}$ grows from
+            $0.035$ to $0.096$, the width along $\mathbf{v}$ stays $0.035$,
+            and the peak falls to $0.364$ (rerun of the notebook, 2026).
+          </aside>
+        </section>
+
+        <!-- ============ Part IV ============ -->
+
+        <section class="divider">
+          <h2>Part IV &middot; Checking a fluid code</h2>
+          <p>What your agent cannot do for you</p>
+        </section>
+
+        <section class="compact">
+          <h2>Three checks</h2>
+          <ul>
+            <li>Conservation. Sum $\rho$, $\rho v_x$, $\rho v_y$ and $U$ over
+              all cells at every snapshot. On a periodic box each total is
+              constant to rounding, a relative change of order $10^{-14}$.</li>
+            <li class="fragment">Symmetry. A symmetric initial condition
+              stays symmetric.</li>
+            <li class="fragment">Resolution. Run $128^2$, $256^2$ and $512^2$.
+              What the equations determine settles as the grid is
+              refined.</li>
+          </ul>
+          <aside class="notes">
+            A drift in a total means a face flux is not the same number seen
+            from its two cells, or the boundary does not wrap. A sign error
+            breaks the symmetry within a few steps. A result that keeps
+            changing with resolution is a statement about the grid, not the
+            gas. The conservation check does not catch everything: the half
+            step and the reconstruction applied to the wrong variables still
+            conserve. The sound wave catches that.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>A sound wave</h2>
+          <p>The handout's test. Perturb a uniform gas,
+            $\rho = \rho_0 + \rho_1$, $P = P_0 + P_1$, $\rho_1 \ll \rho_0$.
+            To first order:</p>
+          $$
+          \frac{\partial^2 P_1}{\partial t^2} - c_s^2\,\frac{\partial^2 P_1}{\partial x^2} = 0,
+          \qquad c_s = \sqrt{\frac{\gamma P_0}{\rho_0}}.
+          $$
+          <p class="fragment">A sine wave with $P_1 = c_s^2 \rho_1$ and
+            $v_x = c_s\rho_1/\rho_0$ travels to the right at $c_s$ with
+            constant amplitude.</p>
+          <p class="fragment">Measure the speed, and the decay of the
+            amplitude at two resolutions.</p>
+          <aside class="notes">
+            DERIVATION: linearize $\rho_0\partial_t\mathbf{v} + \nabla P_1
+            = 0$ and $\partial_t P_1 + \gamma P_0\nabla\cdot\mathbf{v} = 0$
+            (the pressure equation from $P\rho^{-\gamma}$ constant along
+            the flow). Take $\partial_t$ of the second and substitute the
+            first: $\partial_t^2 P_1 = \gamma P_0\nabla^2 P_1/\rho_0$. The
+            right-moving wave has $P_1 = c_s^2\rho_1$ from the equation of
+            state and $v_x = P_1/(\rho_0 c_s) = c_s\rho_1/\rho_0$ from the
+            momentum equation with $\partial_t = -c_s\partial_x$. The speed
+            checks the equations; the decay is numerical, and how it scales
+            with $\Delta x$ gives the order of the method. The handout asks
+            which term causes it; leave that to them.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Kelvin-Helmholtz instability</h2>
+          <p>The Kelvin-Helmholtz instability occurs at an interface in a fluid
+            where two sides move at different velocities:</p>
+          <video controls poster="figures/kelvin-helmholtz-2025_poster.png" style="width: 40%; display: block; margin: 0 auto;"><source src="figures/kelvin-helmholtz-2025.mp4" type="video/mp4"></video>
+          <aside class="notes">
+            2025 slide and movie. This is the project's main run: a dense
+            slab moving right through a lighter gas moving left, with a
+            small $v_y$ perturbation of wavenumber $k$ to seed the mode.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Kelvin-Helmholtz instability</h2>
+          <p>The KH instability is ubiquitous in nature:</p>
+          <img src="figures/jupiter-2025.png" style="width: 46%; display: block; margin: 0 auto;" alt="Jupiter's Great Red Spot with swirling cloud bands around it">
+          <aside class="notes">
+            2025 slide. The Great Red Spot and the turbulent bands around it;
+            the handout opens with this picture.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Why finite volume?</h2>
+          <p>This is the result from the usual Lax-Friedrichs scheme on the
+            same problem:</p>
+          <video controls poster="figures/kh-lax-2025_poster.png" style="width: 35%; display: block; margin: 0 auto;"><source src="figures/kh-lax-2025.mp4" type="video/mp4"></video>
+          <p class="fragment">Numerical diffusion is so strong that it
+            completely overwhelms the instability.</p>
+          <aside class="notes">
+            2025 slide and movie. Lax-Friedrichs adds $\Delta x^2/2\Delta t$
+            of diffusion everywhere, every step, whether anything is moving
+            or not. The shear layer of width $w$ spreads before the mode can
+            grow. Rusanov with the reconstruction adds much less, and only
+            where there are jumps between cells.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Riemann solvers</h2>
+          <p>To capture discontinuities in the fluid, an even better way is
+            to introduce a <em>Riemann solver</em> at each cell boundary.</p>
+          <img src="figures/riemann-problem-2025.webp" style="width: 38%; display: block; margin: 0 auto;" alt="The Riemann problem: a jump between left and right states splitting into waves">
+          <p class="fragment">Rusanov is the crudest approximate Riemann
+            solver: one speed for all three waves. The 5027 part of the
+            handout adds HLLC.</p>
+          <aside class="notes">
+            2025 slides, merged. A Riemann solver evolves the jump between
+            $Q_L$ and $Q_R$ exactly for one step and reads off the flux. The
+            three waves for a gas: two sound waves (shock or rarefaction)
+            and a contact between them; HLLC keeps the contact. Production
+            codes such as Athena (KH movie linked from the handout) preserve
+            sharp features much better than Rusanov.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Conservative form: the integral form holds across jumps and
+              fixes the shock speed.</li>
+            <li class="fragment">Finite volume: cell averages, face fluxes,
+              conservation to rounding. The scheme is the flux formula:
+              Lax-Friedrichs, or Rusanov with the local signal speed.</li>
+            <li class="fragment">Project 2: Rusanov with $c_s + |\mathbf{v}|$,
+              a half step and a linear reconstruction, the 2D CFL
+              condition.</li>
+            <li class="fragment">Checks: conservation, symmetry, resolution,
+              the sound wave.</li>
+          </ul>
+          <p class="fragment why">Next time: Poisson's equation and relaxation
+            methods.</p>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 20</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+      // Movies start when their slide appears and are left alone afterwards.
+      function playMovies(slide) {
+        slide.querySelectorAll("video").forEach(v => { v.currentTime = 0; v.play().catch(() => {}); });
+      }
+      Reveal.on("ready", e => playMovies(e.currentSlide));
+      Reveal.on("slidechanged", e => playMovies(e.currentSlide));
+    </script>
+  </body>
+</html>

@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 21</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+      /* Body text at the size the other decks use inline, heading unchanged. */
+      .reveal .slides section.compact { font-size: 0.78em; }
+      .reveal .slides section.compact h2 { font-size: calc(var(--r-heading2-size) / 0.78); }
+    </style>
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 21</p>
+          <h1>Random numbers and sampling from distributions</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            First lecture of the stochastic block. Part I: what a
+            pseudo-random generator is, the linear congruential generator
+            and how it fails (lattice, RANDU), what the tests ask, the
+            generators in use today, and the habits (seed, streams, never
+            rand()). Part II: from uniform numbers to any distribution: the
+            inverse transform with the exponential, the power law, isotropic
+            directions and discrete tables; Box-Muller; rejection sampling
+            and its cost. Every number is printed by make_figures.py.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Conservative form and the finite-volume method: cell
+              averages, face fluxes, conservation to rounding.</li>
+            <li class="fragment">The scheme of Project 2: Rusanov with the
+              local signal speed, a half step and a linear reconstruction,
+              the 2D CFL condition.</li>
+            <li class="fragment">That closes the PDE block. The rest of the
+              course is stochastic: random numbers, Monte Carlo integration,
+              random walks, Markov chains.</li>
+          </ul>
+          <p class="fragment why">Today: how a computer makes random numbers,
+            what can go wrong, and how to turn uniform numbers into any
+            distribution.</p>
+        </section>
+
+        <!-- ============ Part I ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Pseudo-random numbers</h2>
+          <p>Deterministic, and that is the point</p>
+        </section>
+
+        <section class="compact">
+          <h2>Where physics needs them</h2>
+          <ul>
+            <li>Integrals in many dimensions: throw points, count hits.
+              Monte Carlo integration, next lecture.</li>
+            <li class="fragment">Transport: a photon or neutron travels a
+              random distance, then scatters in a random direction.</li>
+            <li class="fragment">Thermal motion: Brownian motion, Langevin
+              equations, noise in a circuit.</li>
+            <li class="fragment">Statistical mechanics: sampling the
+              Boltzmann distribution of a system with $10^{23}$ states is
+              only possible by random walk. Markov chain Monte Carlo.</li>
+          </ul>
+          <p class="fragment">All of them start from the same thing: a
+            stream of numbers $u$ uniformly distributed in $[0, 1)$.</p>
+          <aside class="notes">
+            The four items are the next four lectures in order. The point
+            of the last line: every distribution we will ever need is built
+            from the uniform one, which is why the generator and the
+            transformations are two separate questions, Parts I and II.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Pseudo-random</h2>
+          <p>A computer is deterministic. Its "random" numbers come from a
+            recurrence: a <em>state</em>, a rule that advances it, and an
+            output read from it.</p>
+          <ul>
+            <li class="fragment">The <em>seed</em> is the starting state.
+              Same seed, same sequence, every time, on every machine.</li>
+            <li class="fragment">The <em>period</em> is how many numbers
+              come out before the state repeats, and with it the whole
+              sequence.</li>
+            <li class="fragment">The sequence is reproducible, and that is a
+              feature: a bug seen once can be seen again, and a result can
+              be checked by anyone with the seed.</li>
+          </ul>
+          <aside class="notes">
+            Hardware randomness exists (thermal noise, /dev/random) and is
+            used for cryptography and for seeding; for simulation it is
+            exactly what we do not want, because a run that cannot be
+            repeated cannot be debugged. The output is usually an integer;
+            dividing by the largest possible value gives the $u$ in $[0, 1)$
+            that everything else is built on.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The linear congruential generator</h2>
+          <p>The oldest recipe (Lehmer, 1949): multiply, add, keep the
+            remainder,</p>
+          $$
+          I_{n+1} = (a\,I_n + c) \bmod m, \qquad u_n = I_n / m .
+          $$
+          <p class="fragment">With $m = 16$, $a = 5$, $c = 1$, from $I_0 = 0$:
+            $$1,\ 6,\ 15,\ 12,\ 13,\ 2,\ 11,\ 8,\ 9,\ 14,\ 7,\ 4,\ 5,\ 10,\ 3,\ 0,\ 1,\ \dots$$
+            every value once, then it repeats: period $16$, the most $m = 16$
+            allows.</p>
+          <p class="fragment">With $a = 4$ instead: $1,\ 5,\ 5,\ 5,\ \dots$
+            The constants are everything.</p>
+          <p class="fragment">The one in your C library: $m = 2^{31}$,
+            $a = 1103515245$, $c = 12345$.</p>
+          <aside class="notes">
+            Full period for every seed needs (Hull and Dobell, 1962): $c$ and
+            $m$ coprime, $a - 1$ divisible by every prime factor of $m$, and
+            by $4$ if $m$ is. For $m = 16$: $a - 1 = 4$ works, $a - 1 = 3$
+            does not. The glibc constants are those of ANSI C; $m = 2^{31}$
+            makes the modulus free (integer overflow) and a period of two
+            billion, which a laptop exhausts in a second.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Pairs fall on lines</h2>
+          <img src="figures/lcg_pairs.png" style="width: 78%; display: block; margin: 0 auto;" alt="Consecutive pairs of a small LCG on a lattice, next to pairs from a modern generator">
+          <p class="fragment">Plot $(u_n, u_{n+1})$ and every LCG shows a
+            lattice. With $m = 2^{31}$ the lines are too close to see in
+            two dimensions, but in $k$ dimensions there are at most about
+            $(k!\,m)^{1/k}$ of them.</p>
+          <aside class="notes">
+            DERIVATION of the lattice: $u_{n+1} = (a u_n + c/m) \bmod 1$,
+            so every pair lies on one of the lines $u_{n+1} = a u_n + c/m
+            - j$ for integer $j$, at most $a$ of them in the unit square,
+            and since the lattice is the same whichever generator of it one
+            picks, Marsaglia (1968) showed the number of hyperplanes in $k$
+            dimensions is bounded by $(k!\,m)^{1/k}$ regardless of $a$. For
+            $m = 2^{31}$ and $k = 3$: $(6 \cdot 2^{31})^{1/3} \approx 2344$
+            at best; RANDU, next slide, achieves 15. The right panel is
+            numpy's default generator, PCG64.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>RANDU</h2>
+          <p>IBM's generator of the 1960s: $a = 65539$, $c = 0$, $m = 2^{31}$.
+            Every triple of consecutive numbers satisfies
+            $9u_n - 6u_{n+1} + u_{n+2} = $ an integer. All of them lie on
+            15 planes.</p>
+          <img src="figures/randu.png" style="width: 74%; display: block; margin: 0 auto;" alt="RANDU triples: a uniform-looking cloud from the usual angle, fifteen planes seen edge-on">
+          <aside class="notes">
+            DERIVATION: $a = 2^{16} + 3$, so $a^2 = 2^{32} + 6 \cdot 2^{16} +
+            9 = 6a - 9 + 2^{32}$, and modulo $2^{31}$ that is $a^2 \equiv 6a
+            - 9$. Hence $I_{n+2} = a^2 I_n \equiv 6 I_{n+1} - 9 I_n$, and
+            dividing by $m$, $u_{n+2} - 6u_{n+1} + 9u_n$ is an integer, which
+            for $u$ in $[0, 1)$ ranges from $-5$ to $9$: $15$ values, $15$
+            planes. The figure's left panel is the usual view, the right one
+            looks along the planes; the 2025 slide used an image from the
+            web, this one is 20,000 triples from the recurrence. Marsaglia's
+            title, "Random numbers fall mainly in the planes", is the
+            lecture's slogan for this.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>What "good" means</h2>
+          <ul>
+            <li>Period far longer than any run will use: $2^{64}$ at
+              least.</li>
+            <li class="fragment">Uniform in one dimension, and no structure
+              in $k$ dimensions: no planes, no correlation between $u_n$
+              and $u_{n+j}$.</li>
+            <li class="fragment">Fast, with a small state, and able to
+              produce independent streams for parallel runs.</li>
+          </ul>
+          <p class="fragment">These are tested, not proven: batteries of
+            statistical tests, Diehard (Marsaglia, 1996) and TestU01's
+            BigCrush (2007), 160 tests on $2^{38}$ numbers. "Passes
+            BigCrush" is the bar.</p>
+          <aside class="notes">
+            The tests are of the kind "bin $10^9$ numbers and compare with a
+            $\chi^2$", "count runs up and down", "rank random binary
+            matrices", "birthday spacings". Every LCG with $m \le 2^{64}$
+            fails some of them; so does rand(). A generator passing all of
+            them can still be wrong for a particular simulation, which is
+            why the seed-and-rerun habit below matters: two seeds that
+            disagree beyond the statistical error are a bug somewhere.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The generators in use</h2>
+          <table style="font-size: 0.72em; margin: 0.2em auto;">
+            <thead><tr><th>generator</th><th>year</th><th>where</th><th>state</th><th>period</th><th>BigCrush</th></tr></thead>
+            <tbody>
+              <tr><td>LCG, rand()</td><td>1949</td><td>C library</td><td>32 bits</td><td>$2^{31}$</td><td>fails</td></tr>
+              <tr class="fragment"><td>Mersenne Twister</td><td>1997</td><td>C++ <code>std::mt19937</code>, Python <code>random</code></td><td>2.5 kB</td><td>$2^{19937} - 1$</td><td>fails 2 tests</td></tr>
+              <tr class="fragment"><td>PCG64</td><td>2014</td><td>numpy <code>default_rng</code></td><td>128 bits</td><td>$2^{128}$</td><td>passes</td></tr>
+              <tr class="fragment"><td>xoshiro256++</td><td>2019</td><td>Julia, .NET, Rust</td><td>256 bits</td><td>$2^{256} - 1$</td><td>passes</td></tr>
+            </tbody>
+          </table>
+          <ul style="font-size: 0.8em; margin-top: 0.3em;">
+            <li class="fragment">Mersenne Twister is the default in most
+              languages and still fine for physics; its state is large and
+              seeding it takes care.</li>
+            <li class="fragment">PCG is an LCG with a 64-bit multiplier
+              whose output is scrambled by shifts and rotations; the
+              lattice is still there in the state, not in what you see.</li>
+            <li class="fragment">xoshiro is ten lines of shifts and XORs.
+              The next slide shows its ancestor.</li>
+          </ul>
+          <aside class="notes">
+            The two BigCrush failures of Mersenne Twister are linear
+            complexity tests: the generator is linear over GF(2), and a test
+            designed to detect exactly that detects it. No physics
+            simulation has ever been shown to suffer from it. Its real
+            drawbacks are the 2.5 kB state (bad for GPUs, where every thread
+            wants its own generator) and that seeding with a small number
+            fills most of the state with zeros; use std::seed_seq or many
+            seed words. PCG64 is numpy's default since 2019; the "permuted"
+            output function is what turns an LCG with visible lattice into a
+            generator that passes everything.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>A generator in four lines</h2>
+          <p>xorshift (Marsaglia, 2003), the ancestor of xoshiro:</p>
+          <pre style="width: 60%; margin: 0.2em auto;"><code class="language-c++" data-trim data-noescape>
+uint32_t xorshift32(uint32_t x) {
+  x ^= x << 13;
+  x ^= x >> 17;
+  x ^= x << 5;
+  return x;   // the new state, and the output
+}
+          </code></pre>
+          <ul>
+            <li class="fragment">Each line is a linear map on the 32 bits.
+              The three shifts are chosen so that the state visits all
+              $2^{32} - 1$ nonzero values before repeating.</li>
+            <li class="fragment">Fast: three shifts and three XORs, no
+              multiplication, no division.</li>
+            <li class="fragment">xoshiro256++ keeps four 64-bit words and
+              adds a scrambler to the output; that is the whole difference,
+              and it passes BigCrush.</li>
+          </ul>
+          <aside class="notes">
+            The seed must not be zero: zero maps to zero. The period
+            $2^{32} - 1$ is every nonzero 32-bit word once, which is why
+            the plain version fails the tests: its outputs are a
+            permutation of all nonzero integers, and the last bit of a
+            linear generator has a visible pattern. The scrambler of
+            xoshiro++ is a rotation and two additions on top; the "256" is
+            the state in bits. The 2025 slide showed the PCG32 code; same
+            idea, LCG state plus a scrambling output.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>In practice</h2>
+          <pre style="width: 86%; margin: 0.2em auto;"><code class="language-c++" data-trim data-noescape>
+#include &lt;random&gt;
+std::mt19937_64 gen(20261110);                   // seeded once
+std::uniform_real_distribution&lt;double&gt; uniform(0.0, 1.0);
+double u = uniform(gen);                         // in [0, 1)
+          </code></pre>
+          <p style="font-size: 0.85em;">In numpy: <code>rng = np.random.default_rng(20261110)</code>,
+            then <code>rng.random()</code>.</p>
+          <ul>
+            <li class="fragment">Never <code>rand()</code>, and never
+              <code>rand() % 6</code> for a die: the low bits of an LCG are
+              the worst ones.</li>
+            <li class="fragment">Seed once, at the start, and print the seed
+              into the output. A second run with another seed is the
+              cheapest check of a stochastic result.</li>
+            <li class="fragment">Parallel runs: one generator per thread,
+              each with its own seed or its own jump of the stream, never
+              one shared generator.</li>
+          </ul>
+          <aside class="notes">
+            The distribution object does the conversion from the 64-bit
+            integer to a double with 53 random bits; dividing by $2^{32}$
+            by hand gives only $2^{32}$ distinct values. $u = 0$ can occur,
+            so $-\ln u$ needs $1 - u$ or a guard. For the seed, a date is
+            fine; std::random_device gives a hardware seed when
+            reproducibility is not wanted. Sharing one generator between
+            threads is both a data race and a correlation. Two runs with
+            different seeds that differ by more than the statistical error
+            of the result are a bug in the code, not in the generator.
+          </aside>
+        </section>
+
+        <!-- ============ Part II ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Sampling from a distribution</h2>
+          <p>From $u$ to anything</p>
+        </section>
+
+        <section class="compact">
+          <h2>Density and cumulative distribution</h2>
+          <p>A random variable $x$ with density $p(x)$: the probability of
+            finding it in $[x, x + dx]$ is $p(x)\,dx$. Its cumulative
+            distribution is</p>
+          $$
+          F(x) = \int_{-\infty}^{x} p(x')\,dx' = \text{probability that the variable is below } x,
+          $$
+          <p>rising from $0$ to $1$, never decreasing.</p>
+          <img src="figures/cdf.png" style="width: 64%; display: block; margin: 0 auto;" alt="A skewed density with the shaded area F(x0), and its cumulative distribution with u mapped to x">
+        </section>
+
+        <section class="compact">
+          <h2>The inverse transform</h2>
+          <p>Draw $u$ uniform in $[0, 1)$ and set</p>
+          $$
+          x = F^{-1}(u) .
+          $$
+          <p class="fragment">Then $x$ has density $p$: the probability that
+            $x \le X$ is the probability that $u \le F(X)$, which is $F(X)$,
+            since $u$ is uniform.</p>
+          <ul>
+            <li class="fragment">Integrate $p$ to get $F$, invert, plug in
+              $u$. One uniform number per sample, no waste.</li>
+            <li class="fragment">It needs $F^{-1}$: in closed form, or as a
+              table to search.</li>
+          </ul>
+          <aside class="notes">
+            The proof is the second paragraph; say it slowly. In the figure
+            of the previous slide: a horizontal line at height $u$ hits the
+            CDF where $F(x) = u$; where $F$ is steep ($p$ large) a wide
+            band of $u$ maps to a narrow band of $x$, so points pile up
+            there. That picture is the whole method.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Exponential and power law</h2>
+          <p>Exponential, $p = \lambda e^{-\lambda x}$: $F = 1 - e^{-\lambda x}$,
+            so $x = -\ln(1 - u)/\lambda$. Decay times, waiting times, the
+            free path of a photon with mean free path $1/\lambda$.</p>
+          <p class="fragment">Power law, $p \propto x^{-\alpha}$ for
+            $x \ge x_\mathrm{min}$: $F = 1 - (x/x_\mathrm{min})^{1 - \alpha}$,
+            so $x = x_\mathrm{min}(1 - u)^{1/(1 - \alpha)}$. Cosmic-ray
+            energies, earthquake sizes.</p>
+          <img src="figures/inversion.png" style="width: 72%; display: block; margin: 0 auto;" alt="Histograms of 100,000 inverse-transform samples against the exponential and power-law densities">
+          <aside class="notes">
+            Numbers from make_figures.py: $10^5$ samples, mean of the
+            exponential $1.005$ for $1/\lambda = 1$; fraction beyond $5$ is
+            $0.0066$ against $e^{-5} = 0.0067$. Power law with $\alpha =
+            2.5$: the largest of $10^5$ samples is $1435$, and the fraction
+            beyond $100$ is $0.0010$ against $100^{1 - \alpha} = 0.0010$.
+            Since $1 - u$ is as uniform as $u$, $-\ln u$ works too; the
+            $1 - u$ avoids $\ln 0$ when $u = 0$ can occur. Transport codes
+            take exactly this step: distance to the next collision is
+            $-\ln(1 - u)$ mean free paths.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The Gaussian: Box-Muller</h2>
+          <p>$F$ is the error function, with no closed-form inverse. Take two
+            uniforms and make two Gaussians at once:</p>
+          $$
+          x_1 = \sqrt{-2\ln u_1}\,\cos 2\pi u_2, \qquad
+          x_2 = \sqrt{-2\ln u_1}\,\sin 2\pi u_2 .
+          $$
+          <img src="figures/boxmuller.png" style="width: 54%; display: block; margin: 0 auto;" alt="A round cloud of Box-Muller pairs, and the histogram of one coordinate against the Gaussian">
+          <p class="fragment" style="font-size: 0.85em;">Libraries have it: <code>std::normal_distribution</code>,
+            <code>rng.normal()</code>. Thermal velocities are three of these
+            with $\sigma = \sqrt{k T/m}$.</p>
+          <aside class="notes">
+            DERIVATION: two independent unit Gaussians have joint density
+            $\frac{1}{2\pi} e^{-(x_1^2 + x_2^2)/2}\,dx_1 dx_2 =
+            \frac{1}{2\pi} e^{-r^2/2}\, r\,dr\,d\theta$. The angle is
+            uniform, $\theta = 2\pi u_2$, and $s = r^2/2$ has density
+            $e^{-s}$, exponential, so $s = -\ln u_1$ by the previous slide
+            and $r = \sqrt{-2\ln u_1}$. In polar coordinates the inverse
+            transform works where in $x$ it does not. Check from the run:
+            mean $0.003$, standard deviation $1.000$, correlation of $x_1$
+            and $x_2$ $-0.001$ for $10^5$ pairs. Marsaglia's polar variant
+            avoids the cosine and sine; libraries use that or a ziggurat.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>A direction on the sphere</h2>
+          <p>An isotropic direction, for a scattered photon or a thermal
+            velocity: $\phi = 2\pi u_1$, and</p>
+          $$
+          \cos\theta = 2u_2 - 1 .
+          $$
+          <p>Drawing the angle itself, $\theta = \pi u_2$, is wrong: it piles
+            the points up at the poles.</p>
+          <img src="figures/sphere.png" style="width: 62%; display: block; margin: 0 auto;" alt="Points on a sphere: clustered at the poles when theta is uniform, even when cos theta is uniform">
+          <aside class="notes">
+            DERIVATION: isotropic means uniform in solid angle, $d\Omega =
+            \sin\theta\,d\theta\,d\phi$, so $p(\theta) = \tfrac12\sin\theta$
+            and $F(\theta) = \tfrac12(1 - \cos\theta)$; inverting,
+            $\cos\theta = 1 - 2u$, the same as $2u - 1$. The inverse
+            transform again, with $\cos\theta$ as the variable. From the
+            run: the fraction within $20^\circ$ of a pole is $0.214$ with
+            $\theta$ uniform, $0.058$ with $\cos\theta$ uniform, exact
+            $0.060$. The most common mistake in a first transport code.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Discrete choices</h2>
+          <p>Outcomes $1, \dots, K$ with probabilities $p_k$: which decay
+            channel, which reaction, which neighbour to hop to.</p>
+          <ul>
+            <li class="fragment">Form the running sums $F_k = p_1 + \dots + p_k$,
+              with $F_K = 1$.</li>
+            <li class="fragment">Draw $u$; the outcome is the first $k$ with
+              $F_k > u$. The inverse transform on a staircase.</li>
+            <li class="fragment">For large $K$, search the sorted $F_k$ by
+              bisection, $\log_2 K$ comparisons.</li>
+          </ul>
+          <p class="fragment">A table of $F$ at $x_0, x_1, \dots$ does the
+            same for a continuous $p$ that cannot be integrated by hand:
+            bisect, then interpolate.</p>
+          <aside class="notes">
+            The alias method (Walker, 1977) does it in constant time after
+            $O(K)$ setup, for when the same table is sampled billions of
+            times; numpy's choice() uses the bisection. For the tabulated
+            continuous case the interpolation inside a bin is linear in $F$,
+            which is exact if $p$ is constant on the bin.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Rejection sampling</h2>
+          <p>When $F$ cannot be inverted: find an envelope $g(x) \ge p(x)$
+            that you can sample from, the simplest being a box.</p>
+          <ol style="font-size: 0.9em;">
+            <li class="fragment">Draw $x$ from $g$ (for a box: $x$ uniform),
+              and $y$ uniform in $[0, g(x))$.</li>
+            <li class="fragment">If $y < p(x)$, keep $x$; otherwise throw it
+              away and try again.</li>
+          </ol>
+          <img src="figures/rejection.png" style="width: 58%; display: block; margin: 0 auto;" alt="A two-bump density under a flat envelope, with accepted points below the curve and rejected ones above">
+          <aside class="notes">
+            DERIVATION: the points $(x, y)$ are uniform under the envelope;
+            keeping those under $p$ leaves points uniform under $p$, whose
+            $x$-values have density proportional to the height $p(x)$.
+            Nothing here used the normalization of $p$: rejection works
+            with an unnormalized density, which is what makes it, and MCMC
+            later, usable when the normalizing integral is unknown. The
+            figure: 400 proposals, 175 accepted.
+          </aside>
+        </section>
+
+        <section style="font-size: 0.92em;">
+          <h2>The price of rejection</h2>
+          <p>Every try that lands above $p$ is thrown away. The fraction
+            kept is</p>
+          $$
+          \frac{\text{area under } p}{\text{area under } g} .
+          $$
+          <ul>
+            <li class="fragment">A sharp peak under a flat box: almost
+              every try is wasted.</li>
+            <li class="fragment">In $d$ dimensions the waste multiplies. A
+              peak that fills half the box in each direction fills
+              $(1/2)^d$ of the whole box: at $d = 10$, one try in a thousand
+              survives.</li>
+          </ul>
+          <!-- <p class="fragment">Statistical mechanics lives in thousands of
+               dimensions. Rejection is hopeless there, and the way out is
+               Markov chain Monte Carlo, two lectures from now.</p> -->
+          <aside class="notes">
+            In the figure of the previous slide the ratio is $0.43$: 400
+            proposals, 175 kept. Each try costs two uniforms and one
+            evaluation of $p$. In one dimension a tighter envelope fixes a
+            peaked $p$: an exponential or a Gaussian that you can invert,
+            scaled to sit just above $p$.
+            DERIVATION of the $d$-dimensional number, honest version: a
+            Gaussian in a box of side $6\sigma$ has acceptance
+            $\sqrt{2\pi}\sigma/(6\sigma) = 0.42$ in one dimension, and the
+            box and the density both factorize, so in $d$ dimensions the
+            acceptance is $0.42^d$: $1.6 \times 10^{-4}$, one in $6000$, at
+            $d = 10$. "Half" on the slide is this $0.42$ rounded.
+            MCMC: instead of proposing a fresh point from scratch, take a
+            small step from the current point, which stays where $p$ is
+            large. That is the whole idea of Metropolis.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Which method</h2>
+          <table style="font-size: 0.74em; margin: 0.2em auto;">
+            <thead><tr><th>you have</th><th>use</th><th>examples</th></tr></thead>
+            <tbody>
+              <tr><td>$F^{-1}$ in closed form</td><td>inverse transform</td><td>exponential, power law, $\cos\theta$, Cauchy</td></tr>
+              <tr class="fragment"><td>a finite list of outcomes, or $F$ as a table</td><td>inverse transform with a search</td><td>decay channels, tabulated spectra</td></tr>
+              <tr class="fragment"><td>a trick in other coordinates</td><td>a transformation</td><td>Box-Muller for the Gaussian</td></tr>
+              <tr class="fragment"><td>$p$ up to a constant, and a bound, in few dimensions</td><td>rejection</td><td>any bumpy $p(x)$</td></tr>
+              <tr class="fragment"><td>$p$ up to a constant, in many dimensions</td><td>Markov chain Monte Carlo</td><td>Boltzmann weights, posteriors</td></tr>
+            </tbody>
+          </table>
+          <p class="fragment" style="margin-top: 0.4em;">Whatever the method, check it the same way: histogram
+            $10^5$ samples against $p$ on a log axis, as in every figure
+            today.</p>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.8em;">
+            <li>A generator is a recurrence on a state: seed, period,
+              reproducibility. LCGs put their numbers on planes; modern
+              generators pass BigCrush with a few hundred bits of state.</li>
+            <li class="fragment">Seed once, record it, one stream per
+              thread, never <code>rand()</code>.</li>
+            <li class="fragment">Inverse transform: $x = F^{-1}(u)$. Rejection:
+              propose under an envelope, keep what falls under $p$. Both
+              need only uniform numbers.</li>
+          </ul>
+          <p class="fragment why">Next time: Monte Carlo integration, why its
+            error falls as $1/\sqrt{N}$ whatever the dimension, and
+            importance sampling.</p>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 21</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 22</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+      /* Body text at the size the other decks use inline, heading unchanged. */
+      .reveal .slides section.compact { font-size: 0.78em; }
+      .reveal .slides section.compact h2 { font-size: calc(var(--r-heading2-size) / 0.78); }
+    </style>
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 22</p>
+          <h1>Monte Carlo integration and importance sampling</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            This is the second lecture of the stochastic block. Part I
+            introduces the integral as an average over random points,
+            derives the $1/\sqrt{N}$ error, and shows that the same points
+            give the error bar. It then compares the method with quadrature
+            in $d$ dimensions and for a rough integrand, and ends with the
+            one condition the method needs, a finite variance. Part II
+            introduces importance sampling as the average of $f/p$ over
+            points drawn from $p$, works through a singular integrand and
+            a rare event, discusses the choice of $p$, and ends with the
+            Boltzmann weight as the importance sampling of statistical
+            mechanics. Every number quoted is printed by make_figures.py.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <ul style="font-size: 0.8em;">
+            <li>A random number generator is a deterministic recurrence on
+              a state. The seed fixes the whole sequence, which is what
+              makes a run reproducible.</li>
+            <li class="fragment">We turned uniform numbers into samples
+              from other distributions with the inverse transform
+              $x = F^{-1}(u)$, with the Box-Muller transformation for the
+              Gaussian, and with rejection sampling under an envelope.</li>
+          </ul>
+          <p class="fragment why">Today we use random points to compute
+            integrals. We will see why the error falls as $1/\sqrt{N}$ in
+            any number of dimensions, and how to place the points where the
+            integrand is large.</p>
+        </section>
+
+        <!-- ============ Part I ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Monte Carlo integration</h2>
+          <p>Averages over random points</p>
+        </section>
+
+        <section class="compact">
+          <h2>Darts</h2>
+          <div style="display: flex; align-items: center; gap: 1.2em;">
+            <div style="flex: 1; text-align: left;">
+              <p>Throw $N$ points uniformly into the unit square. The
+                fraction that lands inside the quarter circle estimates its
+                area, $\pi/4$, so</p>
+              $$
+              \pi \approx 4 \times \frac{\text{number inside}}{N} .
+              $$
+            </div>
+            <img src="figures/darts.png" style="width: 40%; margin: 0;" alt="2000 random points in the unit square, those inside the quarter circle in green">
+          </div>
+          <aside class="notes">
+            In the figure 1566 of 2000 points fall inside, which gives
+            3.132. The name comes from Ulam and Metropolis at Los Alamos in
+            1949, who used the method for neutron transport and named it
+            after the casino where Ulam's uncle gambled. Before showing the
+            error slide, ask the room how accurate they think 2000 darts
+            are; the answer is about 0.04.
+          </aside>
+        </section>
+
+        <section>
+          <h2>An integral is an average</h2>
+          $$
+          I = \int_V f\,dV = V\,\langle f \rangle, \qquad
+          \langle f \rangle \approx \frac{1}{N}\sum_{i=1}^{N} f(\mathbf{x}_i),
+          $$
+          <p>where the points $\mathbf{x}_i$ are drawn uniformly from $V$.</p>
+          <ul>
+            <li class="fragment">The darts are the special case in which
+              $f$ is $1$ inside the circle and $0$ outside, with $V = 1$.</li>
+            <li class="fragment">The same formula works for any integrand,
+              any region, and any number of dimensions.</li>
+          </ul>
+          <aside class="notes">
+            $\langle f \rangle$ is the mean of $f$ over the region, and the
+            average of $f$ at uniformly random points estimates it. For an
+            irregular region, enclose it in a box and set $f = 0$ outside.
+            DERIVATION that averaging $f$ is never worse than counting hits
+            under $f$: for $0 \le f \le f_{\max}$, the hit-or-miss variance
+            is $f_{\max}\langle f \rangle - \langle f \rangle^2$, which is at
+            least $\langle f^2 \rangle - \langle f \rangle^2$ because
+            $f^2 \le f_{\max} f$. The 2025 lecture introduced the
+            hit-or-miss version first and the average second. Here the
+            average is the method and the darts are its special case.
+          </aside>
+        </section>
+
+        <section>
+          <h2>How wrong is it?</h2>
+          <p>Each $f(\mathbf{x}_i)$ is a random number with mean $\langle f
+            \rangle$ and variance $\sigma_f^2 = \langle f^2 \rangle - \langle
+            f \rangle^2$. The average of $N$ independent ones has variance
+            $\sigma_f^2/N$, so</p>
+          $$
+          I_N = I \pm V\,\frac{\sigma_f}{\sqrt{N}} .
+          $$
+          <p class="fragment">By the central limit theorem the estimates
+            are distributed as a Gaussian around $I$, so the $\pm$ above is
+            one standard deviation.</p>
+          <aside class="notes">
+            DERIVATION: the variance of a sum of independent variables is
+            the sum of the variances, $N\sigma_f^2$. Dividing the sum by $N$
+            divides the variance by $N^2$, which leaves $\sigma_f^2/N$.
+            Nothing about $f$ entered except $\sigma_f$, neither its
+            smoothness nor the dimension. For the darts, $f$ is $1$ with
+            probability $p = \pi/4$ and $0$ otherwise, so $\sigma_f^2 =
+            p(1 - p)$ and the error of the $\pi$ estimate is
+            $4\sqrt{p(1-p)/N} = 1.64/\sqrt{N}$, which is $0.04$ for the 2000
+            darts of the first slide.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Check with the darts</h2>
+          <img src="figures/clt.png" style="width: 86%; display: block; margin: 0 auto;" alt="Left: rms error of the pi estimate against N on log-log axes, following 1.64 over root N. Right: histogram of 4000 estimates at N = 1000 with the predicted Gaussian">
+          <p>At $N = 1000$ the formula predicts an error of $1.64/\sqrt{1000}
+            = 0.052$. The standard deviation of 4000 independent runs is
+            $0.052$.</p>
+          <aside class="notes">
+            On the left, the rms error over 400 runs at each $N$ from $10$
+            to $10^7$ lies on the line $4\sqrt{p(1-p)/N}$, which has no
+            fitted parameter. On the right, the 4000 estimates at $N =
+            1000$ have standard deviation $0.0523$ against the predicted
+            $0.0519$, and the Gaussian drawn is the one with the predicted
+            width, not a fit. Since the number of hits is binomial, the
+            runs were generated as binomial counts rather than as $4 \times
+            10^{10}$ individual darts; the statistics are the same.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The error from the same points</h2>
+          <p>We can estimate $\sigma_f$ from the same points. If the loop
+            accumulates $\sum f_i$ and $\sum f_i^2$ along the way, then</p>
+          $$
+          \sigma_f^2 \approx \frac{1}{N}\sum_i f_i^2 - \Big(\frac{1}{N}\sum_i f_i\Big)^2 .
+          $$
+          <ul>
+            <li class="fragment">Every run therefore comes with its own
+              error estimate, and a Monte Carlo result should always be
+              quoted with it.</li>
+            <li class="fragment">Because the error falls as $1/\sqrt{N}$,
+              improving the accuracy by a factor of ten requires a hundred
+              times as many points.</li>
+          </ul>
+          <aside class="notes">
+            The subtraction is a difference of two nearly equal numbers
+            when $\sigma_f \ll \langle f \rangle$, which is the cancellation
+            of Lecture 1. For a wide $f$ it is harmless, and otherwise the
+            cure is to accumulate $f - f_0$ for some reference value $f_0$
+            near the mean. The $1/\sqrt{N}$ is the slow part of Monte
+            Carlo, since going from $1\%$ to $0.1\%$ costs a hundred times
+            the work. That is why the second half of the lecture is about
+            reducing $\sigma_f$ rather than raising $N$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Against quadrature</h2>
+          <p>In Lecture 5 we found that the error of the trapezoidal rule
+            scales as $h^2$ and that of Simpson's rule as $h^4$. A grid in
+            $d$ dimensions with $n$ points per axis has $N = n^d$ points in
+            total, so $h \propto N^{-1/d}$ and the errors become $N^{-2/d}$
+            and $N^{-4/d}$. The Monte Carlo error scales as $N^{-1/2}$ in
+            any number of dimensions.</p>
+          <img src="figures/exponent.png" style="width: 50%; display: block; margin: 0 auto;" alt="The error exponent q against dimension: 2 over d for the trapezoid rule, 4 over d for Simpson, a constant one half for Monte Carlo">
+          <aside class="notes">
+            The curves cross the Monte Carlo line at $d = 4$ for the
+            trapezoidal rule and at $d = 8$ for Simpson's rule. The grid
+            itself becomes a problem before the exponent does, since $10$
+            points per axis in $10$ dimensions is already $10^{10}$
+            evaluations. The quadrature exponents also assume a smooth
+            integrand, and the slide after next drops that assumption.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Where the dimensions come from</h2>
+          <ul>
+            <li>The configuration integral of a classical gas of $N$ atoms
+              runs over $3N$ coordinates.</li>
+            <li class="fragment">The partition function of a hundred spins
+              is a sum over $2^{100}$ states, which is the same problem in
+              discrete form.</li>
+            <li class="fragment">The phase space of a decay into four
+              particles has $8$ dimensions, and a path integral has one
+              dimension per time slice.</li>
+          </ul>
+          <p class="fragment">Every thermal average in statistical mechanics
+            is an integral of this kind, and we will come back to them in
+            the next lectures.</p>
+          <aside class="notes">
+            The phase-space count is four momenta minus four constraints
+            from energy and momentum conservation, which leaves $8$
+            independent variables. Event generators in particle physics
+            are Monte Carlo integrators; VEGAS from 1978 is importance
+            sampling on an adaptive grid. The path integral of a particle
+            with $100$ time slices is a $100$-dimensional integral. No grid
+            can do these integrals.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Smoothness is not required</h2>
+          <img src="figures/nasty.png" style="width: 82%; display: block; margin: 0 auto;" alt="Left: an integrand that oscillates infinitely often near both ends. Right: the error of Simpson's rule, erratic, and of Monte Carlo, on the predicted line">
+          <p>The error formula for Simpson's rule contains $f'''$, and this
+            integrand has no derivatives at the two ends. The Monte Carlo
+            error depends only on $\sigma_f = 0.26$, and it follows the
+            formula.</p>
+          <aside class="notes">
+            The exact value $\int_0^2 \sin^2(1/x(2-x))\,dx = 1.451401$ comes
+            from the substitution $t = 1/x(2-x)$, which turns the integral
+            into a convergent oscillatory one. Simpson's rule with the
+            endpoint values set to the mean value $1/2$ converges
+            erratically at roughly $N^{-0.6}$, nowhere near its nominal
+            $N^{-4}$, while the Monte Carlo error is $2\sigma_f/\sqrt{N}$ at
+            every $N$. The 2025 lecture used this integrand and claimed
+            that Gauss quadrature gave $58$ and adaptive Simpson $5004$.
+            Both exceed the bound $\int f \le 2$ that follows from $\sin^2
+            \le 1$, so neither can be right. The statement that survives
+            is the one on the slide: no quadrature error formula applies
+            here, and the Monte Carlo formula does.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Finite variance is required</h2>
+          $$
+          \int_0^1 \frac{dx}{\sqrt{x}} = 2, \qquad
+          \langle f^2 \rangle = \int_0^1 \frac{dx}{x} = \infty .
+          $$
+          <ul>
+            <li class="fragment">The average still converges to $2$, but
+              the error estimate $\sigma_f/\sqrt{N}$ is meaningless, because
+              a single point at $x = 10^{-6}$ adds $1000/N$ to the
+              average.</li>
+            <li class="fragment">An integrable singularity is therefore not
+              good enough for plain Monte Carlo. Part II shows how to
+              remove it.</li>
+          </ul>
+          <aside class="notes">
+            The law of large numbers needs only $\langle f \rangle$ to be
+            finite, but the error formula and the central limit theorem
+            need $\langle f^2 \rangle$. At $N = 10^4$ one run in a hundred
+            contains a point below $10^{-6}$, and that run is off by $0.1$
+            or more on a result of $2$. The sample variance keeps growing
+            with $N$, the histogram of estimates is skewed with a long tail
+            to the right, and the convergence is slower than $1/\sqrt{N}$.
+            Part II uses a close relative of this integrand, with a factor
+            $e^{-x}$ added, and shows the fix.
+          </aside>
+        </section>
+
+        <!-- ============ Part II ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Importance sampling</h2>
+          <p>Putting the points where the integrand is</p>
+        </section>
+
+        <section>
+          <h2>Sampling from a different density</h2>
+          $$
+          I = \int f\,dx = \int \frac{f}{p}\,p\,dx = \Big\langle \frac{f}{p} \Big\rangle_p .
+          $$
+          <ul>
+            <li class="fragment">If we draw the $x_i$ from a density $p$,
+              using the methods of Lecture 21, and average $f/p$ instead of
+              $f$, we obtain the same integral.</li>
+            <li class="fragment">The error is now $\sigma(f/p)/\sqrt{N}$. If
+              $p$ has roughly the shape of $f$, then $f/p$ is nearly
+              constant and its variance is small.</li>
+            <li class="fragment">Uniform sampling is the special case
+              $p = 1/V$.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION: the mean of any $g$ under the density $p$ is
+            $\langle g \rangle_p = \int g\,p\,dx$, and with $g = f/p$ this is
+            $\int f\,dx$. The sample mean of $f/p$ over points drawn from
+            $p$ estimates it with the error formula of Part I, with
+            $\sigma(f/p)$ in place of $\sigma_f$. The zero-variance choice
+            would be $p = f/I$, which requires knowing the answer. The
+            practical choice is a $p$ with the same peaks and singularities
+            as $f$ that the inverse transform can sample.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The recipe</h2>
+          <ol>
+            <li>Choose a weight $w(x) \ge 0$ that reproduces the peak or the
+              singularity of $f$ and that you know how to sample.</li>
+            <li class="fragment">Normalize it to a density,
+              $p = w / \int w\,dx$.</li>
+            <li class="fragment">Draw $x_1, \dots, x_N$ from $p$ by the
+              inverse transform.</li>
+            <li class="fragment">Estimate $I \approx \dfrac{1}{N}\displaystyle\sum_i
+              \frac{f(x_i)}{p(x_i)}$, and compute the error from
+              $\sigma(f/p)$ as before.</li>
+          </ol>
+        </section>
+
+        <section style="font-size: 0.92em;">
+          <h2>Example: the singularity</h2>
+          $$
+          I = \int_0^1 \frac{e^{-x}}{\sqrt{x}}\,dx = \sqrt{\pi}\,\mathrm{erf}(1) = 1.4936 .
+          $$
+          <ul>
+            <li class="fragment">With uniform $x$ the variance $\langle f^2
+              \rangle = \int_0^1 e^{-2x}/x\,dx$ is infinite, so the error
+              estimate cannot be trusted.</li>
+            <li class="fragment">Choose instead $w = 1/\sqrt{x}$. Then
+              $p = 1/2\sqrt{x}$, $F = \sqrt{x}$, and the inverse transform
+              gives $x = u^2$. The ratio $f/p = 2e^{-x}$ lies between $0.74$
+              and $2$.</li>
+          </ul>
+          <p class="fragment">
+            $$ I \approx \frac{2}{N} \sum_{i=1}^{N} e^{-u_i^2} . $$
+          </p>
+          <aside class="notes">
+            The singularity has moved into $p$ and out of the quantity
+            being averaged. Since $\sigma(f/p) = 0.40$, the error at $N =
+            10^4$ is $0.004$. This is the example of the 2025 lecture,
+            unchanged.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The singularity, side by side</h2>
+          <img src="figures/importance.png" style="width: 84%; display: block; margin: 0 auto;" alt="Left: the integrand, the sampling density and their ratio. Right: histograms of 1000 estimates with uniform points and with importance sampling, the second nine times narrower">
+          <p>With $N = 10^4$ points and 1000 runs of each method, the spread
+            of the estimates falls from $0.038$ to $0.0042$. The accuracy
+            improves ninefold, which would otherwise require eighty times
+            as many points.</p>
+          <aside class="notes">
+            On the left, $f$ diverges at $0$, $p$ diverges in the same way,
+            and $f/p$ is the bounded curve. On the right, the estimates
+            from uniform points are not only wide but skewed, with a tail
+            to the right; the largest of the 1000 was $2.01$, beyond the
+            axis. The skew is the signature of the infinite variance. The
+            importance-sampled estimates have standard deviation $0.0042$
+            against the predicted $0.0040$.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Example: a rare event</h2>
+          <p>The probability that a unit Gaussian variable exceeds $4$ is
+            $P = 3.17 \times 10^{-5}$, about one draw in $32{,}000$.</p>
+          <ul>
+            <li class="fragment">If we draw $N = 10^6$ Gaussian numbers and
+              count those above $4$, we expect $32 \pm 6$ hits, an error of
+              $17\%$.</li>
+            <li class="fragment">With importance sampling we draw $x = 4 -
+              \ln(1 - u)$, which is exponentially distributed beyond $4$
+              with density $p = e^{-(x - 4)}$, and average
+              $$ \frac{N(x)}{p(x)} = \frac{e^{-x^2/2 + x - 4}}{\sqrt{2\pi}} . $$
+            </li>
+          </ul>
+          <aside class="notes">
+            $P = \tfrac12\,\mathrm{erfc}(4/\sqrt{2}) = 3.1671 \times 10^{-5}$.
+            The number of hits is Poisson distributed, $31.7 \pm 5.6$.
+            Every importance sample lands in the tail, and the weight
+            decreases smoothly from $1.3 \times 10^{-4}$ at $x = 4$, so
+            $\sigma(N/p)$ is small compared with the mean. Any small tail
+            probability, a false-alarm rate for instance, is computed the
+            same way.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The rare event, side by side</h2>
+          <img src="figures/tail.png" style="width: 84%; display: block; margin: 0 auto;" alt="Left: the Gaussian tail beyond 4, the shifted exponential proposal, and their ratio. Right: histograms of 200 estimates with N = 10^6: counting hits spreads over 17 percent, importance sampling over 0.12 percent">
+          <p>With $N = 10^6$ and 200 runs of each method, the relative spread
+            is $17\%$ for counting and $0.12\%$ for importance sampling.
+            Reaching the same accuracy by counting would take $20{,}000$
+            times as many draws.</p>
+          <aside class="notes">
+            $(17/0.12)^2 \approx 2 \times 10^4$. The counting histogram is
+            discrete, with one bin per possible number of hits, and the
+            importance histogram is one bin wide at this scale. The left
+            panel has a log axis; $p$ is a density and starts at $1$. The
+            weight $N/p$ falls faster than $N$ itself because $p$ decays
+            more slowly than the Gaussian, which is the point of the next
+            slide.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Choosing $p$</h2>
+          <ul>
+            <li>$p$ should have the shape of $|f|$, with the same peaks and
+              the same singularities.</li>
+            <li class="fragment">$p$ must not have lighter tails than $f$.
+              Wherever $p$ falls off faster than $f$, the weight $f/p$
+              grows without bound, the variance is infinite again, and the
+              estimate looks converged while it is wrong.</li>
+            <li class="fragment">$p$ must be cheap to sample, by an inverse
+              transform or a transformation from Lecture 21.</li>
+          </ul>
+          <aside class="notes">
+            The failure in the second bullet is the dangerous one. The runs
+            agree with each other because the large weights are rare, until
+            one of them arrives. Check by looking at the largest weights:
+            if a handful of points carry most of the sum, the $p$ is wrong.
+            A Gaussian $p$ for a power-law $f$ is the classic mistake. The
+            exponential of the last example has a heavier tail than the
+            Gaussian it samples, which is why it is safe.
+          </aside>
+        </section>
+
+        <section style="font-size: 0.92em;">
+          <h2>The Boltzmann weight as importance sampling</h2>
+          $$
+          \langle A \rangle = \frac{\int A(\mathbf{x})\,e^{-E(\mathbf{x})/kT}\,d\mathbf{x}}
+                                   {\int e^{-E(\mathbf{x})/kT}\,d\mathbf{x}}
+          $$
+          <ul>
+            <li class="fragment">With uniformly chosen configurations,
+              almost every point has $e^{-E/kT} \approx 0$ and contributes
+              nothing.</li>
+            <li class="fragment">If instead we draw configurations with
+              $p \propto e^{-E/kT}$, the weights cancel and $\langle A
+              \rangle \approx \frac{1}{N}\sum_i A(\mathbf{x}_i)$ is a plain
+              average over the sampled configurations.</li>
+            <li class="fragment">But this $p$ lives in $10^{23}$ dimensions
+              and its normalization is unknown, so the inverse transform
+              cannot be used. We need a different way to draw from $p$.</li>
+          </ul>
+          <aside class="notes">
+            With $p = e^{-E/kT}/Z$ the weight $A/p$ carries the unknown $Z$,
+            but the same $Z$ appears in the denominator and cancels, so the
+            ratio of two importance-sampled integrals with the same $p$
+            needs $p$ only up to a constant. That is why Boltzmann averages
+            can be computed without ever evaluating the partition
+            function. The missing piece, a way to draw from a $p$ known up
+            to a constant in many dimensions, is the Markov chain, later
+            in this block.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.8em;">
+            <li>A Monte Carlo integral is $I = V\langle f \rangle$ over
+              uniform points, with error $V\sigma_f/\sqrt{N}$ in any number
+              of dimensions. The same points give $\sigma_f$, so every
+              result comes with an error bar.</li>
+            <li class="fragment">For smooth integrands quadrature is more
+              accurate below about $d = 4$ to $8$ dimensions, and Monte
+              Carlo above that, or whenever $f$ is rough. Monte Carlo
+              requires $\langle f^2 \rangle$ to be finite.</li>
+            <li class="fragment">Importance sampling draws the points from
+              a density $p$ and averages $f/p$, with error
+              $\sigma(f/p)/\sqrt{N}$. A good $p$ has the shape of $f$ and
+              tails at least as heavy.</li>
+          </ul>
+          <p class="fragment why">Next time: random walks and Brownian
+            motion.</p>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 22</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

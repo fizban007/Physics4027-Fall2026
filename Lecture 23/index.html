@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 23</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+      /* Body text at the size the other decks use inline, heading unchanged. */
+      .reveal .slides section.compact { font-size: 0.78em; }
+      .reveal .slides section.compact h2 { font-size: calc(var(--r-heading2-size) / 0.78); }
+    </style>
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 23</p>
+          <h1>Statistical mechanics and the Metropolis algorithm</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            Part I states the Boltzmann distribution, what the partition function gives, and
+            the Ising model, and then shows with a figure why the thermal
+            average cannot be computed by sampling states uniformly. Part
+            II builds the Markov chain: transition probabilities, the
+            stationary distribution, detailed balance, the Metropolis
+            acceptance rule and its proof, the single-flip algorithm for
+            the Ising model, snapshots, and burn-in. Every number quoted
+            is printed by make_figures.py.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <ul style="font-size: 0.8em;">
+            <li>An integral is the average of the integrand over random
+              points, with an error that falls as $1/\sqrt{N}$ in any
+              number of dimensions.</li>
+            <li class="fragment">Importance sampling draws the points from
+              a density $p$ with the shape of the integrand and averages
+              $f/p$. For a thermal average the right $p$ is the Boltzmann
+              weight itself, but we had no way to draw from it.</li>
+          </ul>
+          <p class="fragment why">Today we build that way. It is a random
+            walk through the states of the system that visits each one in
+            proportion to its Boltzmann weight.</p>
+        </section>
+
+        <!-- ============ Part I ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Thermal averages</h2>
+          <p>Statistical mechanics in three slides</p>
+        </section>
+
+        <section>
+          <img src="figures/goodstein.png" style="width: 90%; display: block; margin: 0 auto; box-shadow: 0 6px 24px rgba(0,0,0,0.25);" alt="The opening paragraph of chapter 1 of Goodstein's States of Matter: Boltzmann died in 1906 by his own hand, Ehrenfest similarly in 1933; now it is our turn to study statistical mechanics; perhaps it will be wise to approach the subject cautiously">
+          <aside class="notes">
+            The most famous opening paragraph of any physics textbook,
+            David Goodstein's States of Matter from 1975. Boltzmann hanged
+            himself in Duino in 1906, a year after Einstein's Brownian
+            motion paper and two years before Perrin's experiments settled
+            the reality of atoms that Boltzmann had defended. Ehrenfest
+            shot his son and himself in Amsterdam in 1933. We approach the
+            subject with the caution Goodstein recommends, and with a
+            computer, which is a tool neither of them had.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The Boltzmann distribution</h2>
+          <p>A system in equilibrium with a heat bath at temperature $T$
+            is found in the state $s$, with energy $E_s$, with
+            probability</p>
+          $$
+          P(s) = \frac{e^{-E_s/k_BT}}{Z}, \qquad Z = \sum_s e^{-E_s/k_BT} .
+          $$
+          <ul>
+            <li class="fragment">The sum runs over every state of the
+              system, and $Z$ is called the <em>partition function</em>.</li>
+            <li class="fragment">We write $\beta = 1/k_BT$, so that the
+              weight of a state is $e^{-\beta E_s}$.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the weight: the system plus the bath is
+            isolated, so every joint state with the right total energy is
+            equally likely. When the system has energy $E_s$ the bath has
+            $E_{\rm tot} - E_s$ and $\Omega_B(E_{\rm tot} - E_s) =
+            e^{S_B/k_B}$ states. Expanding the entropy to first order in
+            the small $E_s$ and using $\partial S/\partial E = 1/T$ gives
+            $\Omega_B \propto e^{-E_s/k_BT}$. The number of states of the
+            bath is what makes low-energy states of the system more
+            likely, not any preference of the system itself.
+          </aside>
+        </section>
+
+        <section class="compact" style="font-size: 0.7em;">
+          <h2>What $Z$ gives you</h2>
+          <p>The mean energy is a derivative of $\ln Z$, because
+            differentiating $e^{-\beta E_s}$ brings down $-E_s$:</p>
+          $$
+          \langle E \rangle = \frac{1}{Z}\sum_s E_s\, e^{-\beta E_s}
+          = -\frac{1}{Z}\frac{\partial Z}{\partial \beta}
+          = -\frac{\partial \ln Z}{\partial \beta} .
+          $$
+          <p class="fragment">Differentiate once more. The $1/Z$ factor depends
+            on $\beta$ too, and its derivative produces $\langle E \rangle^2$:</p>
+          <p class="fragment">
+          $$
+          \frac{\partial \langle E \rangle}{\partial \beta}
+          = -\frac{1}{Z}\sum_s E_s^2\, e^{-\beta E_s}
+            + \frac{1}{Z^2}\frac{\partial Z}{\partial \beta}\sum_s E_s\, e^{-\beta E_s}
+          = -\langle E^2 \rangle + \langle E \rangle^2
+          = -\langle (\Delta E)^2 \rangle .
+          $$
+          </p>
+          <p class="fragment">With $\beta = 1/k_BT$ the heat capacity follows
+            by the chain rule:</p>
+          <p class="fragment">
+          $$
+          C_V = \frac{\partial \langle E \rangle}{\partial T}
+          = \frac{\partial \langle E \rangle}{\partial \beta}\,\frac{d\beta}{dT}
+          = \big(-\langle (\Delta E)^2 \rangle\big)\Big(-\frac{1}{k_BT^2}\Big)
+          = \frac{\langle (\Delta E)^2 \rangle}{k_B T^2} .
+          $$
+          </p>
+          <p class="fragment why">The heat capacity is the variance of the
+            energy. A sampling method that gives $\langle E \rangle$ and
+            $\langle E^2 \rangle$ gives $C_V$ as well, with no derivative
+            and no second run at a nearby temperature.</p>
+          <aside class="notes">
+            Walk through the three lines. The first is the trick that
+            makes $Z$ useful: every moment of the energy is a derivative of
+            $\ln Z$. The second line is the product rule applied to $(1/Z)
+            \sum_s E_s e^{-\beta E_s}$; the first term is $-\langle E^2
+            \rangle$ and the second is $(\partial_\beta Z / Z)\langle E
+            \rangle = -\langle E \rangle^2$, so the result is minus the
+            variance. The third line is the chain rule from $\beta$ to
+            $T$. The variance of $E$ in a simulation is therefore not noise
+            to be averaged away but a measurement of $C_V$, and $C_V$ peaks
+            at the phase transition because the energy fluctuates most
+            there.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The Ising model</h2>
+          $$
+          E(s) = -J \sum_{\langle i,j \rangle} s_i\, s_j, \qquad s_i = \pm 1,
+          \qquad M = \frac{1}{N}\sum_i s_i .
+          $$
+          <ul>
+            <li>Each site of a square lattice carries a spin, and the sum
+              runs over nearest-neighbour pairs. Aligned neighbours lower
+              the energy by $J$, opposed ones raise it by $J$.</li>
+            <li class="fragment">At $T = 0$ all spins align and $|M| = 1$.
+              At high $T$ the spins are random and $M = 0$. In between,
+              Onsager showed in 1944, there is a sharp transition at
+              $k_BT_c = 2J/\ln(1 + \sqrt{2}) = 2.269\,J$.</li>
+            <li class="fragment">It is the simplest model of a
+              ferromagnet, and the simplest system with a phase
+              transition.</li>
+          </ul>
+          <aside class="notes">
+            Each site on a square lattice has four neighbours, so a
+            lattice of $N$ sites has $2N$ bonds and the ground state energy
+            is $-2NJ$. Writing the sum over all four neighbours of every
+            site needs a factor $1/2$ to undo the double counting; both
+            forms are the same energy. The
+            one-dimensional model has no transition, which is why Ising
+            himself concluded in 1925 that the model had none; Peierls
+            showed in 1936 that the two-dimensional model does.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The sum is impossible</h2>
+          <ul>
+            <li>A $100 \times 100$ lattice has $2^{10000} \approx 10^{3010}$
+              states. For this one model Onsager found a way around the
+              sum in 1944, with no field and in two dimensions, and nobody
+              has done it in three dimensions or with a field. For almost
+              any other system the sum simply cannot be done.</li>
+            <li class="fragment">Monte Carlo integration says to estimate
+              the sum by averaging over random states. Drawing states uniformly, that
+              is flipping a coin for every spin, gives the grey histogram
+              on the next slide.</li>
+            <!-- <li class="fragment">Every one of those states has an energy
+                 near zero. The states that matter at $k_BT = 2J$ have $E
+                 \approx -1.75\,NJ$, and the weight of a random state relative
+                 to them is $e^{-8730}$.</li> -->
+          </ul>
+          <p class="fragment why">Uniform sampling never lands on a state
+            that contributes. We have to draw states from the Boltzmann
+            distribution itself.</p>
+          <aside class="notes">
+            Onsager did not add up the $2^N$ terms; he mapped the sum onto
+            an eigenvalue problem of a transfer matrix, which works only
+            for the square lattice in two dimensions without a field.
+            Kaufman extended it to finite lattices in 1949 and Yang
+            proved the spontaneous magnetization in 1952. Those exact
+            results are why this model is the test case for the method:
+            the simulation can be checked against them. The energy of a
+            random state is a sum of $2N$ random signs, so
+            $E/N$ has mean $0$ and standard deviation $\sqrt{2/N} = 0.014$
+            at $N = 10^4$. The probability that a random state has $E/N <
+            -1$ is a Gaussian tail at $70$ standard deviations. A state
+            with energy $-1.75\,NJ$ has a weight larger by $e^{1.75
+            \times 10^4 / 2} = e^{8750}$; the figure prints $8730$ from
+            the measured energies. It is the rare-event problem again,
+            with a tail probability of $10^{-3800}$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Where the states are</h2>
+          <img src="figures/overlap.png" style="width: 80%; display: block; margin: 0 auto;" alt="Two narrow histograms of energy per spin: random states around zero, equilibrium states at 2 J around minus 1.75, with no overlap">
+          <p>Energies of $20{,}000$ random $100 \times 100$ states, and of
+            $2000$ states drawn from the Boltzmann distribution at $k_BT =
+            2J$ by the method of Part II.</p>
+          <aside class="notes">
+            The equilibrium states cluster at $E/N = -1.746 \pm 0.017$,
+            which matches Onsager's exact internal energy $-1.7459$ at
+            this temperature. Both histograms are narrow because the
+            energy is a sum over $10^4$ sites and their widths fall as
+            $1/\sqrt{N}$. The horizontal axis spans $1.75\,J$
+            per spin and there is nothing in between.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>What we need</h2>
+          <p>If we can draw states $s_1, \dots, s_N$ with probability
+            $P(s)$, then by importance sampling</p>
+          $$
+          \langle A \rangle = \sum_s A(s) P(s) \approx \frac{1}{N} \sum_{n=1}^{N} A(s_n) ,
+          $$
+          <p>a plain average over the sampled states.</p>
+          <ul>
+            <li class="fragment">The inverse transform is useless
+              here: it needs the normalization $Z$, which is the
+              sum we cannot do.</li>
+            <li class="fragment">We need a method that uses only ratios
+              $P(s')/P(s) = e^{-\beta (E_{s'} - E_s)}$, in which $Z$
+              cancels.</li>
+          </ul>
+          <aside class="notes">
+            The weights $A/p$ with $p = P$ are constant, so the variance of the
+            estimate is the variance of $A$ itself over the equilibrium
+            states, which is the physical fluctuation. The ratio of two
+            Boltzmann factors is a local quantity: for one flipped spin it
+            involves the four neighbours only, and that locality is what
+            makes the method of Part II cheap.
+          </aside>
+        </section>
+
+        <!-- ============ Part II ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Markov chain Monte Carlo</h2>
+          <p>A random walk with the right stationary distribution</p>
+        </section>
+
+        <section class="compact">
+          <h2>A Markov chain</h2>
+          <p>A Markov chain is a sequence of states $s_1, s_2, s_3, \dots$
+            in which the next state is drawn from a probability $T(s \to
+            s')$ that depends on the current state only, not on the
+            history.</p>
+          <ul>
+            <li class="fragment">$T$ is a transition matrix. Let $i$, $j$ label possible states, then $T_{ij} \ge
+              0$ and $\sum_j T_{ij} = 1$, since the chain must go
+              somewhere.</li>
+            <li class="fragment">If the chain is in state $i$ with
+              probability $p_n(i)$ at step $n$, then $p_{n+1}(j) = \sum_i
+              p_n(i)\, T_{ij}$.</li>
+            <li class="fragment">Suppose that at some step the probabilities
+              are a particular set $\pi_i$, and that one more step returns
+              the same set, $\sum_i \pi_i\, T_{ij} = \pi_j$ for every $j$.
+              Then the probabilities never change again. Such a $\pi$ is
+              called the stationary distribution of the chain.</li>
+          </ul>
+          <aside class="notes">
+            The row vector $p_n$ evolves as $p_{n+1} = p_n T$, so $p_n =
+            p_0 T^n$, which is the power iteration applied to
+            $T^{\sf T}$. The stationary distribution is the
+            eigenvector with eigenvalue $1$, and the other eigenvalues
+            have modulus below $1$ when every state can reach every other
+            and the chain is not periodic. The rate of convergence is set
+            by the second eigenvalue, $0.4$ in the example on the next
+            slide, so the memory of the start is gone in about ten steps.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The start is forgotten</h2>
+          <div style="display: flex; align-items: center; gap: 1.5em;">
+            <p style="flex: 1.4; text-align: left; margin: 0;">Take a chain
+              with three states and this transition matrix, put it in
+              state $1$ with certainty, $p_0 = (1, 0, 0)$, and apply
+              $p_{n+1} = p_n T$ twelve times. Then repeat from state
+              $3$.</p>
+            <div style="flex: 1;">
+              $$
+              T = \begin{pmatrix} 0.5 & 0.3 & 0.2 \\ 0.2 & 0.6 & 0.2 \\ 0.1 & 0.3 & 0.6 \end{pmatrix}
+              $$
+            </div>
+          </div>
+          <img src="figures/markov.png" style="width: 82%; display: block; margin: 0 auto;" alt="Two panels: the probabilities of the three states against step number, starting in state 1 and starting in state 3; both converge within ten steps to 0.238, 0.429 and 0.333">
+          <p>Both runs reach the same probabilities, $\pi = (0.238, 0.429,
+            0.333)$, within ten steps. The stationary distribution depends
+            on $T$ alone, not on where the chain started.</p>
+          <aside class="notes">
+            Row $i$ of $T$ holds the probabilities of moving from state
+            $i$ to each state, and each row sums to one. The stationary
+            $\pi$ is the left eigenvector of $T$ with eigenvalue $1$, here
+            $(5, 9, 7)/21$; the second eigenvalue is $0.4$, so the memory
+            of the start shrinks by that factor at every step and is gone
+            after about ten. The point of the slide is the direction of
+            the argument: we are not given $T$ and asked for $\pi$. We are
+            given $\pi$, the Boltzmann distribution, and must build a $T$
+            that has it as its stationary distribution. That is the next
+            slide.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Detailed balance</h2>
+          <p>A sufficient condition for $\pi$ to be stationary is that the
+            flow between every pair of states balances:</p>
+          $$
+          \pi_i\, T_{ij} = \pi_j\, T_{ji} \qquad \text{for all } i, j .
+          $$
+          <ul>
+            <li class="fragment">Summing over $i$ gives $\sum_i \pi_i
+              T_{ij} = \pi_j \sum_i T_{ji} = \pi_j$, which is $\pi T =
+              \pi$.</li>
+            <li class="fragment">For the Boltzmann distribution the
+              condition reads $T_{ij}/T_{ji} = e^{-\beta (E_j - E_i)}$,
+              and $Z$ has cancelled.</li>
+          </ul>
+          <aside class="notes">
+            Detailed balance is stronger than stationarity: it says there
+            is no net circulation around any loop of states, which is what
+            "equilibrium" means physically. It is sufficient, not
+            necessary, and all the chains in this course satisfy it. The
+            ratio form is the one we can use, because it asks only for
+            energy differences. Together with ergodicity (every state is
+            reachable) and aperiodicity it guarantees that $p_n \to \pi$
+            from any start.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The Metropolis rule</h2>
+          <p>Propose a new state $s'$ from the current $s$ by a symmetric
+            rule, one that proposes $s$ from $s'$ equally often. Accept the
+            proposal with probability</p>
+          $$
+          A(s \to s') = \min\!\left(1,\; e^{-\beta (E_{s'} - E_s)}\right) .
+          $$
+          <ul>
+            <li class="fragment">A move that lowers the energy is always
+              taken. A move that raises it by $\Delta E$ is taken with
+              probability $e^{-\beta \Delta E}$.</li>
+            <li class="fragment">If the proposal is rejected the chain stays
+              where it is, and the current state is counted again.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION that it satisfies detailed balance. Let $g$ be the
+            symmetric proposal probability, so $T_{ij} = g\,A(i \to j)$
+            for $j \ne i$. If $E_j > E_i$ then $T_{ij} = g\,e^{-\beta (E_j
+            - E_i)}$ and $T_{ji} = g$, so $T_{ij}/T_{ji} = e^{-\beta (E_j -
+            E_i)}$. If $E_j < E_i$ the two roles swap and the same ratio
+            comes out. The rejected moves add to $T_{ii}$, which keeps
+            the rows summing to one and does not enter detailed balance.
+            Metropolis, Rosenbluth, Rosenbluth, Teller and Teller, 1953,
+            on the MANIAC at Los Alamos, for hard disks. Hastings
+            generalized it to asymmetric proposals in 1970; that version
+            has the ratio $g(s|s')/g(s'|s)$ inside the min.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Metropolis for the Ising model</h2>
+          <ol>
+            <li>Pick a site $i$ at random and propose to flip $s_i$.</li>
+            <li class="fragment">The energy change involves the four
+              neighbours only:
+              $$ \Delta E = 2 J\, s_i \sum_{j \in \text{nbrs}(i)} s_j \in \{-8J, -4J, 0, 4J, 8J\} . $$
+            </li>
+            <li class="fragment">If $\Delta E \le 0$ flip. Otherwise draw
+              $u$ uniform in $(0, 1)$ and flip if $u < e^{-\beta \Delta
+              E}$.</li>
+            <li class="fragment">Update $E$ by $\Delta E$ and $M$ by
+              $-2 s_i / N$ when the flip happens. Never recompute the
+              sums over the lattice.</li>
+          </ol>
+          <p class="fragment">One sweep is $N$ attempts, so that every spin
+            is offered a flip once on average.</p>
+          <aside class="notes">
+            Proposing a uniformly random site is symmetric, so the
+            Metropolis rule applies as is. Only two acceptance
+            probabilities, $e^{-4\beta J}$ and $e^{-8\beta J}$, ever
+            appear; compute them once per temperature. The cost is $O(1)$
+            per attempt, and a sweep of a $100 \times 100$ lattice costs
+            $10^4$ operations, so a million sweeps is a minute of C++.
+            Sweeping the sites in order, or in a checkerboard, instead of
+            at random also works; the figures in this lecture use the
+            checkerboard so that numpy can update half the lattice at
+            once. Use periodic boundaries.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>What equilibrium looks like</h2>
+          <img src="figures/snapshots.png" style="width: 92%; display: block; margin: 0 auto;" alt="Three 100 by 100 Ising configurations after 3000 sweeps: nearly all one colour at 2 J, large domains of both colours at 2.27 J, and a random-looking mixture at 3 J">
+          <p>$100 \times 100$ lattices after $3000$ sweeps from random
+            starts, below, at, and above $T_c = 2.269\,J$.</p>
+          <aside class="notes">
+            At $k_BT = 2J$ the lattice is ordered with $M = -0.89$ and a
+            scattering of flipped spins; the sign of $M$ is whichever the
+            chain fell into, and the exact spontaneous magnetization at
+            this temperature is $0.911$. At $T_c$ there are domains of
+            every size, which is the hallmark of a critical point, and
+            $M$ is still drifting after $3000$ sweeps. At $3J$ the
+            correlations extend over a few sites only and $M = -0.05$,
+            consistent with zero on a lattice of this size.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Burn-in</h2>
+          <img src="figures/history.png" style="width: 88%; display: block; margin: 0 auto;" alt="Energy per spin and magnetization against sweeps at 2 J from an all-up start and a random start; the energies meet within a hundred sweeps, the magnetization of the random start takes four hundred">
+          <p>The chain starts wherever we put it, and the early states are
+            not equilibrium states. Discard them. How many depends on the
+            start, the temperature, and the quantity.</p>
+          <aside class="notes">
+            From the ordered start the energy settles in about ten
+            sweeps. From the random start it is within $0.02$ of its final
+            value after $145$ sweeps, while $|M|$ is $0.36$ at $50$ sweeps
+            and reaches $0.90$ only at $400$: the random start forms
+            domains of both signs and they have to coarsen until one
+            wins. The energy of a domain wall is small compared with the
+            total, which is why $E$ looks converged long before $M$ is. The
+            practical rule is to plot the history of every quantity you
+            average and to start averaging only where every curve is
+            flat. A cold start below $T_c$ and a hot start above it burn in
+            fastest.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Measuring</h2>
+          <p>After the burn-in, every state of the chain is a sample from
+            the Boltzmann distribution, and</p>
+          $$
+          \langle A \rangle \approx \frac{1}{N} \sum_{n} A(s_n), \qquad
+          \langle (\Delta A)^2 \rangle \approx \frac{1}{N} \sum_n A(s_n)^2 - \langle A \rangle^2 .
+          $$
+          <ul>
+            <li class="fragment">The variance of the energy gives $C_V$
+              directly, from the same run.</li>
+            <li class="fragment">Successive states differ by one spin, so
+              they are far from independent. The $1/\sqrt{N}$ error bar
+              counts independent samples, and the chain has
+              fewer of them than it has states.</li>
+          </ul>
+          <aside class="notes">
+            Averaging the states of one chain is exactly the importance
+            sampling estimate with the weights all equal to one. The correlation between successive states is measured by
+            the autocorrelation time, the number of sweeps over which the
+            chain forgets a fluctuation, and the number of independent
+            samples is the number of sweeps divided by it. Near $T_c$ that
+            time grows with the lattice size, which is critical slowing
+            down.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Beyond spins</h2>
+          <p>Nothing in Part II used the lattice. For any distribution
+            $P(x)$ known up to a constant, a proposal $x' = x + \delta$
+            with a symmetric random $\delta$ and the acceptance</p>
+          $$
+          A(x \to x') = \min\!\left(1,\; \frac{P(x')}{P(x)}\right)
+          $$
+          <p>produces a chain whose states are distributed as $P$.</p>
+          <ul>
+            <li class="fragment">Continuous systems such as a gas of atoms
+              are sampled by moving one atom at a time.</li>
+            <li class="fragment">A posterior probability in data analysis
+              is a $P(x)$ known up to a constant, and this is how it is
+              sampled.</li>
+          </ul>
+          <aside class="notes">
+            The step size $\delta$ is the one knob. Too small and nearly
+            every move is accepted but the chain crawls; too large and
+            nearly every move is rejected and the chain stalls. An
+            acceptance rate of roughly a quarter to a half is the usual
+            target. For the Ising model there is no knob, since the only
+            move is a single flip.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Thermal averages are sums over states weighted by
+              $e^{-\beta E}/Z$, and $\ln Z$ yields $\langle E \rangle$ and
+              the fluctuation formula for $C_V$. The sum
+              itself cannot be done, and uniform sampling never finds the
+              states that matter.</li>
+            <li class="fragment">A Markov chain whose transition
+              probabilities satisfy detailed balance with the Boltzmann
+              weights converges to that distribution from any start, and
+              needs only energy differences.</li>
+            <li class="fragment">The Metropolis rule, accept with
+              probability $\min(1, e^{-\beta \Delta E})$, satisfies it. For
+              the Ising model a move is one spin flip and costs four
+              neighbours. Discard the burn-in, then average.</li>
+          </ul>
+          <!-- <p class="fragment why">Next time: the phase transition in the
+               chain, autocorrelation and critical slowing down, and
+               simulated annealing.</p> -->
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 23</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

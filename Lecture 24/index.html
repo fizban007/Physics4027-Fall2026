@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 24</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+      /* Body text at the size the other decks use inline, heading unchanged. */
+      .reveal .slides section.compact { font-size: 0.78em; }
+      .reveal .slides section.compact h2 { font-size: calc(var(--r-heading2-size) / 0.78); }
+    </style>
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 24</p>
+          <h1>Metropolis examples and simulated annealing</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            Part I derives the Metropolis rule again on the simplest
+            system, two energy levels, starting from how the system
+            behaves and asking what hopping rule reproduces it. The same
+            order is then used for a particle in a harmonic well and in a
+            double well. The double well fails at low temperature, and
+            Part II turns that into a method: lower the temperature
+            during the run. The numbers in these notes are printed by
+            make_figures.py.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <ul style="font-size: 0.8em;">
+            <li>A system at temperature $T$ is found in a state of energy
+              $E$ with probability proportional to $e^{-E/k_BT}$.</li>
+            <li class="fragment">The Metropolis rule moves the system from
+              state to state. A move that lowers the energy is always
+              made, and a move that raises it by $\Delta E$ is made with
+              probability $e^{-\Delta E/k_BT}$.</li>
+            <li class="fragment">We applied it to the Ising model, where a
+              move flips one spin.</li>
+          </ul>
+          <p class="fragment why">Today we go back to the rule and ask
+            where it comes from, on systems simple enough that we know how
+            they behave.</p>
+        </section>
+
+        <!-- ============ Part I ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; More examples of the Metropolis rule</h2>
+          <p>Two energy levels, a harmonic well, and a double well</p>
+        </section>
+
+        <section class="compact">
+          <h2>Two energy levels</h2>
+          <div style="display: flex; align-items: center; gap: 1.2em;">
+            <div style="flex: 1.1; text-align: left;">
+              <p>A system has a ground state with energy $0$ and an
+                excited state with energy $\varepsilon$. It is in contact
+                with a heat bath at temperature $T$, and the Boltzmann
+                distribution gives</p>
+              $$ \frac{P_e}{P_g} = e^{-\varepsilon/k_BT} . $$
+              <ul>
+                <li class="fragment">When $k_BT \ll \varepsilon$ the
+                  system sits in the ground state.</li>
+                <li class="fragment">As the temperature rises it is found
+                  in the excited state more often, and never more than
+                  half of the time.</li>
+              </ul>
+            </div>
+            <img src="figures/twolevel_curve.png" style="flex: 1; max-width: 46%;" alt="The probability of the excited state against temperature, rising from zero and levelling off below one half" class="fragment">
+          </div>
+          <aside class="notes">
+            With $P_g + P_e = 1$ the ratio gives $P_e = 1/(1 +
+            e^{\varepsilon/k_BT})$, which is the curve. It is $0.02$ at
+            $k_BT = \varepsilon/4$, $0.27$ at $k_BT = \varepsilon$, and
+            approaches $1/2$ from below as $T \to \infty$. A spin one-half
+            in a magnetic field is such a system. Ask the class what they
+            expect at very low and very high temperature before showing
+            the curve.
+          </aside>
+        </section>
+
+        <section>
+          <h2>A hopping rule</h2>
+          <p>We want the computer to imitate this system. It should hop
+            between the two states and spend the right fraction of its
+            steps in each.</p>
+          <ul>
+            <li class="fragment">At every step, a system in the ground
+              state hops up with probability $a_\uparrow$.</li>
+            <li class="fragment">A system in the excited state hops down
+              with probability $a_\downarrow$.</li>
+            <li class="fragment">Otherwise the system stays where it is
+              for another step.</li>
+          </ul>
+          <p class="fragment why">Which values of $a_\uparrow$ and
+            $a_\downarrow$ reproduce the Boltzmann distribution?</p>
+          <aside class="notes">
+            The rule has two unknown numbers and the next slide finds the
+            one condition on them. Nothing about the Metropolis rule is
+            assumed here; it will come out of the condition.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The condition on the rule</h2>
+          <p>The hops alternate, up and then down, so a long run has
+            equally many of each. If the run spends $N_g$ steps in the
+            ground state and $N_e$ in the excited state,</p>
+          $$
+          N_g\, a_\uparrow = N_e\, a_\downarrow
+          \quad\Longrightarrow\quad
+          \frac{N_e}{N_g} = \frac{a_\uparrow}{a_\downarrow} .
+          $$
+          <p class="fragment">The run matches the Boltzmann distribution
+            if</p>
+          <p class="fragment">
+          $$ \frac{a_\uparrow}{a_\downarrow} = e^{-\varepsilon/k_BT} . $$
+          </p>
+          <p class="fragment why">A hop up must be rarer than a hop down
+            by the Boltzmann factor. The bath has to supply the energy
+            $\varepsilon$ for a hop up, and a cold bath rarely does.</p>
+          <aside class="notes">
+            DERIVATION. Each of the $N_g$ steps spent in the ground state
+            produces a hop up with probability $a_\uparrow$, so there are
+            $N_g a_\uparrow$ hops up, and likewise $N_e a_\downarrow$
+            hops down. The system cannot hop up twice without hopping
+            down in between, so the two counts differ by at most one.
+            This balance of the two flows is detailed balance, written
+            for two states. A real two-level system exchanging energy
+            with a bath obeys the same condition on its transition
+            rates, and that is the physical meaning of the acceptance
+            probability: going down, the bath can always absorb the
+            energy; going up, the bath must give up $\varepsilon$, and
+            the fraction of bath states that can do so is
+            $e^{-\varepsilon/k_BT}$.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The Metropolis choice</h2>
+          <p>The condition fixes only the ratio. The run is fastest with
+            the largest probabilities that the ratio allows:</p>
+          $$ a_\downarrow = 1, \qquad a_\uparrow = e^{-\varepsilon/k_BT} . $$
+          <ul>
+            <li class="fragment">A move down is always made, and a move up
+              is made with probability $e^{-\varepsilon/k_BT}$.</li>
+            <li class="fragment">When a move up is refused, the system
+              spends one more step in the ground state. Those extra steps
+              give the ground state its larger share.</li>
+          </ul>
+          <aside class="notes">
+            Any pair with the right ratio works, for example $a_\downarrow
+            = 1/2$ and $a_\uparrow = \tfrac12 e^{-\varepsilon/k_BT}$, but
+            the system would then stay put twice as often and the run
+            would need twice as many steps for the same accuracy. A
+            probability cannot exceed one, so $a_\downarrow = 1$ is the
+            largest choice. In a program the move up is made by drawing a
+            uniform random number $u$ in $(0,1)$ and hopping if $u <
+            e^{-\varepsilon/k_BT}$. The second bullet is the point
+            students most often get wrong: the refused step is counted.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Check, and the general rule</h2>
+          <img src="figures/twolevel_check.png" style="width: 50%; display: block; margin: 0 auto;" alt="The Boltzmann curve for the probability of the excited state against temperature, with points measured from runs of the hopping rule lying on it">
+          <p>Each point is the fraction of steps that one run of the rule
+            spent in the excited state.</p>
+          <p class="fragment">With many states the same condition applies
+            to every pair of states. A move that lowers the energy is
+            always made, and a move that raises it by $\Delta E$ is made
+            with probability $e^{-\Delta E/k_BT}$.</p>
+          <aside class="notes">
+            Each run is $10^5$ steps. At $k_BT = \varepsilon$ the exact
+            value is $0.269$ and the run gives $0.267$; the scatter falls as one over the square root of the
+            number of steps. For many states the proposal must also be
+            symmetric, meaning that the move from $s$ to $s'$ is offered
+            as often as the move from $s'$ to $s$; with two states this
+            was automatic.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>States and energies</h2>
+          <p>The Boltzmann distribution is the probability of finding the
+            system in a given state, not the probability of finding the
+            system with a given energy. Many different states can have the
+            same energy.</p>
+          <p class="fragment">Take $50$ two-level systems together, at
+            $k_BT = \varepsilon$. Their total energy $E$ is $\varepsilon$
+            times the number of systems that are excited. The plot shows
+            the probability of each value of $E$.</p>
+          <img class="fragment" src="figures/degeneracy.png" style="width: 40%; display: block; margin: 0 auto;" alt="The probability of the total energy of fifty two-level systems: a peak well above the lowest energy, from a run of the rule and from the number of states times the Boltzmann factor">
+          <ul>
+            <li class="fragment">All systems in the ground state is the
+              most likely single state, but it is the only state with
+              $E = 0$.</li>
+            <li class="fragment">The probability of an energy is the
+              Boltzmann factor times the number of states with that
+              energy, so $P(E)$ peaks where many states share the same
+              energy.</li>
+          </ul>
+          <aside class="notes">
+            A move picks one of the $50$ systems at random and applies
+            the two-level rule to it. With $n$ systems excited the energy
+            is $n\varepsilon$ and there are $\binom{50}{n}$ such states,
+            so $P(E) \propto \binom{50}{n} e^{-n\varepsilon/k_BT}$, a
+            binomial distribution. At $k_BT = \varepsilon$ it peaks at $n
+            = 13$, where $3.6 \times 10^{11}$ states share the energy,
+            while the probability of the lowest energy is $1.6 \times
+            10^{-7}$. The same thing happens in the Ising model: the
+            energies visited by a run cluster around a value well above
+            the ground state energy, although each individual state
+            follows the Boltzmann distribution. The number of states is
+            $e^{S/k_B}$, so the peak is where $E - TS$ is smallest, which
+            is the free energy.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>A particle in a harmonic well</h2>
+          <div style="display: flex; align-items: center; gap: 1.2em;">
+            <div style="flex: 1.1; text-align: left;">
+              <p>The state is now a position $x$, with energy $E(x) =
+                \tfrac{1}{2}\kappa x^2$. The Boltzmann distribution is</p>
+              $$ P(x) \propto e^{-\kappa x^2/2k_BT} . $$
+              <ul>
+                <li class="fragment">A cold particle sits at the bottom of
+                  the well.</li>
+                <li class="fragment">A warmer particle is spread over a
+                  width $\sigma = \sqrt{k_BT/\kappa}$, which grows with
+                  the temperature.</li>
+              </ul>
+            </div>
+            <img src="figures/harmonic_behavior.png" style="flex: 1; max-width: 46%;" alt="A parabolic energy curve with a narrow distribution of positions at low temperature and a wide one at high temperature">
+          </div>
+          <aside class="notes">
+            DERIVATION. The weight $e^{-\kappa x^2/2k_BT}$ is a Gaussian
+            $e^{-x^2/2\sigma^2}$ with $\sigma^2 = k_BT/\kappa$. Then
+            $\langle E \rangle = \tfrac12\kappa\langle x^2\rangle =
+            \tfrac12 k_BT$, the equipartition theorem. Only the position
+            is treated here; the momentum of a real particle has its own
+            Gaussian distribution and can be handled separately.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The moves</h2>
+          <img src="figures/harmonic_moves.png" style="width: 52%; display: block; margin: 0 auto;" alt="A particle on a parabolic energy curve; an arrow toward the bottom labelled always made, and an arrow up the wall labelled with the probability of an uphill move">
+          <ul>
+            <li>A move is a small random step, $x' = x + \delta$, with
+              $\delta$ drawn from a Gaussian of width $w$.</li>
+            <li class="fragment">A step toward the bottom lowers the energy
+              and is always made. A step away from it is made with
+              probability $e^{-\Delta E/k_BT}$.</li>
+            <li class="fragment">The positions visited are not the motion
+              of the particle in time. Only how often each position
+              appears has a meaning.</li>
+          </ul>
+          <aside class="notes">
+            A step of $+\delta$ is as likely as a step of $-\delta$, so
+            the proposal is symmetric. The step width $w$ should be
+            comparable to the width $\sigma$ of the distribution. With
+            much smaller steps almost every move is made but the particle
+            needs thousands of steps to cross the well; with much larger
+            steps almost every move lands high on the wall and is
+            refused. An acceptance of a quarter to a half is the usual
+            target. The last bullet matters: the real particle
+            oscillates, and this sequence of positions does not.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Burn-in</h2>
+          <img src="figures/burnin.png" style="width: 70%; display: block; margin: 0 auto;" alt="The position of the particle against step number, starting far up the wall of the well, descending to the bottom, and then fluctuating around it; the descent is shaded and labelled burn-in">
+          <ul>
+            <li>A run takes some number of steps to reach thermal
+              equilibrium. The positions before that are unreliable and
+              are discarded.</li>
+            <li class="fragment">Outside of statistical physics, this
+              initial period is called burn-in.</li>
+            <li class="fragment">It is hard to predict how long the
+              burn-in will be, so it is crucial to look at the results to
+              determine whether equilibrium has been reached.</li>
+          </ul>
+          <aside class="notes">
+            The run starts at $x = 12\sigma$, where almost no proposal
+            uphill is accepted, so the particle walks down the wall and
+            reaches the bottom after about $60$ steps of width
+            $0.5\sigma$. Including those positions in the histogram would
+            add a tail that the Boltzmann distribution does not have. The
+            practical rule is to plot the history of every quantity that
+            will be averaged and to start averaging where the curve is
+            flat.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Check</h2>
+          <img src="figures/harmonic_check.png" style="width: 62%; display: block; margin: 0 auto;" alt="Histograms of the positions visited at a low and a high temperature, each lying on the Boltzmann curve for that temperature">
+          <p>The histogram of the positions visited matches the Boltzmann
+            distribution at both temperatures.</p>
+          <p class="fragment why">The rule did not use the formula for a
+            Gaussian. Each step compared the energies of two
+            positions.</p>
+          <aside class="notes">
+            The two runs are at $k_BT = 0.25$ and $k_BT = 1$ in units
+            where $\kappa = 1$, so $\sigma = 0.5$ and $1$; each is $2
+            \times 10^5$ steps with $w = \sigma$. The measured $\langle
+            x^2 \rangle$ agrees with $k_BT/\kappa$ to about one percent in
+            both. Any distribution known up to a constant can be sampled
+            the same way by taking $E = -k_BT\ln P$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>A double well</h2>
+          <div style="display: flex; align-items: center; gap: 1.2em;">
+            <div style="flex: 1; text-align: left;">
+              <p>Change the energy to one with two wells of different
+                depth, separated by a barrier.</p>
+              <ul>
+                <li class="fragment">A hot particle is found in both
+                  wells, somewhat more often in the deep one.</li>
+                <li class="fragment">A cold particle is found almost
+                  always in the deep well.</li>
+              </ul>
+            </div>
+            <img src="figures/doublewell_energy.png" style="flex: 1.1; max-width: 50%;" alt="An energy curve with a shallow well on the left, a deep well on the right, and a barrier of height Delta E b between them">
+          </div>
+          <aside class="notes">
+            The curve is $E(x) = (x^2 - 1)^2 - 0.2\,x$. The shallow well
+            has $E = 0.20$, the deep well $E = -0.20$, and the barrier
+            seen from the shallow well is $\Delta E_b = 0.81$. The ratio
+            of the probabilities of the two wells is about $e^{-0.4/k_BT}$,
+            so at $k_BT = 0.4$ the deep well holds $71\%$ and at $k_BT =
+            0.05$ more than $99.9\%$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Hot and cold runs</h2>
+          <img src="figures/doublewell_runs.png" style="width: 62%; display: block; margin: 0 auto;" alt="Three traces of the particle position against step number. The hot run hops between the wells many times. One cold run starts in the shallow well and stays there, and another starts in the deep well and stays there">
+          <ul>
+            <li>The hot run crosses the barrier often and spends more of its steps in the deep well, as it should.</li>
+            <li class="fragment">Each cold run stays in the well where it started, so the two give different answers for the same system.</li>
+          </ul>
+          <aside class="notes">
+            The hot run is at $k_BT = 0.4$ and starts in the shallow well: about $3000$ crossings in $2 \times 10^5$ steps, and $72\%$ of the steps in the deep well against the exact $71\%$. Started in the deep well it gives $71\%$, so the start does not matter. The cold runs are at $k_BT = 0.05$, where the exact answer is $99.96\%$ in the deep well. In $2 \times 10^5$ steps the run from the shallow well crossed once and the run from the deep well never did; the figure shows the first $20000$ steps. Ask the class what went wrong before the next slide.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Why the cold run fails</h2>
+          <ul>
+            <li>To change wells the particle has to climb the barrier, which takes many uphill moves in a row.</li>
+            <li class="fragment">The chance of that is about $e^{-\Delta
+              E_b/k_BT}$, which is tiny when $k_BT \ll \Delta E_b$.</li>
+            <li class="fragment">The rule is still correct, and an
+              infinitely long run would give the right answer. A run of
+              practical length stays in the well where it started.</li>
+            <li class="fragment">The output does not show the problem. To
+              detect it, start several runs from different places and
+              compare them.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the estimate. The balance condition fixes the
+            ratio of the time spent near the top of the barrier to the
+            time spent at the bottom of the well as $e^{-\Delta
+            E_b/k_BT}$, and a crossing needs the particle to be at the
+            top. That factor is $0.13$ at $k_BT = 0.4$ and $10^{-7}$ at
+            $k_BT = 0.05$. This is the Arrhenius law of reaction rates.
+          </aside>
+        </section>
+
+        <!-- ============ Part II ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Simulated annealing</h2>
+          <p>Minimization by slow cooling</p>
+        </section>
+
+        <section>
+          <h2>A new goal</h2>
+          <p>Suppose we do not want the distribution at all. We want the
+            state of lowest energy.</p>
+          <ul>
+            <li class="fragment">As $T \to 0$ the Boltzmann distribution
+              puts the system in its lowest state, so a very cold run
+              should find it.</li>
+            <li class="fragment">A cold run slides down into the nearest
+              well and stays there, whether or not it is the deepest.</li>
+            <li class="fragment">A hot run crosses every barrier, and it
+              never settles anywhere.</li>
+          </ul>
+          <aside class="notes">
+            The first bullet is the ratio $P(s)/P(s_{\min}) = e^{-(E_s -
+            E_{\min})/k_BT} \to 0$. At exactly $T = 0$ the rule accepts
+            downhill moves only, which is a simple descent method and
+            stops at the first local minimum.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Annealing</h2>
+          <p>That a rapidly cooled system can get stuck in a local energy
+            minimum is a fact known <em>for centuries</em> <span class="fragment">by blacksmiths and glassworkers!</span></p>
+          <p class="fragment">The common strategy to mitigate this effect
+            is to heat the object to high temperatures and let it cool
+            down slowly. This process is called <em>annealing</em>, which
+            can remove internal stresses and help avoid forming defects
+            in the final product.</p>
+          <aside class="notes">
+            A blade quenched in water is hard and brittle, because the
+            atoms are frozen in a disordered arrangement of higher
+            energy. Reheated and cooled slowly, they find an ordered
+            arrangement of lower energy. Glass that is not annealed
+            keeps internal stresses and can shatter on its own.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Simulated annealing</h2>
+          <p>Do the same in the simulation. Start hot, and lower the temperature slowly during the run,
+            for example $T_n = T_0\, e^{-n/\tau}$.</p>
+          <img src="figures/anneal_trace.png" style="width: 70%; display: block; margin: 0 auto;" alt="The position of one particle in the double well during cooling, hopping between the wells while the temperature is high and settling in the deep well as the temperature falls">
+          <ul>
+            <li class="fragment">While it is hot the particle crosses the
+              barrier freely and spends more time in the deep well.</li>
+            <li class="fragment">When the crossings stop it is most likely
+              to be in the deep well, and it then settles to the
+              bottom.</li>
+          </ul>
+          <aside class="notes">
+            Kirkpatrick, Gelatt and Vecchi introduced the
+            numerical method in 1983. In the figure the temperature falls
+            from $k_BT = 1$ to $0.01$ with $\tau = 1000$ steps, and the last crossing is near step $1300$, where $k_BT$ is about $0.26$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The cooling time</h2>
+          <img src="figures/anneal_fraction.png" style="width: 56%; display: block; margin: 0 auto;" alt="The fraction of runs that end in the deep well against the cooling time, rising from about one half for fast cooling to above ninety percent for slow cooling">
+          <p>Many runs start at random positions and are cooled at different rates.</p>
+          <ul>
+            <li class="fragment">After a fast cooling about half of them are in each well, wherever they happened to start.</li>
+            <li class="fragment">A slow cooling brings most of them to the
+              deep well, but no cooling time makes the result
+              certain.</li>
+          </ul>
+          <aside class="notes">
+            Each point is $4000$ runs. The starting positions are uniform across both wells. With $\tau = 3$ steps $53\%$ end in the deep well, with $\tau = 100$ it is $69\%$, and with $\tau = 3000$ it is $91\%$. The fraction is decided at the
+            temperature where the crossings stop, and slower cooling
+            keeps them going down to a lower temperature, where the deep
+            well is more strongly preferred.
+          </aside>
+        </section>
+
+        <section>
+          <h2>The traveling salesman</h2>
+          <p>Given $N$ cities, find the shortest round trip that visits
+            each of them once.</p>
+          <ul>
+            <li class="fragment">There are $(N-1)!/2$ different tours, far
+              too many to try.</li>
+            <li class="fragment">The length of the tour plays the role of
+              the energy. It is not a physical energy, and the method
+              does not need it to be.</li>
+            <li class="fragment">The temperature is then a number we
+              choose and lower, with the units of a length.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the count: fix the starting city, order the
+            other $N-1$ in $(N-1)!$ ways, and divide by two because a
+            tour and its reverse have the same length. For $100$ cities
+            that is $5 \times 10^{155}$. No known algorithm finds the
+            best tour in a time that grows as a power of $N$. The same
+            substitution, cost for energy, turns annealing into a
+            general optimization method for problems where the
+            candidates are not numbers and no derivative exists.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>A move for tours</h2>
+          <img src="figures/tsp_move.png" style="width: 74%; display: block; margin: 0 auto;" alt="Six numbered cities. Before the move the tour visits them in the order 1 2 5 4 3 6 and two legs cross. After reversing the stretch 5 4 3 the order is 1 2 3 4 5 6 and the crossing is gone">
+          <ul>
+            <li>The state is the order in which the cities are visited. A
+              move reverses a stretch of that order.</li>
+            <li class="fragment">Only two legs of the tour change, so the
+              change in length $\Delta L$ is quick to compute.</li>
+            <li class="fragment">The move is made if $\Delta L \le 0$, and
+              with probability $e^{-\Delta L/T}$ otherwise.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION. If the tour reads $\dots a, b, \dots, c, d \dots$
+            and the stretch from $b$ to $c$ is reversed, it reads $\dots
+            a, c, \dots, b, d \dots$. The stretch itself has the same
+            length in both directions, so $\Delta L = d_{ac} + d_{bd} -
+            d_{ab} - d_{cd}$, where $d_{ij}$ is the distance between
+            cities $i$ and $j$. In the figure the legs $2$-$5$ and
+            $3$-$6$ are replaced by $2$-$3$ and $5$-$6$. The move is its
+            own inverse, so the proposal is symmetric. It can lengthen
+            the tour as well as shorten it.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Result for 100 cities</h2>
+          <video controls poster="figures/tsp_anneal_poster.png" style="width: 62%; display: block; margin: 0 auto;"><source src="figures/tsp_anneal.mp4" type="video/mp4"></video>
+          <p>Both runs start from the same random tour. Making downhill
+            moves only stops quickly at a tour that no single move can
+            shorten. The annealed tour ends about a tenth shorter.</p>
+          <aside class="notes">
+            The cities are random points in the unit square, and each run proposes $10^6$ moves. The movie samples the first $20000$ steps densely, which is where the downhill-only run does all of its work, and the rest more coarsely; the step counter at the top shows this. The random tour has length $46.1$,
+            downhill moves only give $8.71$, and annealing from $T = 0.5$
+            to $T = 0.002$ gives $7.66$, which is $12\%$ shorter. Over
+            five seeds the downhill-only runs average $8.16$ and the
+            annealed runs $7.67$, with a much smaller spread. The
+            starting temperature is above the typical $|\Delta L|$ of a
+            move on the random tour, $0.30$, so that most moves are made
+            at first. The same schedule squeezed into $2 \times 10^4$
+            steps gives $8.84$, no better than downhill moves only.
+            Neither tour is proven to be the best; in practice one runs
+            several times and keeps the shortest.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.8em;">
+            <li>For two levels, the hops up and down balance over a long
+              run, and that fixes the ratio of the two hopping
+              probabilities to be the Boltzmann factor. The Metropolis
+              rule is the fastest choice with that ratio.</li>
+            <li class="fragment">The same rule with a small random step
+              reproduces the Boltzmann distribution of a particle in a
+              well. A run needs a burn-in, and at low temperature it can stay trapped behind a barrier.</li>
+            <li class="fragment">Simulated annealing starts hot and cools
+              slowly to find a deep minimum, and it works for any cost
+              that can be computed, such as the length of a tour.</li>
+          </ul>
+          <p class="fragment why">Next time: Bayesian inference.</p>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 24</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

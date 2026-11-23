@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content=
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Computational Physics Lecture 25</title>
+    <link rel="stylesheet" href="../dist/reset.css">
+    <link rel="stylesheet" href="../dist/reveal.css">
+    <link rel="stylesheet" href="../dist/theme/phys4027.css"
+      id="theme">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+      /* Body text at the size the other decks use inline, heading unchanged. */
+      .reveal .slides section.compact { font-size: 0.78em; }
+      .reveal .slides section.compact h2 { font-size: calc(var(--r-heading2-size) / 0.78); }
+    </style>
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href=
+      "../plugin/highlight/monokai.css" id="highlight-theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section class="title-slide">
+          <p class="course-code">PHYS 4027 / 5027 &middot; Fall 2026 &middot; Lecture 25</p>
+          <h1>Bayesian inference</h1>
+          <hr class="title-rule">
+          <p class="author">Prof. Alex Chen</p>
+          <p class="affil">Department of Physics</p>
+          <p class="affil">Washington University in St. Louis</p>
+          <aside class="notes">
+            Part I starts from a fit that has no error bar, states Bayes'
+            theorem, works the medical test, and writes the likelihood of
+            data with Gaussian errors as $e^{-\chi^2/2}$. Part II says
+            what a sample of the posterior is and produces samples with
+            the Metropolis rule, which needs only the ratio of the
+            posterior at two sets of parameters, first for a thrown ball, where the exact answer is
+            known, and then for a decay on a background, where it is not.
+            The numbers in these notes are printed by make_figures.py.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Last time</h2>
+          <ul style="font-size: 0.8em;">
+            <li>The Metropolis rule makes a move that lowers the energy
+              always, and a move that raises it by $\Delta E$ with
+              probability $e^{-\Delta E/k_BT}$. This factor is the ratio of
+              the Boltzmann probabilities of the new state and the old
+              one.</li>
+            <li class="fragment">With a small random step as the move, the
+              rule reproduced the Boltzmann distribution of a particle in
+              a well. The run needed a burn-in, and it never used the
+              normalization of the distribution.</li>
+            <li class="fragment">Simulated annealing lowered the
+              temperature during the run to find the minimum of a
+              cost.</li>
+          </ul>
+          <p class="fragment why">Today the same rule is applied to a
+            different question, which is what a set of measurements says
+            about the parameters of a model.</p>
+        </section>
+
+        <!-- ============ Part I ============ -->
+
+        <section class="divider">
+          <h2>Part I &middot; Bayes' theorem</h2>
+          <p>The likelihood, the prior, and the posterior</p>
+        </section>
+
+        <section class="compact">
+          <h2>A thrown ball</h2>
+          <div style="display: flex; align-items: center; gap: 1.2em;">
+            <div style="flex: 1; text-align: left;">
+              <p>A ball is thrown up, and its height is measured 15 times,
+                each time with an error of $0.15$ m. A least-squares fit
+                of</p>
+              $$ y(t) = y_0 + v_0 t - \tfrac{1}{2} g t^2 $$
+              <p>gives $g = 9.90\ \mathrm{m/s^2}$.</p>
+              <ul>
+                <li class="fragment">Parabolas with other values of $g$
+                  also pass through the error bars.</li>
+                <li class="fragment">The fit returns one number. We want
+                  to know which values of $g$ the data allow, and how
+                  probable each of them is.</li>
+              </ul>
+            </div>
+            <img src="figures/ball_data.png" style="flex: 1.1; max-width: 50%;" alt="Fifteen measured heights of a thrown ball with error bars, the least-squares parabola with g = 9.90, and two other parabolas with g = 9.3 and g = 10.5 that also pass through most of the error bars">
+          </div>
+          <aside class="notes">
+            The data were generated with $y_0 = 1.2$ m, $v_0 = 9.0$ m/s,
+            $g = 9.81\ \mathrm{m/s^2}$ and Gaussian errors of $0.15$ m. The
+            dashed and dotted parabolas have $g$ fixed at $9.3$ and $10.5$
+            with $y_0$ and $v_0$ refitted. Their $\chi^2$ is $9.4$ and
+            $9.3$, against $4.8$ for the best fit, all for 15 points, so
+            none of the three can be excluded. Ask the class to guess the
+            uncertainty of $g$ from the figure before going on, and write
+            the guesses on the board.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Two conditional probabilities</h2>
+          <p>Write $\theta$ for the parameters of the model, here $(y_0,
+            v_0, g)$, and $D$ for the data. $P(A \mid B)$ is the
+            probability of $A$ given that $B$ is true.</p>
+          <ul>
+            <li class="fragment">The model gives $P(D \mid \theta)$. For
+              given parameters, it says how probable each outcome of the
+              measurement is.</li>
+            <li class="fragment">We want $P(\theta \mid D)$. For the data
+              that were measured, it says how probable each value of the
+              parameters is.</li>
+          </ul>
+          <p class="fragment why">These are different functions. Bayes'
+            theorem gives the second in terms of the first.</p>
+          <aside class="notes">
+            The first is a probability for data and is what every
+            simulation in this course computes: choose the parameters,
+            predict the outcome. The second is a probability for
+            parameters. Treating a parameter such as $g$ as something
+            that has a probability is the Bayesian point of view; $g$ has
+            one true value, and the probability describes our knowledge
+            of it.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Bayes' theorem</h2>
+          <p>The probability that $A$ and $B$ are both true can be
+            written in two ways,</p>
+          $$ P(A \text{ and } B) = P(A \mid B)\,P(B) = P(B \mid A)\,P(A) . $$
+          <p class="fragment">Dividing by $P(B)$ gives Bayes' theorem:</p>
+          <p class="fragment">
+          $$ P(A \mid B) = \frac{P(B \mid A)\,P(A)}{P(B)} . $$
+          </p>
+          <p class="fragment why">The theorem turns the probability of $B$
+            given $A$ into the probability of $A$ given $B$. It needs
+            $P(A)$, the probability of $A$ before anything is known about
+            $B$.</p>
+          <aside class="notes">
+            DERIVATION. The first line is the definition of the
+            conditional probability, $P(A \mid B) = P(A \text{ and }
+            B)/P(B)$, written once with $B$ as the condition and once
+            with $A$. Thomas Bayes's essay was published in 1763, after
+            his death; Laplace found the theorem independently and was
+            the first to use it on data, for the mass of Saturn among
+            other things.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Example: a medical test</h2>
+          <p>A test for a disease gives the right answer $99\%$ of the
+            time, for sick people and for healthy people alike. One
+            person in a thousand has the disease.</p>
+          <p class="fragment">You take the test and the result is
+            positive. What is the probability that you have the
+            disease?</p>
+          <aside class="notes">
+            Ask everyone to write down a number before the next slide,
+            and collect a few. Most people answer $99\%$. That number is
+            $P(+ \mid \text{sick})$, and the question asks for
+            $P(\text{sick} \mid +)$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Counting the positive tests</h2>
+          <p>Test $100{,}000$ people. Of the $100$ who are sick, $99$ test
+            positive. Of the $99{,}900$ who are healthy, $999$ test
+            positive.</p>
+          <img src="figures/test_counts.png" style="width: 62%; display: block; margin: 0 auto;" alt="A bar representing the 1098 positive tests among 100,000 people: a short segment of 99 sick people and a long segment of 999 healthy people">
+          <p class="fragment">Bayes' theorem gives the same answer:</p>
+          <p class="fragment">
+          $$
+          P(\text{sick} \mid +) = \frac{P(+ \mid \text{sick})\,P(\text{sick})}{P(+)}
+          = \frac{0.99 \times 0.001}{0.99 \times 0.001 + 0.01 \times 0.999} = 0.09 .
+          $$
+          </p>
+          <p class="fragment why">The disease is rare, so the healthy
+            people who test positive outnumber the sick people ten to
+            one.</p>
+          <aside class="notes">
+            The denominator $P(+)$ adds the two ways of testing positive:
+            sick and correctly detected, or healthy and wrongly flagged.
+            The counts give $99/1098 = 0.090$. If the same person takes a
+            second, independent test and it is positive again, the $9\%$
+            becomes the starting probability and the result is $0.99
+            \times 0.090 / (0.99 \times 0.090 + 0.01 \times 0.910) =
+            0.91$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The prior, the likelihood, and the posterior</h2>
+          <p>With the parameters $\theta$ in place of $A$ and the data $D$
+            in place of $B$,</p>
+          $$ P(\theta \mid D) = \frac{P(D \mid \theta)\,P(\theta)}{P(D)} . $$
+          <ul>
+            <li class="fragment">$P(\theta)$ is called the <em>prior</em>.
+              It is what we know about the parameters before the
+              measurement. For the test it was the one in a thousand.</li>
+            <li class="fragment">$P(D \mid \theta)$ is called the
+              <em>likelihood</em>. It is the probability that the model
+              gives to the data that were measured. For the test it was
+              the $99\%$.</li>
+            <li class="fragment">$P(\theta \mid D)$ is called the
+              <em>posterior</em>. It is what we know about the parameters
+              after the measurement. For the test it was the $9\%$.</li>
+          </ul>
+          <aside class="notes">
+            In the test the parameter has two values, sick and healthy,
+            and the data are the result of the test. For the ball the
+            parameters are three continuous numbers and all three
+            probabilities become probability densities. The posterior of
+            one measurement is the prior of the next, as in the second
+            test of the previous note.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The likelihood of one measurement</h2>
+          <div style="display: flex; align-items: center; gap: 1.2em;">
+            <div style="flex: 1; text-align: left;">
+              <p>At the time $t_i$ the model predicts $y(t_i; \theta)$,
+                and the measured value $y_i$ differs from it by an
+                error.</p>
+              <p class="fragment">If the error is Gaussian with a known
+                width $\sigma$, the probability of measuring $y_i$ is</p>
+              <p class="fragment">
+              $$
+              P(y_i \mid \theta) = \frac{1}{\sqrt{2\pi}\,\sigma}
+              \exp\!\left[-\frac{\big(y_i - y(t_i;\theta)\big)^2}{2\sigma^2}\right] .
+              $$
+              </p>
+            </div>
+            <img src="figures/likelihood_point.png" style="flex: 1.05; max-width: 48%;" alt="A model curve against time. At the time of one measurement a Gaussian of width sigma is drawn around the predicted value, and the measured value lies inside it, a little above the prediction">
+          </div>
+          <aside class="notes">
+            The width $\sigma$ is the error bar of the instrument, $0.15$
+            m for the ball. The formula is a probability density in
+            $y_i$. A different error law changes this one formula and
+            nothing after it; counts in a detector, for example, follow
+            a Poisson distribution.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The likelihood of all the measurements</h2>
+          <p>The errors of different measurements are independent, so
+            the probabilities multiply:</p>
+          $$
+          P(D \mid \theta) = \prod_i P(y_i \mid \theta) \;\propto\;
+          e^{-\chi^2(\theta)/2},
+          \qquad
+          \chi^2(\theta) = \sum_i \frac{\big(y_i - y(t_i;\theta)\big)^2}{\sigma^2} .
+          $$
+          <ul>
+            <li class="fragment">$\chi^2$ is the sum of the squared
+              misfits, each measured in units of the error bar. It is the
+              quantity that a least-squares fit minimizes.</li>
+            <li class="fragment">The least-squares parameters are
+              therefore the parameters for which the measured data are
+              most probable.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION. A product of exponentials is the exponential of
+            the sum of the exponents, which is $-\chi^2/2$. The
+            prefactors multiply to $(2\pi\sigma^2)^{-N/2}$, which does
+            not depend on $\theta$ and is dropped. If the measurements
+            have different error bars, each term of the sum is divided
+            by its own $\sigma_i^2$. Maximizing the likelihood is
+            minimizing $\chi^2$, so least squares is the method of
+            maximum likelihood for Gaussian errors.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The normalization</h2>
+          $$
+          P(\theta \mid D) = \frac{e^{-\chi^2(\theta)/2}\,P(\theta)}{P(D)},
+          \qquad
+          P(D) = \int e^{-\chi^2(\theta)/2}\,P(\theta)\,d\theta .
+          $$
+          <ul>
+            <li class="fragment">The numerator is easy to compute for any
+              one $\theta$. It takes one evaluation of the model.</li>
+            <li class="fragment">The denominator is an integral over all
+              values of all the parameters. With more than a few
+              parameters it cannot be done on a grid.</li>
+            <li class="fragment">The ratio of the posterior at two values
+              of $\theta$ does not contain $P(D)$, and it costs two
+              evaluations of the model.</li>
+          </ul>
+          <aside class="notes">
+            DERIVATION of the denominator: the posterior must integrate
+            to one over $\theta$, which fixes $P(D)$ as the integral of
+            the numerator. It is called the evidence. A grid with $100$
+            points for each of $d$ parameters needs $100^d$ evaluations
+            of the model, which is $10^6$ for the ball and $10^{20}$ for
+            a model with ten parameters. The ball is small enough that a
+            grid would work, and that is why it is the test case.
+          </aside>
+        </section>
+
+        <!-- ============ Part II ============ -->
+
+        <section class="divider">
+          <h2>Part II &middot; Sampling the posterior</h2>
+          <p>The Metropolis rule in the space of the parameters</p>
+        </section>
+
+        <section class="compact">
+          <h2>Samples of the posterior</h2>
+          <p>A <em>sample</em> of the posterior is one set of parameters
+            $(y_0, v_0, g)$, drawn at random with probability
+            $P(\theta \mid D)$. In a long list of samples, the values
+            that the data favour appear often, and the values that the
+            data exclude do not appear.</p>
+          <img src="figures/sample_list.png" style="width: 44%; display: block; margin: 0 auto;" alt="On the left a table with columns y0, v0 and g, in which each row is one sample and the g column is highlighted. An arrow leads to a histogram of the g column on the right, a bell shape between about 9.0 and 10.7 metres per second squared">
+          <ul>
+            <li class="fragment">The histogram of the $g$ column is the
+              posterior of $g$. The mean of the column is the estimate of
+              $g$, and its standard deviation is the error.</li>
+          </ul>
+          <p class="fragment why">The task is to produce such a list from
+            a posterior that is known only up to the constant $P(D)$.</p>
+          <aside class="notes">
+            The question on the first slide of the ball, which values of
+            $g$ the data allow and how probable each is, asks for $P(g
+            \mid D) = \int\!\!\int P(\theta \mid D)\,dy_0\,dv_0$. The
+            estimate and the error of $g$ are two more integrals over
+            all three parameters. With a list of $N$ samples
+            $\theta_k$, every such integral becomes an average over the
+            list, $\langle f \rangle \approx \frac{1}{N}\sum_k
+            f(\theta_k)$, and the integral over $y_0$ and $v_0$ is done
+            by ignoring those two columns. The six rows in the figure
+            are real samples for the ball, and the histogram uses about
+            $2000$ of them. Let the class see that the list answers the
+            question before saying where the list comes from.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The Metropolis rule gives the samples</h2>
+          <p>The Metropolis rule works for any probability distribution
+            that is known up to a constant. For the posterior, a move
+            from $\theta$ to $\theta'$ is made with probability</p>
+          $$
+          \min\!\left(1,\ \frac{P(\theta' \mid D)}{P(\theta \mid D)}\right),
+          \qquad
+          \frac{P(\theta' \mid D)}{P(\theta \mid D)} =
+          \frac{e^{-\chi^2(\theta')/2}\,P(\theta')}{e^{-\chi^2(\theta)/2}\,P(\theta)} .
+          $$
+          <ul>
+            <li class="fragment">The constant $P(D)$ cancels in the ratio,
+              so a move needs only $\chi^2$ and the prior at the two sets
+              of parameters.</li>
+            <li class="fragment">With a flat prior, in which every value
+              of the parameters is equally probable before the
+              measurement, the ratio is $e^{-\Delta\chi^2/2}$. A move that
+              lowers $\chi^2$ is always made.</li>
+            <li class="fragment"><strong>The states that the rule visits,
+              one for each step, are the list of samples of the
+              posterior.</strong></li>
+          </ul>
+          <aside class="notes">
+            DERIVATION. By Bayes' theorem with the Gaussian likelihood,
+            each posterior is $e^{-\chi^2/2}\,P(\theta)/P(D)$ with the
+            same $P(D)$, which cancels in the ratio. With a flat prior
+            $P(\theta') = P(\theta)$, and the ratio is
+            $e^{-[\chi^2(\theta') - \chi^2(\theta)]/2}$. For a Boltzmann
+            distribution the same ratio is $e^{-\Delta E/k_BT}$, the
+            form of the rule on the "Last time" slide, and there the
+            constant that cancelled was the partition function. When a
+            move is not made, the current $\theta$ is written to the
+            list again. Leaving the repeats out would give too little
+            weight to the probable values. This slide is the central
+            idea of the lecture: the rule turns a posterior that can
+            only be compared at two points into a list of samples.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The chain for the projectile experiment</h2>
+          <img src="figures/ball_chain.png" style="width: 68%; display: block; margin: 0 auto;" alt="The value of g against step number for the first 6000 steps of the chain. It starts at 5, climbs to about 10 within a few hundred steps, and then fluctuates around 10; the first 2000 steps are shaded and labelled burn-in">
+          <ul>
+            <li>The prior is flat, and a move adds a small random step
+              to each of $y_0$, $v_0$ and $g$.</li>
+            <li class="fragment">The chain starts from a poor guess for
+              the parameters and walks downhill in $\chi^2$ until it
+              reaches the values that the data allow.</li>
+            <li class="fragment">After that it wanders around the best
+              fit. The first $2000$ steps are discarded as burn-in.</li>
+          </ul>
+          <aside class="notes">
+            The steps are Gaussian, with widths $0.04$ m, $0.10$ m/s
+            and $0.10\ \mathrm{m/s^2}$. Each parameter has its own
+            width because the parameters have different units and
+            different uncertainties. The widths were found by trial so
+            that roughly a third of the moves are made, and the run
+            makes $29\%$ of them. Each step costs one evaluation of the
+            model. The start is $y_0 = 0$, $v_0 = 5$ m/s, $g = 5\
+            \mathrm{m/s^2}$, where $\chi^2 = 3344$. The chain is within a
+            few units of the minimum $\chi^2$ after about $400$ steps;
+            $2000$ are discarded to be safe, out of $4 \times 10^5$. The
+            figure shows $g$ only, and the histories of $y_0$ and $v_0$
+            look the same. The slow wandering after the burn-in is
+            visible in the figure: successive states are correlated over
+            about $250$ steps.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>What the chain gives</h2>
+          <div style="display: flex; align-items: center; gap: 0.8em; justify-content: center;">
+            <img src="figures/ball_samples.png" style="width: 31%;" alt="The fifteen data points with eighty parabolas drawn from the chain, forming a narrow band through the error bars">
+            <img src="figures/ball_hist.png" style="width: 31%;" alt="The histogram of g over the chain, a bell shape centred near 9.9 and extending from about 9.2 to 10.6">
+          </div>
+          <ul>
+            <li>Each state of the chain is one parabola, and together
+              the states show the parabolas that the data allow.</li>
+            <li class="fragment">The histogram of $g$ over the chain is
+              the posterior of $g$. Its mean and standard deviation give
+              $g = 9.90 \pm 0.28\ \mathrm{m/s^2}$.</li>
+            <li class="fragment">The histogram counts every state,
+              whatever its $y_0$ and $v_0$, so the error of $g$ includes
+              the uncertainty of the other two parameters.</li>
+          </ul>
+          <aside class="notes">
+            The left panel draws $80$ states picked at random from the
+            chain. $68\%$ of the samples of $g$ lie between $9.62$ and
+            $10.18$, and the true value $9.81$ is inside. Histogramming
+            one parameter and ignoring the others integrates the
+            posterior over the others; this is called marginalization,
+            and with samples it costs nothing. The chain has $4 \times
+            10^5$ states but only about $1600$ independent ones, which
+            still fixes the mean of $g$ to $0.28/\sqrt{1600} = 0.007$.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Check against least squares</h2>
+          <div style="display: flex; align-items: center; gap: 1.2em;">
+            <div style="flex: 1.1; text-align: left;">
+              <p>The model of the ball is linear in its parameters, so
+                $\chi^2$ is exactly quadratic in $\theta$ and the
+                posterior is exactly a Gaussian. Its covariance matrix
+                is</p>
+              $$ \mathbf{C} = \sigma^2 \left(\mathbf{A}^T \mathbf{A}\right)^{-1} , $$
+              <p>where $\mathbf{A}$ is the matrix of the least-squares
+                problem.</p>
+              <ul>
+                <li class="fragment">The formula gives $0.283\
+                  \mathrm{m/s^2}$ for the standard deviation of $g$, and
+                  the chain gives $0.282$.</li>
+                <li class="fragment">The chain did not use the formula.
+                  Each step compared $\chi^2$ at two sets of
+                  parameters.</li>
+              </ul>
+            </div>
+            <img src="figures/ball_check.png" style="flex: 1; max-width: 46%;" alt="The histogram of g over the chain with the exact Gaussian from the least-squares covariance drawn over it; the two agree">
+          </div>
+          <aside class="notes">
+            DERIVATION. The model is $\mathbf{A}\theta$ with rows $(1,\
+            t_i,\ -t_i^2/2)$, so $\chi^2 = |\mathbf{A}\theta -
+            \mathbf{y}|^2/\sigma^2$. Let $\hat\theta$ be the
+            least-squares solution, for which $\mathbf{A}^T(\mathbf{A}
+            \hat\theta - \mathbf{y}) = 0$. Writing $\mathbf{A}\theta -
+            \mathbf{y} = (\mathbf{A}\hat\theta - \mathbf{y}) +
+            \mathbf{A}(\theta - \hat\theta)$ and squaring, the cross
+            term vanishes by that condition, and $\chi^2 =
+            \chi^2_{\min} + (\theta - \hat\theta)^T \mathbf{A}^T
+            \mathbf{A}\,(\theta - \hat\theta)/\sigma^2$ exactly. Then
+            $e^{-\chi^2/2}$ is a Gaussian with $\mathbf{C}^{-1} =
+            \mathbf{A}^T\mathbf{A}/\sigma^2$, and the diagonal of
+            $\mathbf{C}$ holds the variances. Chain against formula:
+            $y_0 = 1.235 \pm 0.102$ in both, $v_0 = 9.033 \pm 0.263$
+            against $9.034 \pm 0.264$, $g = 9.901 \pm 0.282$ against
+            $9.902 \pm 0.283$. The correlation of $v_0$ and $g$ is
+            $0.96$ in both.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>A decay on a background</h2>
+          <div style="display: flex; align-items: center; gap: 1.2em;">
+            <div style="flex: 1.15; text-align: left;">
+              <p>A signal decays exponentially on top of a constant
+                background,</p>
+              $$ y(t) = A\,e^{-t/\tau} + B . $$
+              <ul>
+                <li class="fragment">The lifetime $\tau$ enters
+                  nonlinearly, so no matrix formula gives the parameters
+                  or their errors.</li>
+                <li class="fragment">The prior says what is physically
+                  possible, $A > 0$, $\tau > 0$ and $B \ge 0$, and makes
+                  every allowed value equally probable. A move to a
+                  forbidden value is refused.</li>
+                <li class="fragment">The sampler is otherwise unchanged,
+                  with $\chi^2$ computed from the new model.</li>
+              </ul>
+            </div>
+            <img src="figures/decay_data.png" style="flex: 1; max-width: 44%;" alt="Twenty measurements with error bars of a signal that falls from about 12 at time zero to about 3.5 at time 4 and is still falling at the end">
+          </div>
+          <aside class="notes">
+            The data are $20$ points up to $t = 4$, generated with $A =
+            10$, $\tau = 2$, $B = 2$ and Gaussian errors of $0.4$, so
+            they cover two lifetimes. The count rate of a radioactive
+            sample in a detector with a background is such a system. A
+            flat prior on the allowed region means $P(\theta)$ is a
+            constant inside it and zero outside, so the ratio is zero
+            for a move to a forbidden state and the move is never made. The
+            run also caps $\tau$ at $20$ so that the prior can be
+            normalized; the chain never comes near it.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>The corner plot</h2>
+          <div style="display: flex; align-items: center; gap: 1.2em;">
+            <img src="figures/decay_corner.png" style="flex: 1; max-width: 43%;" alt="A triangular array of panels for the parameters A, tau and B. The diagonal panels are histograms of each parameter; the histogram of tau has a longer tail toward large values. The panels below the diagonal show pairs of parameters with contours: A and tau rise together, while A and B, and tau and B, fall along narrow bands">
+            <div style="flex: 1; text-align: left;">
+              <ul>
+                <li>The chain is a cloud of points in the space of $(A,
+                  \tau, B)$. A corner plot shows it one parameter and one
+                  pair at a time.</li>
+                <li class="fragment">Each panel on the diagonal is the
+                  histogram of one parameter.</li>
+                <li class="fragment">Each panel below the diagonal shows
+                  two parameters against each other. The contours
+                  enclose $68\%$ and $95\%$ of the states.</li>
+                <li class="fragment">The histogram of $\tau$ has a longer
+                  tail on one side, so the result is quoted with two
+                  errors, $\tau = 2.07^{+0.34}_{-0.27}$.</li>
+              </ul>
+            </div>
+          </div>
+          <aside class="notes">
+            The run is $10^6$ steps with step widths $0.25$, $0.15$ and
+            $0.25$, and $24\%$ of the moves are made. The quoted value
+            is the median, and the errors reach to the 16th and 84th
+            percentiles, so that $68\%$ of the states lie inside. The
+            other two are $A = 10.12^{+0.60}_{-0.51}$ and $B =
+            1.89^{+0.58}_{-0.72}$, and the true values $10$, $2$ and $2$
+            are inside all three intervals. A Gaussian posterior would
+            give ellipses in every lower panel and symmetric histograms.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>Correlated parameters</h2>
+          <img src="figures/decay_pair.png" style="width: 64%; display: block; margin: 0 auto;" alt="Left: the states of the chain in the plane of tau and B form a narrow band running from short tau and high B to long tau and low B, with one state marked at each end. Right: the decay curves of those two states over the data; they agree up to time 4, where the data end, and separate afterwards toward different backgrounds">
+          <ul>
+            <li>The states lie along a narrow band in the plane of $\tau$
+              and $B$. A long lifetime with a low background fits the
+              data as well as a short lifetime with a high
+              background.</li>
+            <li class="fragment">The two curves are states from opposite
+              ends of the band. They agree where there are data and
+              separate afterwards.</li>
+            <li class="fragment">The data stop before the signal has
+              reached the background, and that is why the two parameters
+              cannot be told apart.</li>
+          </ul>
+          <aside class="notes">
+            The correlation coefficient of $\tau$ and $B$ over the chain
+            is $-0.96$. The marked states are $(A, \tau, B) = (11.4,
+            2.77, 0.46)$ with $\chi^2 = 19.5$ and $(9.2, 1.65, 2.91)$
+            with $\chi^2 = 17.0$; the smallest $\chi^2$ in the chain is
+            $14.0$, for $20$ points. Quoting $\tau$ and $B$ with
+            separate errors loses this information, because the two
+            errors are not independent. The plot also tells the
+            experimenter what to do next, which is to keep measuring
+            until the signal is flat.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>A prior from an earlier measurement</h2>
+          <p>Suppose the background was measured beforehand with the
+            source removed, with the result $B = 2.0 \pm 0.2$. That
+            knowledge is the prior, a Gaussian in $B$.</p>
+          <img src="figures/prior_effect.png" style="width: 60%; display: block; margin: 0 auto;" alt="Left: the plane of tau and B. The states of the chain with a flat prior form a long narrow band. A horizontal strip marks the measured value of B, and the states of the chain with the new prior fill only the short piece of the band inside the strip. Right: the posterior of tau, broad with the flat prior and less than half as wide with the prior from the measured B">
+          <ul>
+            <li class="fragment">With a flat prior the data allow the
+              whole band. The measured $B$ keeps only the part of the
+              band that lies near $B = 2.0$.</li>
+            <li class="fragment">$\tau$ and $B$ are correlated, so knowing
+              $B$ better also fixes $\tau$ better. The posterior of
+              $\tau$ becomes less than half as wide.</li>
+          </ul>
+          <aside class="notes">
+            The purpose of the slide is one statement: knowledge from
+            outside the data enters through the prior, and here it
+            narrows $\tau$ because of the correlation on the previous
+            slide. DERIVATION of the change to the sampler: the prior is
+            now $P(\theta) \propto e^{-(B - 2.0)^2/(2 \times 0.2^2)}$,
+            so the ratio of the priors at the two sets of parameters
+            multiplies $e^{-\Delta\chi^2/2}$ in the rule. It is the same
+            factor that one more data point, a measurement of $B$, would
+            contribute through $\chi^2$. The result is $\tau =
+            2.07^{+0.34}_{-0.27}$ with the flat prior and $2.01 \pm
+            0.12$ with the measured background. If asked whether the
+            prior always matters: with $80$ measurements that follow
+            the signal out to $t = 20$, the data alone give $B = 2.03
+            \pm 0.06$, better than the earlier measurement, and $\tau =
+            1.95 \pm 0.08$ with either prior. A result that depends on
+            the prior should say which prior was used.
+          </aside>
+        </section>
+
+        <section class="compact">
+          <h2>A corner plot from research</h2>
+          <div style="display: flex; align-items: center; gap: 1.2em;">
+            <img src="figures/corner_pulsar.png" style="flex: 1; max-width: 42%;" alt="A corner plot with eight parameters: a triangular array of twenty-eight contour panels below a diagonal of eight histograms, each histogram labelled with its 68 percent interval">
+            <div style="flex: 1; text-align: left;">
+              <ul>
+                <li>This is the posterior of a model of a pulsar with
+                  eight parameters, fitted to X-ray data.</li>
+                <li class="fragment">It is read like the plot for three
+                  parameters. The diagonal gives each parameter with
+                  its error, and the panels below show which pairs are
+                  correlated.</li>
+                <li class="fragment">Packages such as <code>emcee</code>
+                  and <code>PyMC</code> provide the sampler. The user
+                  supplies the likelihood and the prior.</li>
+              </ul>
+            </div>
+          </div>
+          <aside class="notes">
+            The parameters include the distance $D$, the viewing angle
+            $i$, and the column of absorbing hydrogen $N_{\rm H}$. Each
+            evaluation of the likelihood computes the X-ray pulse shape
+            that the model predicts and compares it with the measured
+            one, so the cost of the chain is the cost of the model
+            times the number of steps. In the diagonal panels the
+            dashed curves are the priors, which shows at a glance which
+            parameters the data constrained.
+          </aside>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <ul style="font-size: 0.8em;">
+            <li>Bayes' theorem turns the probability of the data given
+              the parameters into the probability of the parameters given
+              the data. The posterior is proportional to the likelihood
+              times the prior.</li>
+            <li class="fragment">For Gaussian errors the likelihood is
+              $e^{-\chi^2/2}$. The Metropolis rule needs only the ratio
+              of the posterior at two sets of parameters, so it produces
+              samples of the posterior without the normalization
+              $P(D)$.</li>
+            <li class="fragment">The histogram of one parameter over the
+              chain gives its value and its error, and the corner plot
+              shows which parameters are correlated. An earlier
+              measurement enters through the prior and narrows the
+              posterior.</li>
+          </ul>
+        </section>
+
+      </div>
+      <div class="deck-footer">PHYS 4027 &middot; Fall 2026 &middot; Lecture 25</div>
+    </div>
+    <script src="../dist/reveal.js"></script>
+    <script src="../plugin/math/math.js"></script>
+    <script src="../plugin/notes/notes.js"></script>
+    <script src="../plugin/markdown/markdown.js"></script>
+    <script src="../plugin/highlight/highlight.js"></script>
+
+    <script>
+      Reveal.initialize({
+        transition: "fade",
+        slideNumber: true,
+        history: true,
+        center: true,
+        // Fixed logical canvas; reveal scales it to fit any screen or
+        // projector (this is what makes the deck responsive).
+        width: 1280,
+        height: 720,
+        margin: 0.06,
+        hash: true,
+        // Keep every slide laid out (visibility:hidden, not display:none)
+        // so MathJax measures correct widths on first typeset. Without
+        // this, math on slides beyond the default viewDistance of 3
+        // overflows until a refresh on that slide.
+        viewDistance: 999,
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          TeX: { Macros: { RR: "{\\bf R}" } }
+        },
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath ]
+      });
+      Reveal.configure({
+        keyboard: {
+          81: null, // Do not respond to Q
+        }
+      });
+    </script>
+  </body>
+</html>

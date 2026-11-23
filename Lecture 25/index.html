@@ -613,6 +613,45 @@
           </aside>
         </section>
 
+        <section style="font-size: 0.92em;">
+          <h2>The forward model</h2>
+          <p>The <em>forward model</em> is the computation that takes a
+            set of parameters $\theta$ and predicts the data,
+            $y(t_i; \theta)$. Every $\chi^2$ in the chain needs one run
+            of it.</p>
+          <ul>
+            <li class="fragment">In the two examples the forward model is
+              a formula. In research it is usually a simulation, such as
+              the solution of a differential equation for the given
+              parameters.</li>
+            <li class="fragment">A chain of a million steps runs the
+              forward model a million times, so the speed of the forward
+              model decides how long a chain can be.</li>
+            <li class="fragment">The posterior assumes that the forward
+              model is right. An error in the forward model becomes an
+              error in the parameters, and the error bars do not show
+              it.</li>
+          </ul>
+          <p class="fragment why">In a research problem most of the work
+            goes into the forward model, and the sampler stays the
+            same.</p>
+          <aside class="notes">
+            The chain for the thrown ball evaluated its parabola $4
+            \times 10^5$ times and the chain for the decay evaluated
+            its exponential $10^6$ times, each in about a microsecond,
+            which is why the cost was never mentioned. If one run of
+            the forward model takes one second, $10^6$ steps take
+            twelve days. An orbit fitted to observed positions is an
+            example: every proposed set of masses and initial
+            conditions needs the equations of motion integrated over
+            the whole span of the observations. The standard test of a
+            forward model together with its sampler is the one both
+            examples used. Generate data from the forward model with
+            known parameters, add noise, and check that the posterior
+            contains the known values.
+          </aside>
+        </section>
+
         <section class="compact">
           <h2>A corner plot from research</h2>
           <div style="display: flex; align-items: center; gap: 1.2em;">
@@ -627,7 +666,8 @@
                   correlated.</li>
                 <li class="fragment">Packages such as <code>emcee</code>
                   and <code>PyMC</code> provide the sampler. The user
-                  supplies the likelihood and the prior.</li>
+                  supplies the forward model, the likelihood and the
+                  prior.</li>
               </ul>
             </div>
           </div>
@@ -660,6 +700,9 @@
               shows which parameters are correlated. An earlier
               measurement enters through the prior and narrows the
               posterior.</li>
+            <li class="fragment">Every step of the chain runs the forward
+              model once. In research the forward model is usually a
+              simulation, and it has to be correct and fast.</li>
           </ul>
         </section>
 
